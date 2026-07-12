@@ -17,7 +17,16 @@ export default defineConfig(({ mode }) => {
         '/supabase-api': {
           target: supabaseUrl,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/supabase-api/, '')
+          rewrite: (path) => path.replace(/^\/supabase-api/, ''),
+          configure: (proxy, _options) => {
+            proxy.on('proxyReq', (proxyReq, _req, _res) => {
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
+              proxyReq.removeHeader('sec-fetch-mode');
+              proxyReq.removeHeader('sec-fetch-site');
+              proxyReq.removeHeader('sec-fetch-dest');
+            });
+          }
         }
       }
     }
