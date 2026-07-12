@@ -18,25 +18,29 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Locking in itinerary items and pitching voting — existing
 - ✓ Multi-currency expense ledger and logging — existing
 - ✓ Automatic poll nudging and majority threshold alerts — existing
+- ✓ Set up clean Git tracking for GSD planning documents — v1.0
+- ✓ Initialize a React + Vite + Vanilla CSS webapp in the workspace — v1.0 (Phase 1)
+- ✓ Webapp: View trips list and trip details (destination, dates, participants/members) — v1.0 (Phase 3)
+- ✓ Webapp: Choose active participant and add new participant with auto-login — v1.0 (Phase 4)
 
 ### Active
 
-- [ ] Set up clean Git tracking for GSD planning documents
-- [ ] Initialize a React + Vite + Vanilla CSS webapp in the workspace
-- [ ] Webapp: View trips list and trip details (destination, dates, participants/members)
-- [ ] Webapp: Option to choose which participant to join the app as, or add a new participant to the trip (no user authentication in v1)
+- [ ] Edit trip details (change destination, update dates) directly from the webapp
+- [ ] Suggest/pitch new trip options (flights, hotels) through the webapp
+- [ ] Cast votes on pitched options via webapp buttons
+- [ ] Log expenses and see the trip ledger through the webapp
 
 ### Out of Scope
 
-- [ ] Webapp editing of trip metadata (dates, destinations, base currency) in v1 — deferred to keep scope focused
+- [ ] Webapp editing of trip metadata in v1 — deferred to keep scope focused
 - [ ] Direct webapp booking or reservation integration — out of scope
 - [ ] Full password-based or OAuth authentication in v1 — deferred in favor of simple public/shared link access with participant selection
 
 ## Context
 
-- The codebase is an asynchronous Python Telegram Bot (`main.py`) powered by `python-telegram-bot`, PostgreSQL (via Supabase client), and `openexchangerates` for currency conversion.
-- The DB tables exist in Supabase (`trips`, `rsvps`, `poll_options`, `users`, etc.).
-- A web application needs to run alongside the bot, accessing the same Supabase database.
+- Shipped **v1.0 Web App Foundations** featuring a React + Vite + Vanilla CSS client application connecting dynamically to a Supabase PostgreSQL backend.
+- The web app is structured into clean separation layers: database services (`web/src/services/`) and React custom fetching/mutation hooks (`web/src/hooks/`).
+- Views are completely styled with a premium glassmorphic Slate Dark Theme.
 
 ## Constraints
 
@@ -48,8 +52,12 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| React + Vite + Vanilla CSS for Web | User choice for modern, fast single-page app | — Pending |
-| Participant Selection/Addition instead of Auth | Simplicity for v1, allows quick onboarding via shared link | — Pending |
+| React + Vite + Vanilla CSS for Web | User choice for modern, fast single-page app | ✓ Good (Phase 1 setup successful) |
+| Participant Selection/Addition instead of Auth | Simplicity for v1, allows quick onboarding via shared link | ✓ Good (Phase 4 setup successful) |
+| Encapsulated postgrest query services & custom hooks | Clean architectural abstraction separating logic from UI views | ✓ Good (Phase 2 setup successful) |
+| Negative `telegram_id` values for web users | Completely avoids collision risks with real Telegram User IDs | ✓ Good (Phase 2 setup successful) |
+| Combined auto-load + manual refresh buttons | Simple way to display Telegram bot updates without real-time sockets | ✓ Good (Phase 3 setup successful) |
+| Blocking profile modal selector | Restricts dynamic actions to a selected active profile session | ✓ Good (Phase 4 setup successful) |
 
 ## Evolution
 
@@ -69,4 +77,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-10 after initialization*
+*Last updated: 2026-07-12 after v1.0 MVP milestone completion*
