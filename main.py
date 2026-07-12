@@ -1,7 +1,9 @@
 import os
 import re
+import html
 import json
 import asyncio
+import logging
 from urllib.request import urlopen
 from urllib.error import URLError
 from datetime import datetime, timedelta, timezone
@@ -29,8 +31,112 @@ from telegram.ext import (
     PollAnswerHandler,
 )
 
+# Configure logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
+# ---------------------------------------------------------------------------
+# UI & UX Formatting Central Registry
+# ---------------------------------------------------------------------------
+
+_UX_EMOJIS = {
+    # Categories
+    "accommodation": "🏠",
+    "flights": "✈️",
+    "flight": "✈️",
+    "activities": "🎟️",
+    "activity": "🎟️",
+    "food": "🍴",
+    "transport": "🚗",
+    "transportation": "🚗",
+    "other": "✨",
+    
+    # Modules / Headers
+    "roster": "📋",
+    "budget": "📊",
+    "ledger": "🧾",
+    "itinerary": "📅",
+    
+    # Status Indicators
+    "success": "✅",
+    "warning": "⚠️",
+    "info": "ℹ️"
+}
+
+def _escape(text: str) -> str:
+    """
+    Safely escapes HTML special characters to prevent Telegram API parsing exceptions.
+    """
+    if not text:
+        return ""
+    return html.escape(text)
+
+# ---------------------------------------------------------------------------
+# Error Resilience & DB Hardening Helpers
+# ---------------------------------------------------------------------------
+
+async def _safe_db_call(query_fn, fallback=None):
+    """
+    Executes a Supabase query synchronously in a thread pool using asyncio.to_thread,
+    performing up to 3 retry attempts with exponential backoff on transient errors.
+    """
+    attempts = 3
+    delay = 1.0
+    backoff_multiplier = 2.0
+
+    for attempt in range(attempts):
+        try:
+            # Delegate blocking sync database call to thread pool
+            result = await asyncio.to_thread(query_fn)
+            return result
+        except Exception as e:
+            logger.error(f"Database query failed on attempt {attempt + 1}: {e}", exc_info=True)
+            if attempt == attempts - 1:
+                break
+            await asyncio.sleep(delay)
+            delay *= backoff_multiplier
+
+    return fallback
+
+async def _send_db_error_message(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    callback_query=None
+) -> None:
+    """
+    Replies or edits message text with a standardized premium HTML database error block.
+    """
+    error_text = (
+        "⚠️ <b>Database Connection Issue</b>\n\n"
+        "We are currently having trouble communicating with our database server. "
+        "Your request could not be completed at this time.\n\n"
+        "Please wait a moment and try your action again."
+    )
+    try:
+        if callback_query:
+            await callback_query.answer("Database connection issue. Please retry.", show_alert=True)
+            try:
+                await callback_query.edit_message_text(
+                    text=error_text,
+                    parse_mode="HTML"
+                )
+            except Exception:
+                if update.effective_chat:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=error_text,
+                        parse_mode="HTML"
+                    )
+        elif update.effective_message:
+            await update.effective_message.reply_html(text=error_text)
+    except Exception as e:
+        logger.error(f"Failed to output database error message: {e}", exc_info=True)
+
 
 # ---------------------------------------------------------------------------
 # Poll nudge thresholds
@@ -186,22 +292,21 @@ ACTION_PAID   = "paid"
 # Shared DB Helpers
 # ---------------------------------------------------------------------------
 
-def get_db_user_id(telegram_id: int) -> str | None:
+async def get_db_user_id(telegram_id: int) -> str | None:
     """
     Looks up a user's internal DB id by their Telegram id.
     Returns None if the user is not found.
     """
-    try:
-        result = (
-            supabase.table("users")
-            .select("id")
-            .eq("telegram_id", telegram_id)
-            .single()
-            .execute()
-        )
-        return result.data["id"]
-    except Exception:
-        return None
+    result = await _safe_db_call(
+        lambda: supabase.table("users")
+        .select("id")
+        .eq("telegram_id", telegram_id)
+        .single()
+        .execute()
+    )
+    if result and result.data:
+        return result.data.get("id")
+    return None
 
 
 async def get_trip_context(
@@ -219,17 +324,14 @@ async def get_trip_context(
     chat = update.effective_chat
 
     if chat.type in ["group", "supergroup"]:
-        try:
-            result = (
-                supabase.table("trips")
-                .select("id, title")
-                .eq("group_chat_id", chat.id)
-                .execute()
-            )
-        except Exception:
-            await update.message.reply_text(
-                "⚠️ Couldn't reach the database. Please try again in a moment."
-            )
+        result = await _safe_db_call(
+            lambda: supabase.table("trips")
+            .select("id, title")
+            .eq("group_chat_id", chat.id)
+            .execute()
+        )
+        if result is None:
+            await _send_db_error_message(update, context)
             return None, ""
 
         if not result.data:
@@ -239,26 +341,23 @@ async def get_trip_context(
         return result.data[0]["id"], result.data[0].get("title", "")
 
     # --- PM fallback ---
-    db_user_id = get_db_user_id(update.effective_user.id)
+    db_user_id = await get_db_user_id(update.effective_user.id)
     if not db_user_id:
         await update.message.reply_text(
             "You don't have an account yet. Join a trip group first!"
         )
         return None, ""
 
-    try:
-        rsvp_q = (
-            supabase.table("rsvps")
-            .select("trip_id")
-            .eq("user_id", db_user_id)
-            .order("id", desc=True)
-            .limit(1)
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't reach the database. Please try again in a moment."
-        )
+    rsvp_q = await _safe_db_call(
+        lambda: supabase.table("rsvps")
+        .select("trip_id")
+        .eq("user_id", db_user_id)
+        .order("id", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if rsvp_q is None:
+        await _send_db_error_message(update, context)
         return None, ""
 
     if not rsvp_q.data:
@@ -269,17 +368,17 @@ async def get_trip_context(
 
     trip_id = rsvp_q.data[0]["trip_id"]
 
-    try:
-        title_q = (
-            supabase.table("trips")
-            .select("title")
-            .eq("id", trip_id)
-            .single()
-            .execute()
-        )
-        title = title_q.data["title"]
-    except Exception:
+    title_q = await _safe_db_call(
+        lambda: supabase.table("trips")
+        .select("title")
+        .eq("id", trip_id)
+        .single()
+        .execute()
+    )
+    if title_q is None or not title_q.data:
         title = ""
+    else:
+        title = title_q.data.get("title", "")
 
     return trip_id, title
 
@@ -494,7 +593,7 @@ async def get_currency(update: Update, context: ContextTypes.DEFAULT_TYPE):
     end_date      = context.user_data["end_date"]
 
     user_id    = update.effective_user.id
-    db_user_id = get_db_user_id(user_id)
+    db_user_id = await get_db_user_id(user_id)
     if not db_user_id:
         await update.message.reply_text(
             "⚠️ Couldn't find your account. Please try /start first."
@@ -715,28 +814,29 @@ async def _get_user_trips(tg_user_id: int) -> list[dict]:
     ordered newest first. Each dict has: id, title, destination, start_date, end_date.
     Returns [] on any error.
     """
-    db_user_id = get_db_user_id(tg_user_id)
+    db_user_id = await get_db_user_id(tg_user_id)
     if not db_user_id:
         return []
-    try:
-        rsvp_q = (
-            supabase.table("rsvps")
-            .select("trip_id, trips(id, title, destination, start_date, end_date)")
-            .eq("user_id", db_user_id)
-            .neq("status", "Declined")
-            .order("id", desc=True)
-            .execute()
-        )
-        trips = []
-        seen  = set()
-        for row in rsvp_q.data or []:
-            t = row.get("trips")
-            if t and t["id"] not in seen:
-                seen.add(t["id"])
-                trips.append(t)
-        return trips
-    except Exception:
+    
+    rsvp_q = await _safe_db_call(
+        lambda: supabase.table("rsvps")
+        .select("trip_id, trips(id, title, destination, start_date, end_date)")
+        .eq("user_id", db_user_id)
+        .neq("status", "Declined")
+        .order("id", desc=True)
+        .execute()
+    )
+    if not rsvp_q or not rsvp_q.data:
         return []
+        
+    trips = []
+    seen  = set()
+    for row in rsvp_q.data:
+        t = row.get("trips")
+        if t and t["id"] not in seen:
+            seen.add(t["id"])
+            trips.append(t)
+    return trips
 
 
 async def _launch_wizard(
@@ -824,6 +924,11 @@ async def _start_wizard_pm(
     • 1 trip   → skip switcher, launch wizard immediately
     • ≥2 trips → show trip-picker keyboard, return TRIP_SELECT
     """
+    # FIX: Clear any stale wizard state from a previous abandoned flow
+    for key in list(context.user_data.keys()):
+        if key.startswith("wiz_"):
+            del context.user_data[key]
+
     trips = await _get_user_trips(update.effective_user.id)
 
     if not trips:
@@ -990,7 +1095,7 @@ async def handle_rsvp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await query.answer(
-        f"✅ Got it, {query.from_user.first_name}! Your RSVP is locked as: {status}",
+        f"✅ RSVP Locked! Got it, {query.from_user.first_name}! Your RSVP is locked as: {status}",
         show_alert=True,
     )
 
@@ -1004,17 +1109,14 @@ async def roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trip_id:
         return
 
-    try:
-        roster_q = (
-            supabase.table("rsvps")
-            .select("status, users(first_name)")
-            .eq("trip_id", trip_id)
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't fetch the roster right now. Please try again."
-        )
+    roster_q = await _safe_db_call(
+        lambda: supabase.table("rsvps")
+        .select("status, users(first_name)")
+        .eq("trip_id", trip_id)
+        .execute()
+    )
+    if roster_q is None:
+        await _send_db_error_message(update, context)
         return
 
     committed, tentative, declined = [], [], []
@@ -1028,21 +1130,22 @@ async def roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif s == "Declined":
             declined.append(name)
 
-    message = f"📋 <b>Current Roster for {destination}</b>\n\n"
+    r_emoji = _UX_EMOJIS.get("roster", "📋")
+    message = f"{r_emoji} <b>Current Roster for {_escape(destination)}</b>\n\n"
     message += f"🎒 <b>I'm In ({len(committed)}):</b>\n"
     message += (
-        "\n".join(f"- {n}" for n in committed) if committed else "- None yet"
+        "\n".join(f"• <b>{_escape(n)}</b>" for n in committed) if committed else "• None yet"
     )
     message += "\n\n"
 
     if tentative:
         message += f"🤔 <b>Maybe ({len(tentative)}):</b>\n"
-        message += "\n".join(f"- {n}" for n in tentative)
+        message += "\n".join(f"• <b>{_escape(n)}</b>" for n in tentative)
         message += "\n\n"
 
     if declined:
         message += f"❌ <b>Out ({len(declined)}):</b>\n"
-        message += "\n".join(f"- {n}" for n in declined)
+        message += "\n".join(f"• <b>{_escape(n)}</b>" for n in declined)
 
     await update.message.reply_text(message, parse_mode="HTML")
 
@@ -1079,17 +1182,14 @@ async def add_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat.type not in ["group", "supergroup"]:
         return await _start_wizard_pm(update, context, ACTION_ADDOPT)
 
-    try:
-        trip_q = (
-            supabase.table("trips")
-            .select("id")
-            .eq("group_chat_id", chat.id)
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't reach the database. Please try again."
-        )
+    trip_q = await _safe_db_call(
+        lambda: supabase.table("trips")
+        .select("id")
+        .eq("group_chat_id", chat.id)
+        .execute()
+    )
+    if trip_q is None:
+        await _send_db_error_message(update, context)
         return
 
     if not trip_q.data:
@@ -1519,7 +1619,7 @@ async def finalize_vote(
         filter_note = f"\n📋 All <b>{len(chosen_options)}</b> options included"
 
     await update.message.reply_text(
-        f"✅ Sending the poll to the group now!{filter_note}",
+        f"✅ <b>Poll Published!</b>\nSending the poll to the group now!{filter_note}",
         reply_markup=ReplyKeyboardRemove(),
         parse_mode="HTML",
     )
@@ -1698,51 +1798,48 @@ async def check_gaps(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Resolve full trip_data (needs dates, not just id)
     trip_data = None
     if chat.type in ["group", "supergroup"]:
-        try:
-            trip_q = (
-                supabase.table("trips")
-                .select("id, start_date, end_date, title")
-                .eq("group_chat_id", chat.id)
-                .execute()
-            )
-        except Exception:
-            await update.message.reply_text("⚠️ Couldn't reach the database. Please try again.")
+        trip_q = await _safe_db_call(
+            lambda: supabase.table("trips")
+            .select("id, start_date, end_date, title")
+            .eq("group_chat_id", chat.id)
+            .execute()
+        )
+        if trip_q is None:
+            await _send_db_error_message(update, context)
             return
         if not trip_q.data:
             await update.message.reply_text("This group isn't linked to a trip yet!")
             return
         trip_data = trip_q.data[0]
     else:
-        db_user_id = get_db_user_id(update.effective_user.id)
+        db_user_id = await get_db_user_id(update.effective_user.id)
         if not db_user_id:
             return
-        try:
-            rsvp_q = (
-                supabase.table("rsvps")
-                .select("trip_id")
-                .eq("user_id", db_user_id)
-                .order("id", desc=True)
-                .limit(1)
-                .execute()
-            )
-        except Exception:
-            await update.message.reply_text("⚠️ Couldn't reach the database. Please try again.")
+        rsvp_q = await _safe_db_call(
+            lambda: supabase.table("rsvps")
+            .select("trip_id")
+            .eq("user_id", db_user_id)
+            .order("id", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if rsvp_q is None:
+            await _send_db_error_message(update, context)
             return
         if not rsvp_q.data:
             return
         trip_id = rsvp_q.data[0]["trip_id"]
-        try:
-            trip_q = (
-                supabase.table("trips")
-                .select("id, start_date, end_date, title")
-                .eq("id", trip_id)
-                .single()
-                .execute()
-            )
-            trip_data = trip_q.data
-        except Exception:
-            await update.message.reply_text("⚠️ Couldn't reach the database. Please try again.")
+        trip_q = await _safe_db_call(
+            lambda: supabase.table("trips")
+            .select("id, start_date, end_date, title")
+            .eq("id", trip_id)
+            .single()
+            .execute()
+        )
+        if trip_q is None:
+            await _send_db_error_message(update, context)
             return
+        trip_data = trip_q.data
 
     coverage = await _accommodation_coverage(trip_data["id"], trip_data)
     if coverage is None:
@@ -1854,23 +1951,21 @@ async def ledger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trip_id:
         return
 
-    try:
-        expenses_q = (
-            supabase.table("expenses")
-            .select("amount, description, users(first_name)")
-            .eq("trip_id", trip_id)
-            .order("created_at")
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't fetch expenses right now. Please try again."
-        )
+    expenses_q = await _safe_db_call(
+        lambda: supabase.table("expenses")
+        .select("amount, description, users(first_name)")
+        .eq("trip_id", trip_id)
+        .order("created_at")
+        .execute()
+    )
+    if expenses_q is None:
+        await _send_db_error_message(update, context)
         return
 
+    l_emoji = _UX_EMOJIS.get("ledger", "🧾")
     if not expenses_q.data:
         await update.message.reply_text(
-            f"📊 <b>Ledger: {title}</b>\n\n"
+            f"{l_emoji} <b>Shared Ledger: {_escape(title)}</b>\n\n"
             "No expenses logged yet! Use <code>/paid</code> to start.",
             parse_mode="HTML",
         )
@@ -1881,22 +1976,22 @@ async def ledger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     receipt_lines = []
 
     for row in expenses_q.data:
-        name = row["users"]["first_name"]
+        name = _escape(row["users"]["first_name"])
         amount = float(row["amount"])
-        desc = row["description"]
+        desc = _escape(row["description"])
         total_spent += amount
         user_totals[name] = user_totals.get(name, 0) + amount
         receipt_lines.append(f"• <b>{name}</b>: ${amount:.2f} ({desc})")
 
     message = (
-        f"📊 <b>Shared Ledger: {title}</b>\n"
+        f"{l_emoji} <b>Shared Ledger: {_escape(title)}</b>\n"
         f"<b>Total Group Spend: ${total_spent:.2f}</b>\n\n"
         "📝 <b>Itemized List:</b>\n"
         + "\n".join(receipt_lines)
         + "\n\n<b>👤 Total Paid by Person:</b>\n"
     )
     for name, total in sorted(user_totals.items(), key=lambda x: x[1], reverse=True):
-        message += f"- {name}: ${total:.2f}\n"
+        message += f"• <b>{name}</b>: ${total:.2f}\n"
 
     await update.message.reply_text(message, parse_mode="HTML")
 
@@ -1910,18 +2005,15 @@ async def settle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trip_id:
         return
 
-    try:
-        roster_q = (
-            supabase.table("rsvps")
-            .select("user_id, users(first_name)")
-            .eq("trip_id", trip_id)
-            .eq("status", "Committed")
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't fetch roster data. Please try again."
-        )
+    roster_q = await _safe_db_call(
+        lambda: supabase.table("rsvps")
+        .select("user_id, users(first_name)")
+        .eq("trip_id", trip_id)
+        .eq("status", "Committed")
+        .execute()
+    )
+    if roster_q is None:
+        await _send_db_error_message(update, context)
         return
 
     if not roster_q.data:
@@ -1936,17 +2028,14 @@ async def settle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     num_people = len(balances)
 
-    try:
-        expenses_q = (
-            supabase.table("expenses")
-            .select("paid_by, amount")
-            .eq("trip_id", trip_id)
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't fetch expense data. Please try again."
-        )
+    expenses_q = await _safe_db_call(
+        lambda: supabase.table("expenses")
+        .select("paid_by, amount")
+        .eq("trip_id", trip_id)
+        .execute()
+    )
+    if expenses_q is None:
+        await _send_db_error_message(update, context)
         return
 
     for exp in expenses_q.data:
@@ -1983,7 +2072,7 @@ async def settle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         creditor = creditors[j]
         amount_to_pay = min(debtor["amount"], creditor["amount"])
         transactions.append(
-            f"💸 <b>{debtor['name']}</b> owes <b>{creditor['name']}</b>: ${amount_to_pay:.2f}"
+            f"• <b>{_escape(debtor['name'])}</b> owes <b>{_escape(creditor['name'])}</b>: ${amount_to_pay:.2f}"
         )
         debtor["amount"] -= amount_to_pay
         creditor["amount"] -= amount_to_pay
@@ -2014,25 +2103,27 @@ async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trip_id:
         return
 
-    try:
-        trip_q = (
-            supabase.table("trips")
-            .select("base_currency")
-            .eq("id", trip_id)
-            .single()
-            .execute()
-        )
-        base_currency = trip_q.data.get("base_currency") or "USD"
+    trip_q = await _safe_db_call(
+        lambda: supabase.table("trips")
+        .select("base_currency")
+        .eq("id", trip_id)
+        .single()
+        .execute()
+    )
+    if trip_q is None:
+        await _send_db_error_message(update, context)
+        return
+    base_currency = trip_q.data.get("base_currency") or "USD"
 
-        roster_q = (
-            supabase.table("rsvps")
-            .select("id")
-            .eq("trip_id", trip_id)
-            .eq("status", "Committed")
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text("⚠️ Couldn't fetch trip data. Please try again.")
+    roster_q = await _safe_db_call(
+        lambda: supabase.table("rsvps")
+        .select("id")
+        .eq("trip_id", trip_id)
+        .eq("status", "Committed")
+        .execute()
+    )
+    if roster_q is None:
+        await _send_db_error_message(update, context)
         return
 
     num_committed = len(roster_q.data)
@@ -2042,19 +2133,20 @@ async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    try:
-        itin_q = (
-            supabase.table("master_itinerary")
-            .select("title, cost_type, estimated_cost, currency")
-            .eq("trip_id", trip_id)
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text("⚠️ Couldn't fetch itinerary data. Please try again.")
+    itin_q = await _safe_db_call(
+        lambda: supabase.table("master_itinerary")
+        .select("title, cost_type, estimated_cost, currency")
+        .eq("trip_id", trip_id)
+        .execute()
+    )
+    if itin_q is None:
+        await _send_db_error_message(update, context)
         return
 
+    b_emoji = _UX_EMOJIS.get("budget", "📊")
     if not itin_q.data:
         await update.message.reply_text(
+            f"{b_emoji} <b>Shared Budget: {_escape(title)}</b>\n\n"
             "No costs locked into the itinerary yet. Use <code>/lock_master</code> to build the budget!",
             parse_mode="HTML",
         )
@@ -2102,13 +2194,13 @@ async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
             group_total += cost
             split_cost   = cost / num_committed
             breakdown_lines.append(
-                f"• {item['title']}: {_fmt(cost, base_currency)} total{orig_note}"
+                f"• <b>{_escape(item['title'])}</b>: {_fmt(cost, base_currency)} total{orig_note}"
                 f" ({_fmt(split_cost, base_currency)}/pp)"
             )
         elif item["cost_type"] == "Per Person":
             per_person_total += cost
             breakdown_lines.append(
-                f"• {item['title']}: {_fmt(cost, base_currency)}/pp{orig_note}"
+                f"• <b>{_escape(item['title'])}</b>: {_fmt(cost, base_currency)}/pp{orig_note}"
             )
 
     group_split   = group_total / num_committed
@@ -2116,7 +2208,7 @@ async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     base_sym      = _ISO_TO_SYMBOL.get(base_currency, base_currency)
 
     message = (
-        f"📊 <b>Estimated Budget: {title}</b>\n"
+        f"{b_emoji} <b>Estimated Budget: {_escape(title)}</b>\n"
         f"<i>({num_committed} committed travelers · base currency: {base_currency} {base_sym})</i>\n\n"
         f"<b>Group Shared Costs:</b> {_fmt(group_total, base_currency)}\n"
         "<b>Per Person Breakdown:</b>\n"
@@ -2140,60 +2232,44 @@ async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /itinerary
 # ---------------------------------------------------------------------------
 
-CATEGORY_EMOJI = {
-    "accommodation": "🏠",
-    "flight": "✈️",
-    "flights": "✈️",
-    "transportation": "✈️",
-    "food": "🍔",
-    "dinner": "🍔",
-    "lunch": "🍔",
-    "breakfast": "🍔",
-    "activity": "🎟️",
-    "excursion": "🎟️",
-}
-
-
 async def itinerary(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trip_id, title = await get_trip_context(update, context)
     if not trip_id:
         return
 
-    try:
-        itin_q = (
-            supabase.table("master_itinerary")
-            .select("*")
-            .eq("trip_id", trip_id)
-            .order("start_date")
-            .execute()
-        )
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't fetch the itinerary right now. Please try again."
-        )
+    itin_q = await _safe_db_call(
+        lambda: supabase.table("master_itinerary")
+        .select("*")
+        .eq("trip_id", trip_id)
+        .order("start_date")
+        .execute()
+    )
+    if itin_q is None:
+        await _send_db_error_message(update, context)
         return
 
+    i_emoji = _UX_EMOJIS.get("itinerary", "📅")
     if not itin_q.data:
         await update.message.reply_text(
-            f"🗓️ <b>Itinerary for {title}</b>\n\n"
+            f"{i_emoji} <b>Itinerary for {_escape(title)}</b>\n\n"
             "Nothing locked in yet! Use <code>/lock_master</code> to start building the schedule.",
             parse_mode="HTML",
         )
         return
 
-    message = f"🗓️ <b>Official Itinerary: {title}</b>\n\n"
+    message = f"{i_emoji} <b>Official Itinerary: {_escape(title)}</b>\n\n"
 
     for item in itin_q.data:
         cat = item["category"].capitalize()
         name = item["title"]
         s_date = datetime.strptime(item["start_date"], "%Y-%m-%d").strftime("%b %d")
         e_date = datetime.strptime(item["end_date"], "%Y-%m-%d").strftime("%b %d")
-        emoji = CATEGORY_EMOJI.get(item["category"].lower(), "📍")
+        emoji = _UX_EMOJIS.get(item["category"].lower(), "📍")
 
         if s_date == e_date:
-            message += f"{emoji} <b>{cat}:</b> {name}\n📅 {s_date}\n\n"
+            message += f"{emoji} <b>{_escape(cat)}:</b> {_escape(name)}\n📅 {s_date}\n\n"
         else:
-            message += f"{emoji} <b>{cat}:</b> {name}\n📅 {s_date} to {e_date}\n\n"
+            message += f"{emoji} <b>{_escape(cat)}:</b> {_escape(name)}\n📅 {s_date} to {e_date}\n\n"
 
     await update.message.reply_text(message, parse_mode="HTML")
 
@@ -2437,13 +2513,13 @@ async def wiz_addopt_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     end_date = context.user_data["wiz_end"]
     link = context.user_data.get("wiz_link")
 
-    db_user_id = get_db_user_id(update.effective_user.id)
+    db_user_id = await get_db_user_id(update.effective_user.id)
     if not db_user_id:
         await update.message.reply_text("⚠️ Couldn't find your account. Please try again.")
         return ConversationHandler.END
 
-    try:
-        supabase.table("poll_options").insert(
+    res = await _safe_db_call(
+        lambda: supabase.table("poll_options").insert(
             {
                 "trip_id":        trip_id,
                 "category":       cat,
@@ -2456,14 +2532,13 @@ async def wiz_addopt_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "added_by":       db_user_id,
             }
         ).execute()
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't save your option. Please try again."
-        )
+    )
+    if res is None:
+        await _send_db_error_message(update, context)
         return ConversationHandler.END
 
     # Build a summary for the user
-    summary_parts = [f"✅ <b>{name}</b> saved!"]
+    summary_parts = [f"✅ <b>Option Pitch Saved!</b>\n<b>{_escape(name)}</b> has been saved."]
     if start_date:
         s = start_date.strftime("%b %d")
         e = end_date.strftime("%b %d")
@@ -2589,13 +2664,13 @@ async def wiz_paid_desc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trip_id = context.user_data["wiz_trip_id"]
     amount = context.user_data["wiz_amount"]
 
-    db_user_id = get_db_user_id(update.effective_user.id)
+    db_user_id = await get_db_user_id(update.effective_user.id)
     if not db_user_id:
         await update.message.reply_text("⚠️ Couldn't find your account. Please try again.")
         return ConversationHandler.END
 
-    try:
-        supabase.table("expenses").insert(
+    res = await _safe_db_call(
+        lambda: supabase.table("expenses").insert(
             {
                 "trip_id": trip_id,
                 "paid_by": db_user_id,
@@ -2603,23 +2678,25 @@ async def wiz_paid_desc(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "description": desc,
             }
         ).execute()
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't save your expense. Please try again."
-        )
+    )
+    if res is None:
+        await _send_db_error_message(update, context)
         return ConversationHandler.END
 
-    await update.message.reply_text(f"✅ Saved! You logged ${amount:.2f} for {desc}.")
+    await update.message.reply_text(
+        f"✅ <b>Expense Logged!</b>\nYou logged ${amount:.2f} for <b>{_escape(desc)}</b>.",
+        parse_mode="HTML"
+    )
 
     # Announce to group
-    try:
-        group_q = (
-            supabase.table("trips")
-            .select("group_chat_id")
-            .eq("id", trip_id)
-            .execute()
-        )
-        if group_q.data and group_q.data[0]["group_chat_id"]:
+    group_q = await _safe_db_call(
+        lambda: supabase.table("trips")
+        .select("group_chat_id")
+        .eq("id", trip_id)
+        .execute()
+    )
+    if group_q and group_q.data and group_q.data[0]["group_chat_id"]:
+        try:
             await context.bot.send_message(
                 chat_id=group_q.data[0]["group_chat_id"],
                 text=(
@@ -2629,8 +2706,8 @@ async def wiz_paid_desc(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ),
                 parse_mode="HTML",
             )
-    except Exception:
-        pass  # Non-fatal
+        except Exception:
+            pass  # Non-fatal
 
     return ConversationHandler.END
 
@@ -2877,7 +2954,7 @@ async def finalize_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cost          = context.user_data["wiz_cost"]
     cost_currency = context.user_data.get("wiz_cost_currency") or context.user_data.get("wiz_base_currency") or "USD"
 
-    db_user_id = get_db_user_id(update.effective_user.id)
+    db_user_id = await get_db_user_id(update.effective_user.id)
     if not db_user_id:
         await update.message.reply_text("⚠️ Couldn't find your account. Please try again.")
         return ConversationHandler.END
@@ -2887,21 +2964,22 @@ async def finalize_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pre_coverage = None
     trip_row_for_coverage = None
     if is_acc:
-        try:
-            tq = (
-                supabase.table("trips")
-                .select("id, start_date, end_date, title, organizer_id")
-                .eq("id", trip_id)
-                .single()
-                .execute()
-            )
+        tq = await _safe_db_call(
+            lambda: supabase.table("trips")
+            .select("id, start_date, end_date, title, organizer_id")
+            .eq("id", trip_id)
+            .single()
+            .execute()
+        )
+        if tq:
             trip_row_for_coverage = tq.data
-            pre_coverage = await _accommodation_coverage(trip_id, trip_row_for_coverage)
-        except Exception:
-            pass
+            try:
+                pre_coverage = await _accommodation_coverage(trip_id, trip_row_for_coverage)
+            except Exception:
+                pass
 
-    try:
-        supabase.table("master_itinerary").insert(
+    res = await _safe_db_call(
+        lambda: supabase.table("master_itinerary").insert(
             {
                 "trip_id":        trip_id,
                 "category":       cat,
@@ -2914,27 +2992,27 @@ async def finalize_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "locked_by":      db_user_id,
             }
         ).execute()
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ Couldn't save the itinerary item. Please try again."
-        )
+    )
+    if res is None:
+        await _send_db_error_message(update, context)
         return ConversationHandler.END
 
     await update.message.reply_text(
-        "✅ Locked in! The budget and itinerary have been updated."
+        "✅ <b>Itinerary Item Locked!</b>\nThe budget and itinerary have been updated with your locked item.",
+        parse_mode="HTML"
     )
 
     # ── Announce to group ──────────────────────────────────────────────────
-    try:
-        group_q = (
-            supabase.table("trips")
-            .select("group_chat_id, organizer_id")
-            .eq("id", trip_id)
-            .execute()
-        )
-        if not (group_q.data and group_q.data[0]["group_chat_id"]):
-            return ConversationHandler.END
+    group_q = await _safe_db_call(
+        lambda: supabase.table("trips")
+        .select("group_chat_id, organizer_id")
+        .eq("id", trip_id)
+        .execute()
+    )
+    if group_q is None or not (group_q.data and group_q.data[0]["group_chat_id"]):
+        return ConversationHandler.END
 
+    try:
         group_chat_id = group_q.data[0]["group_chat_id"]
         organizer_id  = group_q.data[0].get("organizer_id")
 
@@ -3150,11 +3228,25 @@ async def setup_global_commands(app) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Global Error Handler
+# ---------------------------------------------------------------------------
+
+async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Log exceptions and present a clean database/system warning alert to users.
+    """
+    logger.error("Exception while handling update:", exc_info=context.error)
+    if isinstance(update, Update):
+        await _send_db_error_message(update, context)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main():
     app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).post_init(setup_global_commands).build()
+    app.add_error_handler(global_error_handler)
 
     # New Trip creation flow (/new_trip in PM)
     new_trip_handler = ConversationHandler(
@@ -3195,7 +3287,14 @@ def main():
             VOTE_CAT:      [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_vote_cat)],
             VOTE_DATES:    [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_vote_dates)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start",       wizard_router),
+            CommandHandler("add_option",  add_option,   filters=filters.ChatType.PRIVATE),
+            CommandHandler("lock_master", lock_master,  filters=filters.ChatType.PRIVATE),
+            CommandHandler("vote",        vote,         filters=filters.ChatType.PRIVATE),
+            CommandHandler("paid",        paid,         filters=filters.ChatType.PRIVATE),
+        ],
     )
 
     # Register conversation handlers first (highest priority)
