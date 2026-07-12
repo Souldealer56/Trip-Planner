@@ -25,6 +25,10 @@ export default defineConfig(({ mode }) => {
               proxyReq.removeHeader('sec-fetch-mode');
               proxyReq.removeHeader('sec-fetch-site');
               proxyReq.removeHeader('sec-fetch-dest');
+              proxyReq.removeHeader('sec-ch-ua');
+              proxyReq.removeHeader('sec-ch-ua-mobile');
+              proxyReq.removeHeader('sec-ch-ua-platform');
+              proxyReq.setHeader('user-agent', 'node-fetch/1.0');
             });
           }
         }
