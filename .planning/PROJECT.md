@@ -8,6 +8,16 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
+## Current Milestone: v1.1 Bot Capabilities & Improvements
+
+**Goal:** Review and enhance the Telegram bot's capabilities, focusing on UX, voting, RSVPs, and error resilience.
+
+**Target features:**
+- General UX/UI enhancements (better messages, emojis, clearer formatting)
+- Option pitching and voting improvements (richer details, multi-option voting, deadlines)
+- RSVP and Roster tracking enhancements (reminders, auto-nudging, custom status)
+- Error handling and connection resilience (retry policies, better crash logs)
+
 ## Requirements
 
 ### Validated
@@ -24,6 +34,13 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Webapp: Choose active participant and add new participant with auto-login — v1.0 (Phase 4)
 
 ### Active
+
+- [ ] Telegram Bot: General UX/UI enhancements (messages, formatting, emojis)
+- [ ] Telegram Bot: Option pitching and voting improvements (richer details, multi-option voting, deadlines)
+- [ ] Telegram Bot: RSVP and Roster tracking enhancements (reminders, auto-nudging, custom status)
+- [ ] Telegram Bot: Error handling and connection resilience (retry policies, crash logs)
+
+### Deferred to Future Milestones
 
 - [ ] Edit trip details (change destination, update dates) directly from the webapp
 - [ ] Suggest/pitch new trip options (flights, hotels) through the webapp
@@ -77,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-12 after v1.0 MVP milestone completion*
+*Last updated: 2026-07-12 after v1.1 milestone initialization*

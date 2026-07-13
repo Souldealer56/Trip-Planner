@@ -139,11 +139,13 @@ async def _send_db_error_message(
 
 
 # ---------------------------------------------------------------------------
-# Poll nudge thresholds
+# Poll nudge thresholds & background configuration
 # ---------------------------------------------------------------------------
-STALE_POLL_HOURS       = 48    # hours before a low-participation poll is nudged
-STALE_PARTICIPATION    = 0.50  # nudge if fewer than 50% of committed voters have voted
-MAJORITY_THRESHOLD     = 0.60  # nudge organiser once ≥ 60% of committed voters have voted
+STALE_POLL_HOURS                  = 48    # hours before a low-participation poll is nudged
+STALE_PARTICIPATION               = 0.50  # nudge if fewer than 50% of committed voters have voted
+MAJORITY_THRESHOLD                = 0.60  # nudge organiser once ≥ 60% of committed voters have voted
+RSVP_NUDGE_INTERVAL_HOURS         = 24    # interval between RSVP nudges to the group
+BACKGROUND_CHECK_INTERVAL_SECONDS = 3600  # run check loop hourly
 
 # ---------------------------------------------------------------------------
 # Currency helpers
@@ -275,7 +277,7 @@ def _convert(amount: float, from_iso: str, to_iso: str, rates: dict) -> float | 
 TITLE, DESTINATION, DATES, BASE_CURRENCY = range(4)
 
 # Wizard States
-ADD_OPT_CAT, ADD_OPT_NAME, ADD_OPT_DATES, ADD_OPT_LINK, ADD_OPT_PRICE = range(10, 15)
+ADD_OPT_CAT, ADD_OPT_NAME, ADD_OPT_DESC, ADD_OPT_DATES, ADD_OPT_LINK, ADD_OPT_PRICE = range(10, 16)
 PAID_AMOUNT, PAID_DESC = range(15, 17)
 LOCK_CAT, LOCK_TITLE, LOCK_DATES = range(17, 20)
 LOCK_COST_TYPE, LOCK_COST = range(20, 22)
@@ -1111,7 +1113,7 @@ async def roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     roster_q = await _safe_db_call(
         lambda: supabase.table("rsvps")
-        .select("status, users(first_name)")
+        .select("status, notes, users(first_name)")
         .eq("trip_id", trip_id)
         .execute()
     )
@@ -1122,32 +1124,115 @@ async def roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     committed, tentative, declined = [], [], []
     for row in roster_q.data:
         name = row["users"]["first_name"]
+        note = row.get("notes")
         s = row["status"]
         if s == "Committed":
-            committed.append(name)
+            committed.append((name, note))
         elif s == "Tentative":
-            tentative.append(name)
+            tentative.append((name, note))
         elif s == "Declined":
-            declined.append(name)
+            declined.append((name, note))
+
+    def _format_member_line(name, note):
+        line = f"• <b>{_escape(name)}</b>"
+        if note:
+            line += f" (📝 <i>{_escape(note)}</i>)"
+        return line
 
     r_emoji = _UX_EMOJIS.get("roster", "📋")
     message = f"{r_emoji} <b>Current Roster for {_escape(destination)}</b>\n\n"
     message += f"🎒 <b>I'm In ({len(committed)}):</b>\n"
     message += (
-        "\n".join(f"• <b>{_escape(n)}</b>" for n in committed) if committed else "• None yet"
+        "\n".join(_format_member_line(n, nt) for n, nt in committed) if committed else "• None yet"
     )
     message += "\n\n"
 
     if tentative:
         message += f"🤔 <b>Maybe ({len(tentative)}):</b>\n"
-        message += "\n".join(f"• <b>{_escape(n)}</b>" for n in tentative)
+        message += "\n".join(_format_member_line(n, nt) for n, nt in tentative)
         message += "\n\n"
 
     if declined:
         message += f"❌ <b>Out ({len(declined)}):</b>\n"
-        message += "\n".join(f"• <b>{_escape(n)}</b>" for n in declined)
+        message += "\n".join(_format_member_line(n, nt) for n, nt in declined)
 
     await update.message.reply_text(message, parse_mode="HTML")
+
+
+async def rsvp_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    trip_id, _ = await get_trip_context(update, context)
+    if not trip_id:
+        return
+
+    note_text = " ".join(context.args).strip()
+    if not note_text:
+        await update.message.reply_text(
+            "⚠️ Usage: <code>/rsvp_notes &lt;your notes here&gt;</code>\n"
+            "Example: <code>/rsvp_notes Gluten-free, arriving Friday night</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    db_user_id = await get_db_user_id(update.effective_user.id)
+    if not db_user_id:
+        await update.message.reply_text("⚠️ Couldn't find your account. Please try again.")
+        return
+
+    res = await _safe_db_call(
+        lambda: supabase.table("rsvps")
+        .upsert(
+            {
+                "trip_id": trip_id,
+                "user_id": db_user_id,
+                "notes": note_text,
+                "status": "Interested"
+            },
+            on_conflict="trip_id, user_id"
+        )
+        .execute()
+    )
+    if res is None:
+        await _send_db_error_message(update, context)
+        return
+
+    await update.message.reply_text(
+        f"✅ <b>RSVP Note Saved!</b>\nYour note has been updated for this trip:\n<i>{_escape(note_text)}</i>",
+        parse_mode="HTML"
+    )
+
+
+async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    poll_answer = update.poll_answer
+    poll_id = poll_answer.poll_id
+    tg_user_id = poll_answer.user.id
+    selected_options = poll_answer.option_ids
+
+    active_poll = await _safe_db_call(
+        lambda: supabase.table("active_polls")
+        .select("id, voter_ids")
+        .eq("telegram_poll_id", poll_id)
+        .execute()
+    )
+    if not active_poll or not active_poll.data:
+        return
+
+    record = active_poll.data[0]
+    record_id = record["id"]
+    voter_ids = record.get("voter_ids") or []
+
+    if not selected_options:
+        if tg_user_id in voter_ids:
+            voter_ids.remove(tg_user_id)
+    else:
+        if tg_user_id not in voter_ids:
+            voter_ids.append(tg_user_id)
+
+    await _safe_db_call(
+        lambda: supabase.table("active_polls")
+        .update({"voter_ids": voter_ids})
+        .eq("id", record_id)
+        .execute()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1580,7 +1665,14 @@ async def finalize_vote(
     detail_lines = [f"📋 <b>Options up for vote ({category.capitalize()}):</b>\n"]
     for i, opt in enumerate(chosen_options, 1):
         name = opt["option_text"]
-        line = f"<b>{i}. {name}</b>"
+        escaped_name = _escape(name)
+        if opt.get("link"):
+            line = f"<b>{i}. <a href='{opt['link']}'>{escaped_name}</a></b>"
+        else:
+            line = f"<b>{i}. {escaped_name}</b>"
+
+        if opt.get("description"):
+            line += f"\n   📝 <i>{_escape(opt['description'])}</i>"
 
         if opt["start_date"]:
             s = datetime.strptime(opt["start_date"], "%Y-%m-%d").strftime("%b %d")
@@ -1600,9 +1692,6 @@ async def finalize_vote(
                 if nights > 0:
                     pn = cost / nights
                     line += f" · ${pn:,.2f}/night ({nights} nights)"
-
-        if opt.get("link"):
-            line += f"\n   🔗 <a href='{opt['link']}'>View listing</a>"
 
         detail_lines.append(line)
 
@@ -2376,6 +2465,70 @@ async def remove_itinerary(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def polls(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    trip_id, trip_title = await get_trip_context(update, context)
+    if not trip_id:
+        return
+
+    active_q = await _safe_db_call(
+        lambda: supabase.table("active_polls")
+        .select("telegram_poll_id, category, poll_options_json")
+        .eq("trip_id", trip_id)
+        .execute()
+    )
+    if active_q is None:
+        await update.message.reply_text(
+            "⚠️ <b>Database Connection Issue</b>\n\nCouldn't load active polls right now.",
+            parse_mode="HTML"
+        )
+        return
+
+    if not active_q.data:
+        await update.message.reply_text(
+            "🗳️ <b>Active Polls</b>\n\nThere are no active polls for this trip right now.",
+            parse_mode="HTML"
+        )
+        return
+
+    lines = [f"🗳️ <b>Active Poll Results for {trip_title}</b>\n"]
+
+    for poll_record in active_q.data:
+        poll_id = poll_record["telegram_poll_id"]
+        category = poll_record["category"]
+        options_meta = poll_record.get("poll_options_json") or []
+
+        try:
+            telegram_poll = await context.bot.get_poll(poll_id)
+        except Exception:
+            continue
+
+        category_emoji = _UX_EMOJIS.get(category.lower(), "✨")
+        lines.append(f"{category_emoji} <b>{category.capitalize()} Poll:</b>")
+
+        total_votes = sum(option.voter_count for option in telegram_poll.options)
+
+        for option in telegram_poll.options:
+            orig_text = option.text
+            for meta in options_meta:
+                if meta["index"] == option.position:
+                    orig_text = meta["text"]
+                    break
+
+            percent = (option.voter_count / total_votes * 100) if total_votes > 0 else 0
+            lines.append(f" • <b>{_escape(orig_text)}</b>: {option.voter_count} vote{'s' if option.voter_count != 1 else ''} ({percent:.0f}%)")
+
+        lines.append("")
+
+    if len(lines) <= 1:
+        await update.message.reply_text(
+            "🗳️ <b>Active Polls</b>\n\nCould not fetch active poll details from Telegram (they might have expired).",
+            parse_mode="HTML"
+        )
+        return
+
+    await update.message.reply_text("\n".join(lines).strip(), parse_mode="HTML")
+
+
 # ---------------------------------------------------------------------------
 # PM Wizard: Add Option Flow
 # ---------------------------------------------------------------------------
@@ -2392,6 +2545,23 @@ async def wiz_addopt_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wiz_addopt_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["wiz_name"] = update.message.text
+    await update.message.reply_text(
+        "Add a brief description for this option (optional):",
+        reply_markup=ReplyKeyboardMarkup(
+            [["Skip description"]], one_time_keyboard=True, resize_keyboard=True
+        ),
+        parse_mode="HTML",
+    )
+    return ADD_OPT_DESC
+
+
+async def wiz_addopt_desc(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text.strip()
+    if user_input.lower() in ("skip", "skip description"):
+        context.user_data["wiz_desc"] = None
+    else:
+        context.user_data["wiz_desc"] = user_input
+
     await update.message.reply_text(
         "What are the specific dates for this?\n"
         "Example: <code>15 June to 18 June 2026</code>, <code>15-18</code>, or <code>Day 1 to Day 3</code>.",
@@ -2527,6 +2697,7 @@ async def wiz_addopt_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "start_date":     start_date.isoformat() if start_date else None,
                 "end_date":       end_date.isoformat() if end_date else None,
                 "link":           link,
+                "description":    context.user_data.get("wiz_desc"),
                 "estimated_cost": estimated_cost,
                 "currency":       currency if estimated_cost is not None else None,
                 "added_by":       db_user_id,
@@ -3154,6 +3325,8 @@ _GROUP_MEMBER_COMMANDS = [
     BotCommand("paid",         "💸 Log a shared expense"),
     BotCommand("ledger",       "📒 View all expenses"),
     BotCommand("settle",       "⚖️ Calculate who owes who"),
+    BotCommand("polls",        "🗳️ View active poll results"),
+    BotCommand("rsvp_notes",   "📝 Add notes to your RSVP"),
     BotCommand("help",         "📋 All commands"),
 ]
 
@@ -3164,11 +3337,11 @@ _ORGANISER_EXTRA_COMMANDS = [
     BotCommand("remove_itinerary",  "🗑 Remove a locked item"),
 ]
 
-# Commands shown in private/DM chats
 _PM_COMMANDS = [
-    BotCommand("new_trip", "🗺 Start planning a new trip"),
-    BotCommand("help",     "📋 All commands"),
-    BotCommand("cancel",   "✖️ Cancel the current action"),
+    BotCommand("new_trip",   "🗺 Start planning a new trip"),
+    BotCommand("rsvp_notes", "📝 Add notes to your RSVP"),
+    BotCommand("help",       "📋 All commands"),
+    BotCommand("cancel",     "✖️ Cancel the current action"),
 ]
 
 
@@ -3189,6 +3362,230 @@ async def setup_commands_for_group(bot, group_chat_id: int, organizer_tg_id: int
         # User may not have opened the group yet — silently skip.
         # The global group menu still applies for them.
         pass
+
+
+async def _check_and_send_rsvp_nudges(bot) -> None:
+    now = datetime.now(timezone.utc)
+    res_trips = await _safe_db_call(
+        lambda: supabase.table("trips")
+        .select("id, title, group_chat_id, last_rsvp_nudge_at")
+        .not_.is_("group_chat_id", "null")
+        .execute()
+    )
+    if not res_trips or not res_trips.data:
+        return
+
+    for trip in res_trips.data:
+        trip_id = trip["id"]
+        title = trip["title"]
+        group_chat_id = trip["group_chat_id"]
+        last_nudge = trip.get("last_rsvp_nudge_at")
+
+        should_nudge = False
+        if last_nudge is None:
+            should_nudge = True
+        else:
+            try:
+                last_nudge_dt = datetime.fromisoformat(last_nudge.replace("Z", "+00:00"))
+                if now - last_nudge_dt >= timedelta(hours=RSVP_NUDGE_INTERVAL_HOURS):
+                    should_nudge = True
+            except Exception:
+                should_nudge = True
+
+        if not should_nudge:
+            continue
+
+        res_users = await _safe_db_call(
+            lambda: supabase.table("users")
+            .select("id, telegram_id, first_name, username")
+            .execute()
+        )
+        if not res_users or not res_users.data:
+            continue
+
+        res_rsvps = await _safe_db_call(
+            lambda: supabase.table("rsvps")
+            .select("user_id")
+            .eq("trip_id", trip_id)
+            .execute()
+        )
+        if res_rsvps is None:
+            continue
+
+        rsvp_user_ids = {r["user_id"] for r in res_rsvps.data}
+        unrsvp_members = []
+
+        for user in res_users.data:
+            user_id = user["id"]
+            tg_user_id = user["telegram_id"]
+            if not tg_user_id:
+                continue
+            if user_id in rsvp_user_ids:
+                continue
+
+            try:
+                chat_member = await bot.get_chat_member(chat_id=group_chat_id, user_id=tg_user_id)
+                if chat_member.status in ["creator", "administrator", "member"]:
+                    unrsvp_members.append(user)
+            except Exception:
+                continue
+
+        if unrsvp_members:
+            member_lines = []
+            for u in unrsvp_members:
+                name = _escape(u["first_name"])
+                username = u["username"]
+                if username:
+                    member_lines.append(f"• <b>{name}</b> (@{_escape(username)})")
+                else:
+                    member_lines.append(f"• <b>{name}</b>")
+
+            msg = (
+                f"🔔 <b>Pending RSVPs for {_escape(title)}!</b>\n\n"
+                f"The following group members have not RSVP'd yet:\n"
+                f"{'\n'.join(member_lines)}\n\n"
+                f"Please update your status using `/change_rsvp`!"
+            )
+            try:
+                await bot.send_message(chat_id=group_chat_id, text=msg, parse_mode="HTML")
+                await _safe_db_call(
+                    lambda: supabase.table("trips")
+                    .update({"last_rsvp_nudge_at": now.isoformat()})
+                    .eq("id", trip_id)
+                    .execute()
+                )
+            except Exception as e:
+                logger.error(f"Failed to send RSVP nudge or update trip: {e}")
+
+
+async def _check_and_send_poll_nudges(bot) -> None:
+    now = datetime.now(timezone.utc)
+    res_polls = await _safe_db_call(
+        lambda: supabase.table("active_polls")
+        .select("*")
+        .execute()
+    )
+    if not res_polls or not res_polls.data:
+        return
+
+    for poll_rec in res_polls.data:
+        poll_id = poll_rec["id"]
+        trip_id = poll_rec["trip_id"]
+        tg_poll_id = poll_rec["telegram_poll_id"]
+        group_chat_id = poll_rec["group_chat_id"]
+        category = poll_rec["category"]
+        sent_at_str = poll_rec["sent_at"]
+        voter_ids = poll_rec.get("voter_ids") or []
+        stale_sent = poll_rec.get("stale_nudge_sent") or False
+        majority_sent = poll_rec.get("majority_nudge_sent") or False
+
+        res_rsvps = await _safe_db_call(
+            lambda: supabase.table("rsvps")
+            .select("status, users(telegram_id, first_name, username)")
+            .eq("trip_id", trip_id)
+            .eq("status", "Committed")
+            .execute()
+        )
+        if not res_rsvps or not res_rsvps.data:
+            continue
+
+        committed_users = []
+        committed_tg_ids = set()
+        for r in res_rsvps.data:
+            user_info = r.get("users")
+            if user_info and user_info.get("telegram_id"):
+                committed_users.append(user_info)
+                committed_tg_ids.add(user_info["telegram_id"])
+
+        voted_committed_tg_ids = committed_tg_ids.intersection(set(voter_ids))
+        voted_count = len(voted_committed_tg_ids)
+        total_committed = len(committed_tg_ids)
+
+        try:
+            sent_at_dt = datetime.fromisoformat(sent_at_str.replace("Z", "+00:00"))
+            is_stale = now - sent_at_dt >= timedelta(hours=STALE_POLL_HOURS)
+        except Exception:
+            is_stale = True
+
+        if is_stale and not stale_sent:
+            if total_committed > 0 and (voted_count / total_committed < STALE_PARTICIPATION):
+                unvoted_users = [u for u in committed_users if u["telegram_id"] not in voter_ids]
+                if unvoted_users:
+                    user_lines = []
+                    for u in unvoted_users:
+                        name = _escape(u["first_name"])
+                        username = u["username"]
+                        if username:
+                            user_lines.append(f"• <b>{name}</b> (@{_escape(username)})")
+                        else:
+                            user_lines.append(f"• <b>{name}</b>")
+
+                    msg = (
+                        f"🗳️ <b>Vote Reminder: {category.capitalize()} Poll</b>\n\n"
+                        f"We need votes from the following committed travelers:\n"
+                        f"{'\n'.join(user_lines)}\n\n"
+                        f"Please cast your vote in the poll above!"
+                    )
+                    try:
+                        await bot.send_message(chat_id=group_chat_id, text=msg, parse_mode="HTML")
+                        await _safe_db_call(
+                            lambda: supabase.table("active_polls")
+                            .update({"stale_nudge_sent": True})
+                            .eq("id", poll_id)
+                            .execute()
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send stale poll nudge: {e}")
+
+        if not majority_sent:
+            if total_committed > 0 and (voted_count / total_committed >= MAJORITY_THRESHOLD):
+                res_trip = await _safe_db_call(
+                    lambda: supabase.table("trips")
+                    .select("organizer_id")
+                    .eq("id", trip_id)
+                    .execute()
+                )
+                if res_trip and res_trip.data:
+                    org_id = res_trip.data[0]["organizer_id"]
+                    res_user = await _safe_db_call(
+                        lambda: supabase.table("users")
+                        .select("telegram_id, first_name, username")
+                        .eq("id", org_id)
+                        .execute()
+                    )
+                    if res_user and res_user.data:
+                        org_user = res_user.data[0]
+                        org_name = _escape(org_user["first_name"])
+                        org_username = org_user["username"]
+                        org_tag = f"<b>{org_name}</b> (@{_escape(org_username)})" if org_username else f"<b>{org_name}</b>"
+
+                        msg = (
+                            f"🎉 <b>Poll Majority Reached!</b>\n\n"
+                            f"Hey {org_tag}, the <b>{category.capitalize()}</b> poll has reached a majority "
+                            f"of votes ({voted_count}/{total_committed} committed travelers voted).\n\n"
+                            f"You can now lock in the winning option using `/lock_master`!"
+                        )
+                        try:
+                            await bot.send_message(chat_id=group_chat_id, text=msg, parse_mode="HTML")
+                            await _safe_db_call(
+                                lambda: supabase.table("active_polls")
+                                .update({"majority_nudge_sent": True})
+                                .eq("id", poll_id)
+                                .execute()
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send majority poll nudge: {e}")
+
+
+async def _background_nudging_loop(bot) -> None:
+    logger.info("Starting background nudging loop...")
+    while True:
+        try:
+            await _check_and_send_rsvp_nudges(bot)
+            await _check_and_send_poll_nudges(bot)
+        except Exception as e:
+            logger.error(f"Error in background nudging loop: {e}", exc_info=True)
+        await asyncio.sleep(BACKGROUND_CHECK_INTERVAL_SECONDS)
 
 
 async def setup_global_commands(app) -> None:
@@ -3225,6 +3622,9 @@ async def setup_global_commands(app) -> None:
                 await setup_commands_for_group(app.bot, gcid, org_tg_id)
     except Exception:
         pass  # Non-fatal — static menus already set above
+
+    # Start background nudging task
+    asyncio.create_task(_background_nudging_loop(app.bot))
 
 
 # ---------------------------------------------------------------------------
@@ -3274,6 +3674,7 @@ def main():
             TRIP_SELECT:   [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_trip_select)],
             ADD_OPT_CAT:   [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_cat)],
             ADD_OPT_NAME:  [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_name)],
+            ADD_OPT_DESC:  [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_desc)],
             ADD_OPT_DATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_dates)],
             ADD_OPT_LINK:  [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_link)],
             ADD_OPT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_price)],
@@ -3303,6 +3704,7 @@ def main():
 
     # Inline keyboard callback
     app.add_handler(CallbackQueryHandler(handle_rsvp, pattern="^rsvp_"))
+    app.add_handler(PollAnswerHandler(handle_poll_answer))
 
     # Standalone command handlers
     app.add_handler(CommandHandler("roster", roster))
@@ -3318,6 +3720,8 @@ def main():
     app.add_handler(CommandHandler("itinerary", itinerary))
     app.add_handler(CommandHandler("delete_option", delete_option))
     app.add_handler(CommandHandler("remove_itinerary", remove_itinerary))
+    app.add_handler(CommandHandler("polls", polls))
+    app.add_handler(CommandHandler("rsvp_notes", rsvp_notes))
     app.add_handler(CommandHandler("help", help_command))
 
     print("TripSync is online...")

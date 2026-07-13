@@ -4,6 +4,7 @@ import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
 import { formatDateRange } from '../utils/format'
+import { updateRsvpNote } from '../services/rsvps'
 
 function TripDetails({ activeUser, onLogin, onLogout }) {
   const { id } = useParams()
@@ -32,12 +33,41 @@ function TripDetails({ activeUser, onLogin, onLogout }) {
   const [firstName, setFirstName] = useState('')
   const [username, setUsername] = useState('')
 
+  const [userNote, setUserNote] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+
   const loading = tripLoading || rosterLoading
   const error = tripError || rosterError
+
+  React.useEffect(() => {
+    if (activeUser && roster.length > 0) {
+      const activeMember = roster.find(m => m.user_id === activeUser.id)
+      if (activeMember) {
+        setUserNote(activeMember.notes || '')
+      }
+    }
+  }, [activeUser, roster])
 
   const handleRefresh = () => {
     refreshTrip()
     refreshRoster()
+  }
+
+  const handleNoteBlur = async () => {
+    if (!activeUser) return
+    const activeMember = roster.find(m => m.user_id === activeUser.id)
+    const oldNote = activeMember ? (activeMember.notes || '') : ''
+    if (userNote.trim() === oldNote.trim()) return
+
+    setSavingNote(true)
+    try {
+      await updateRsvpNote(id, activeUser.id, userNote.trim() || null)
+      refreshRoster()
+    } catch (err) {
+      console.error('Failed to update note:', err)
+    } finally {
+      setSavingNote(false)
+    }
   }
 
   const handleJoinSubmit = async (e) => {
@@ -306,6 +336,34 @@ function TripDetails({ activeUser, onLogin, onLogout }) {
                           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                             @{user.username}
                           </div>
+                        )}
+                        {isCurrentUser ? (
+                          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="text"
+                              value={userNote}
+                              placeholder="Add RSVP details/notes..."
+                              onChange={(e) => setUserNote(e.target.value)}
+                              onBlur={handleNoteBlur}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.85rem',
+                                borderRadius: '4px',
+                                border: '1px solid var(--border-light)',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                color: 'var(--text-main)',
+                                outline: 'none',
+                                width: '220px'
+                              }}
+                            />
+                            {savingNote && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Saving...</span>}
+                          </div>
+                        ) : (
+                          member.notes && (
+                            <div style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-muted)', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span>📝</span> <span>{member.notes}</span>
+                            </div>
+                          )
                         )}
                       </div>
                       <span className={`badge ${isCommitted ? 'badge-committed' : 'badge-interested'}`}>

@@ -1,0 +1,1379 @@
+import os
+import re
+from datetime import datetime
+from datetime import timedelta
+from dotenv import load_dotenv
+from supabase import create_client, Client
+from telegram import Update, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton,ReplyKeyboardMarkup
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes, CallbackQueryHandler
+)
+
+load_dotenv()
+supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
+TITLE, DESTINATION, DATES = range(3)
+
+# Wizard States
+ADD_OPT_CAT, ADD_OPT_NAME, ADD_OPT_DATES = range(10, 13)
+PAID_AMOUNT, PAID_DESC = range(13, 15)
+LOCK_CAT, LOCK_TITLE, LOCK_DATES = range(15, 18)
+LOCK_COST_TYPE, LOCK_COST = range(18, 20)
+
+# --- Helper: Date Validator ---
+
+def smart_parse_dates(user_input, trip_start_str, trip_end_str):
+    """
+    Context-aware date parser. 
+    Understands "15-18", "Day 1 to Day 3", "June 15", or just "15".
+    """
+    main_start = datetime.strptime(trip_start_str, "%Y-%m-%d").date()
+    main_end = datetime.strptime(trip_end_str, "%Y-%m-%d").date()
+    
+    # Generate every single valid date within the trip window
+    trip_days = [main_start + timedelta(days=i) for i in range((main_end - main_start).days + 1)]
+    
+    def find_date(frag):
+        frag = frag.strip().lower()
+        if not frag: return None
+        
+        # 1. Exact Day Match (e.g., "15")
+        if frag.isdigit():
+            day = int(frag)
+            for d in trip_days:
+                if d.day == day: return d
+        
+        # 2. Relative Day Match (e.g., "day 2" or "day2")
+        if frag.startswith("day"):
+            try:
+                num = int(re.sub(r'\D', '', frag)) # extract just the number
+                idx = num - 1
+                if 0 <= idx < len(trip_days): return trip_days[idx]
+            except ValueError:
+                pass
+                
+        # 3. Month & Day Match (e.g., "15 jun" or "june 15")
+        for d in trip_days:
+            month_name = d.strftime("%B").lower()
+            month_abbr = d.strftime("%b").lower()
+            words = frag.replace(",", "").split()
+            if str(d.day) in words and (month_name in words or month_abbr in words):
+                return d
+                
+        return None
+
+    # Split the user's input on "to", "until", or "-"
+    parts = re.split(r'\s+to\s+|\s+until\s+|\s*-\s*', user_input.strip(), flags=re.IGNORECASE)
+    
+    if len(parts) == 1:
+        d = find_date(parts[0])
+        return d, d # One day event
+    elif len(parts) >= 2:
+        s_date = find_date(parts[0])
+        e_date = find_date(parts[1])
+        # Auto-correct if they put the dates backwards
+        if s_date and e_date and s_date > e_date:
+            return e_date, s_date
+        return s_date, e_date
+        
+    return None, None
+
+# --- Helper: Strict Date Validator ---
+def parse_trip_dates(text):
+    """
+    Strictly enforces 'DD Month [YYYY] to DD Month YYYY'.
+    The first year is optional. Rejects impossible calendar days.
+    """
+    # Regex to capture: Day, Month, optional Year, "to", Day, Month, Year
+    pattern = r"^(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?\s+to\s+(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$"
+    match = re.match(pattern, text.strip(), re.IGNORECASE)
+    
+    
+    if not match:
+        return None, None # Fails immediately if the format doesn't match perfectly
+        
+    start_day, start_month, start_year, end_day, end_month, end_year = match.groups()
+    
+    # If the user omitted the first year (e.g., "15 June to 20 June 2026")
+    if not start_year:
+        start_year = end_year
+        
+    # We slice the first 3 letters of the month to standardize it (June -> Jun, July -> Jul)
+    start_string = f"{start_day} {start_month[:3]} {start_year}"
+    end_string = f"{end_day} {end_month[:3]} {end_year}"
+    
+    try:
+        # datetime.strptime mathematically validates the calendar date
+        # %d = Day (01-31), %b = 3-letter Month, %Y = 4-digit Year
+        start_date = datetime.strptime(start_string, "%d %b %Y").date()
+        end_date = datetime.strptime(end_string, "%d %b %Y").date()
+        return start_date, end_date
+    except ValueError:
+        # This triggers if a date is impossible (e.g., Day 45, or Feb 29 on a non-leap year)
+        return None, None
+    
+# --- CONVERSATION LOGIC ---
+async def new_trip(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📝 Let's start a new trip!\n\nStep 1: What are we calling this adventure? (e.g., 'Austin Boys Trip', 'Sarah’s Bachelorette')"
+    )
+    return TITLE
+
+async def get_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    title = update.message.text.strip()
+    
+    if len(title) < 2:
+        await update.message.reply_text("Let's give it a real name! Try again.")
+        return TITLE
+        
+    context.user_data["title"] = title
+    await update.message.reply_text(
+        f"Awesome, **{title}** it is.\n\nStep 2: Where are we actually going? (e.g., 'Austin, TX', 'Miami')"
+    )
+    return DESTINATION
+
+async def get_destination(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    dest = update.message.text.strip()
+    
+    if len(dest) < 2:
+        await update.message.reply_text("That's a bit short! Please provide a real destination name.")
+        return DESTINATION
+
+    context.user_data["destination"] = dest
+    await update.message.reply_text(
+        f"📍 Destination set to: **{dest}**\n\n"
+        "Step 3: When are we going?\n"
+        "Please use the format: **DD Month to DD Month YYYY**\n"
+        "Example: `15 June to 20 June 2026`"
+    )
+    return DATES
+
+async def get_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text
+    start_date, end_date = parse_trip_dates(user_input)
+    
+    if not start_date or not end_date:
+        await update.message.reply_text(
+            "❌ I couldn't understand those dates.\n"
+            "Please use the exact format: `15 June to 20 June 2026`"
+        )
+        return DATES
+
+    if start_date > end_date:
+        await update.message.reply_text("Wait, you can't come back before you leave! Try again.")
+        return DATES
+
+    user_id = update.effective_user.id
+    user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+    db_user_id = user_query.data["id"]
+
+    # 🌟 NEW: Saving the Title to the database
+    trip_data = {
+        "organizer_id": db_user_id,
+        "title": context.user_data["title"],
+        "destination": context.user_data["destination"],
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "vibe": f"Trip to {context.user_data['destination']}"
+    }
+    
+    result = supabase.table("trips").insert(trip_data).execute()
+    new_trip_id = result.data[0]["id"]
+    
+    # Auto-RSVP the Organizer
+    supabase.table("rsvps").insert({
+        "trip_id": new_trip_id,
+        "user_id": db_user_id,
+        "status": "Committed"
+    }).execute()
+    
+    bot_username = context.bot.username
+    add_to_group_url = f"https://t.me/{bot_username}?startgroup={new_trip_id}"
+    
+    keyboard = [[InlineKeyboardButton("➕ Add Bot to your Trip Group", url=add_to_group_url)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # 🌟 NEW: Using the Title in the confirmation message
+    await update.message.reply_text(
+        f"✅ **{context.user_data['title']} Locked In!**\n"
+        f"📍 Destination: {context.user_data['destination']}\n"
+        f"📅 {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}\n\n"
+        f"**Next step:** Create a Telegram group for this trip (or use an existing one), "
+        f"then click the button below to add me to it!",
+        reply_markup=reply_markup
+    )
+    return ConversationHandler.END
+
+# --- COMMAND: /start ---
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    tg_user = update.effective_user
+    
+    # 1. Register the user (only if they aren't another bot)
+    if not tg_user.is_bot:
+        user_data = {"telegram_id": tg_user.id, "username": tg_user.username, "first_name": tg_user.first_name}
+        supabase.table("users").upsert(user_data, on_conflict="telegram_id").execute()
+    
+# 2. THE GROUP CHAT LOGIC
+    if chat.type in ['group', 'supergroup']:
+        if context.args:
+            incoming_trip_id = context.args[0]
+            
+            # SAFEGUARD: Check if this group is already linked to a trip
+            existing_trip = supabase.table("trips").select("id, title").eq("group_chat_id", chat.id).execute()
+            
+            if existing_trip.data:
+                existing_id = existing_trip.data[0]["id"]
+                existing_title = existing_trip.data[0].get("title", "another trip")
+                
+                # Case A: They accidentally clicked the same invite link twice
+                if existing_id == incoming_trip_id:
+                    await context.bot.send_message(chat_id=chat.id, text=f"I'm already set up and tracking **{existing_title}** in this chat!")
+                    return
+                
+                # Case B: They are trying to cram a NEW trip into an OLD group
+                else:
+                    await context.bot.send_message(
+                        chat_id=chat.id, 
+                        text=f"⚠️ **Hold up!** This group is already dedicated to planning **{existing_title}**.\n\n"
+                             f"To prevent messed up budgets and overlapping RSVPs, please create a brand *new* Telegram group for your new trip, and click the invite button again to add me there!"
+                    )
+                    return
+            
+            # If the group is completely clean, proceed with binding!
+            supabase.table("trips").update({"group_chat_id": chat.id}).eq("id", incoming_trip_id).execute()
+            
+            # Get the trip details for a custom greeting
+            trip_query = supabase.table("trips").select("title, destination, start_date, end_date").eq("id", incoming_trip_id).execute()
+            if not trip_query.data:
+                return
+            
+            title = trip_query.data[0]["title"]
+            destination = trip_query.data[0]["destination"]
+            
+            # Format the dates
+            s_date = datetime.strptime(trip_query.data[0]["start_date"], "%Y-%m-%d").strftime("%b %d")
+            e_date = datetime.strptime(trip_query.data[0]["end_date"], "%Y-%m-%d").strftime("%b %d, %Y")
+            
+            # Build the Group RSVP Card
+            keyboard = [
+                [
+                    InlineKeyboardButton("I'm In! 🎒", callback_data=f"rsvp_{incoming_trip_id}_Committed"),
+                    InlineKeyboardButton("Maybe 🤔", callback_data=f"rsvp_{incoming_trip_id}_Tentative"),
+                ],
+                [InlineKeyboardButton("Can't Make It ❌", callback_data=f"rsvp_{incoming_trip_id}_Declined")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # The Bot's Grand Entrance
+            await context.bot.send_message(
+                chat_id=chat.id,
+                text=f"👋 **Hey everyone! I'm your TripSync Bot for {title}!**\n\n"
+                     f"📍 **Destination:** {destination}\n"
+                     f"📅 **Dates:** {s_date} to {e_date}\n\n"
+                     f"**Step 1: Who's in?**\n"
+                     "Please lock in your RSVP below so we can keep track of who's coming! You can change it later if your plans shift.\n\n"
+                     f"**Step 2: Start Pitching Ideas!**\n"
+                     "Got an Airbnb you love? Found a cheap flight? Use `/add_option` to throw it in the ring!",
+                reply_markup=reply_markup
+            )
+        return
+
+    # 3. NORMAL PM LOGIC
+    await update.message.reply_text(f"Welcome {tg_user.first_name}! Use /new_trip to start a plan.")
+
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Trip creation cancelled.", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+async def handle_rsvp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    
+    parts = query.data.split("_")
+    trip_id = parts[1]
+    status = parts[2]
+    
+    # CRITICAL: Friends clicking the button in the group might not be in our DB yet!
+    # We must register them right as they click the button.
+    user_data = {
+        "telegram_id": query.from_user.id, 
+        "username": query.from_user.username, 
+        "first_name": query.from_user.first_name
+    }
+    user_response = supabase.table("users").upsert(user_data, on_conflict="telegram_id").execute()
+    db_user_id = user_response.data[0]["id"]
+    
+    # Save the RSVP
+    rsvp_data = {"trip_id": trip_id, "user_id": db_user_id, "status": status}
+    supabase.table("rsvps").upsert(rsvp_data, on_conflict="trip_id, user_id").execute()
+    
+    # THE FIX: Pop up a temporary alert on their screen instead of editing the chat message
+    await query.answer(f"✅ Got it, {query.from_user.first_name}! Your RSVP is locked as: {status}", show_alert=True)
+
+async def roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    trip_id = None
+    destination = ""
+    
+    # 1. AUTO-CONTEXT: Are we in a group chat?
+    if chat.type in ['group', 'supergroup']:
+        # Look up the trip using the Telegram Group Chat ID
+        trip_query = supabase.table("trips").select("id, destination").eq("group_chat_id", chat.id).execute()
+        
+        if not trip_query.data:
+            await update.message.reply_text("This group isn't linked to a trip yet!")
+            return
+            
+        trip_id = trip_query.data[0]["id"]
+        destination = trip_query.data[0]["destination"]
+        
+    # 2. PRIVATE MESSAGE LOGIC (Fallback)
+    else:
+        # Get the user's DB ID
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        
+        # Find their most recent trip
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        
+        if not recent_rsvp.data:
+            await update.message.reply_text("You aren't in any active trips yet! Use /new_trip to start one.")
+            return
+            
+        trip_id = recent_rsvp.data[0]["trip_id"]
+        trip_query = supabase.table("trips").select("destination").eq("id", trip_id).single().execute()
+        destination = trip_query.data["destination"]
+    
+    # 3. Fetch the Roster using the determined Trip ID
+    roster_query = supabase.table("rsvps").select("status, users(first_name)").eq("trip_id", trip_id).execute()
+    
+    # 4. Format the Roster
+    committed = []
+    tentative = []
+    declined = []
+    
+    for row in roster_query.data:
+        name = row["users"]["first_name"]
+        status = row["status"]
+        if status == "Committed":
+            committed.append(name)
+        elif status == "Tentative":
+            tentative.append(name)
+        elif status == "Declined":
+            declined.append(name)
+            
+    # Build the final message
+    message = f"📋 **Current Roster for {destination}**\n\n"
+    
+    message += f"🎒 **I'm In ({len(committed)}):**\n"
+    message += "\n".join([f"- {name}" for name in committed]) if committed else "- None yet"
+    message += "\n\n"
+    
+    if tentative:
+        message += f"🤔 **Maybe ({len(tentative)}):**\n"
+        message += "\n".join([f"- {name}" for name in tentative])
+        message += "\n\n"
+        
+    if declined:
+        message += f"❌ **Out ({len(declined)}):**\n"
+        message += "\n".join([f"- {name}" for name in declined])
+        
+    await update.message.reply_text(message)
+
+
+async def change_rsvp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    trip_id = None
+    
+    # AUTO-CONTEXT: Find the right trip ID based on where they typed the command
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            await update.message.reply_text("This group isn't linked to a trip yet!")
+            return
+        trip_id = trip_query.data[0]["id"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        
+        if not recent_rsvp.data:
+            await update.message.reply_text("You aren't in any active trips yet!")
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+
+    # Build the buttons
+    keyboard = [
+        [
+            InlineKeyboardButton("I'm In! 🎒", callback_data=f"rsvp_{trip_id}_Committed"),
+            InlineKeyboardButton("Maybe 🤔", callback_data=f"rsvp_{trip_id}_Tentative"),
+        ],
+        [InlineKeyboardButton("Can't Make It ❌", callback_data=f"rsvp_{trip_id}_Declined")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text("Update your RSVP status below:", reply_markup=reply_markup)
+
+async def add_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    
+    # We only want to trigger the redirect if they use the command in the group
+    if chat.type not in ['group', 'supergroup']:
+        await update.message.reply_text("This command is meant to be used in the group chat!")
+        return
+        
+    # Find the Trip ID
+    trip_query = supabase.table("trips").select("id").eq("group_chat_id", chat.id).execute()
+    if not trip_query.data:
+        await update.message.reply_text("This group isn't linked to a trip yet!")
+        return
+    trip_id = trip_query.data[0]["id"]
+
+    # Generate the Deep Link (Tells the bot exactly what to do when the PM opens)
+    bot_username = context.bot.username
+    url = f"https://t.me/{bot_username}?start=addopt_{trip_id}"
+    
+    keyboard = [[InlineKeyboardButton("Add Option in PM 💬", url=url)]]
+    
+    # Optional: Delete the user's command message to keep the group chat super clean
+    try:
+        await update.message.delete()
+    except:
+        pass # If bot lacks delete permissions, ignore
+        
+    await context.bot.send_message(
+        chat_id=chat.id,
+        text=f"**{update.effective_user.first_name}** is adding an option! \nLet's do this in a private message so we don't clutter the group.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    raw_text = " ".join(context.args)
+    parts = [p.strip() for p in raw_text.split("-")]
+    
+    if len(parts) < 1:
+        await update.message.reply_text(
+            "⚠️ Usage: `/vote <category> [- <Optional Dates>]`\n"
+            "Example: `/vote accommodation - 15 June to 18 June 2026`"
+        )
+        return
+        
+    category = parts[0].lower()
+    dates_str = parts[1] if len(parts) > 1 else None
+    
+    # Check if dates were requested
+    start_date, end_date = None, None
+    if dates_str:
+        start_date, end_date = parse_trip_dates(dates_str)
+        if not start_date or not end_date:
+            await update.message.reply_text("❌ I couldn't understand those dates.")
+            return
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    title = "your trip"
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id, title").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            return
+        trip_id = trip_query.data[0]["id"]
+        title = trip_query.data[0]["title"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+        title = supabase.table("trips").select("title").eq("id", trip_id).single().execute().data["title"]
+
+    # 2. Fetch the Options (Filtering by dates if provided)
+    query = supabase.table("poll_options").select("option_text, start_date, end_date").eq("trip_id", trip_id).eq("category", category)
+    
+    if start_date and end_date:
+        query = query.eq("start_date", start_date.isoformat()).eq("end_date", end_date.isoformat())
+        
+    options_query = query.execute()
+    
+    if not options_query.data or len(options_query.data) < 2:
+        date_warning = " for those specific dates" if start_date else ""
+        await update.message.reply_text(f"⚠️ You need at least 2 options in '{category}'{date_warning} to start a vote!")
+        return
+        
+    # Append dates to the option text in the poll so people know exactly what they are voting on
+    poll_options = []
+    for opt in options_query.data:
+        text = opt["option_text"]
+        if opt["start_date"] and not start_date: # If the poll is general, but the option has specific dates, show them
+            s = datetime.strptime(opt["start_date"], "%Y-%m-%d").strftime('%b %d')
+            e = datetime.strptime(opt["end_date"], "%Y-%m-%d").strftime('%b %d')
+            text += f" ({s} - {e})"
+        poll_options.append(text)
+    
+    # 3. Send the Native Telegram Poll
+    poll_question = f"🗳️ Voting Time: {category.capitalize()} for {title}!"
+    if start_date:
+        poll_question += f" ({start_date.strftime('%b %d')} - {end_date.strftime('%b %d')})"
+        
+    await context.bot.send_poll(
+        chat_id=chat.id,
+        question=poll_question,
+        options=poll_options,
+        is_anonymous=False,           
+        allows_multiple_answers=True  
+    )
+
+async def lock_master(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if chat.type not in ['group', 'supergroup']:
+        await update.message.reply_text("This command is meant to be used in the group chat!")
+        return
+        
+    trip_query = supabase.table("trips").select("id").eq("group_chat_id", chat.id).execute()
+    if not trip_query.data: return
+    trip_id = trip_query.data[0]["id"]
+
+    bot_username = context.bot.username
+    url = f"https://t.me/{bot_username}?start=lock_{trip_id}"
+    
+    keyboard = [[InlineKeyboardButton("Lock Itinerary in PM 🔒", url=url)]]
+    try: await update.message.delete()
+    except: pass
+        
+    await context.bot.send_message(
+        chat_id=chat.id,
+        text=f"**{update.effective_user.first_name}** is locking in a plan!",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def check_gaps(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    # 1. AUTO-CONTEXT: Find the Trip ID & Main Trip Dates
+    trip_id = None
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id, start_date, end_date, title").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            await update.message.reply_text("This group isn't linked to a trip yet!")
+            return
+        trip_data = trip_query.data[0]
+    else:
+        # PM Fallback
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+        trip_query = supabase.table("trips").select("id, start_date, end_date, title").eq("id", trip_id).single().execute()
+        trip_data = trip_query.data
+        
+    trip_id = trip_data["id"]
+    trip_title = trip_data["title"]
+    
+    # 2. Fetch all locked accommodations for this trip
+    acc_query = supabase.table("master_itinerary").select("start_date, end_date, title").eq("trip_id", trip_id).eq("category", "accommodation").execute()
+    
+    # 3. DATE MATH: Calculate the required nights
+    main_start = datetime.strptime(trip_data["start_date"], "%Y-%m-%d").date()
+    main_end = datetime.strptime(trip_data["end_date"], "%Y-%m-%d").date()
+    
+    # Create a set of all nights required for the trip
+    total_trip_nights = set(main_start + timedelta(days=i) for i in range((main_end - main_start).days))
+    
+    # Create a set of all nights covered by locked accommodations
+    covered_nights = set()
+    covered_list_text = ""
+    
+    for acc in acc_query.data:
+        a_start = datetime.strptime(acc["start_date"], "%Y-%m-%d").date()
+        a_end = datetime.strptime(acc["end_date"], "%Y-%m-%d").date()
+        
+        # Add these nights to our covered set
+        for i in range((a_end - a_start).days):
+            covered_nights.add(a_start + timedelta(days=i))
+            
+        covered_list_text += f"🏠 {acc['title']}: {a_start.strftime('%b %d')} to {a_end.strftime('%b %d')}\n"
+
+    # 4. Find the Missing Nights (Set Difference)
+    missing_nights = sorted(total_trip_nights - covered_nights)
+    
+    # 5. Format the Output
+    message = f"🔎 **Accommodation Check: {trip_title}**\n"
+    message += f"Trip Dates: {main_start.strftime('%b %d')} - {main_end.strftime('%b %d')}\n\n"
+    
+    if acc_query.data:
+        message += "**Current Bookings:**\n" + covered_list_text + "\n"
+    else:
+        message += "⚠️ No accommodations locked in yet!\n\n"
+
+    if not missing_nights:
+        message += "✅ **All nights are covered!** You have a bed for every night of the trip."
+    else:
+        message += "🚨 **GAPS DETECTED! We need beds for the night(s) of:**\n"
+        for night in missing_nights:
+            message += f"• {night.strftime('%A, %b %d')}\n"
+            
+    await update.message.reply_text(message)
+
+async def paid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if chat.type not in ['group', 'supergroup']:
+        await update.message.reply_text("This command is meant to be used in the group chat!")
+        return
+        
+    trip_query = supabase.table("trips").select("id").eq("group_chat_id", chat.id).execute()
+    if not trip_query.data: return
+    trip_id = trip_query.data[0]["id"]
+
+    bot_username = context.bot.username
+    url = f"https://t.me/{bot_username}?start=paid_{trip_id}"
+    
+    keyboard = [[InlineKeyboardButton("Log Expense in PM 💸", url=url)]]
+    try: await update.message.delete()
+    except: pass
+        
+    await context.bot.send_message(
+        chat_id=chat.id,
+        text=f"**{update.effective_user.first_name}** is logging an expense!",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def ledger(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    title = "Your Trip"
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id, title").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            return
+        trip_id = trip_query.data[0]["id"]
+        title = trip_query.data[0]["title"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+        title = supabase.table("trips").select("title").eq("id", trip_id).single().execute().data["title"]
+
+    # 2. Fetch Expenses and Join with Users table to get names
+    # Supabase allows us to pull the first_name from the linked user table
+    expenses_query = supabase.table("expenses").select("amount, description, users(first_name)").eq("trip_id", trip_id).order("created_at").execute()
+    
+    if not expenses_query.data:
+        await update.message.reply_text(f"📊 **Ledger: {title}**\n\nNo expenses logged yet! Use `/paid <amount> - <description>` to start.")
+        return
+
+    # 3. Calculate Totals and Format
+    total_spent = 0.0
+    user_totals = {}
+    receipt_lines = []
+    
+    for row in expenses_query.data:
+        name = row["users"]["first_name"]
+        amount = float(row["amount"])
+        desc = row["description"]
+        
+        total_spent += amount
+        user_totals[name] = user_totals.get(name, 0) + amount
+        
+        receipt_lines.append(f"• **{name}**: ${amount:.2f} ({desc})")
+
+    # 4. Build the final message
+    message = f"📊 **Shared Ledger: {title}**\n"
+    message += f"**Total Group Spend: ${total_spent:.2f}**\n\n"
+    
+    message += "📝 **Itemized List:**\n"
+    message += "\n".join(receipt_lines) + "\n\n"
+    
+    message += "👤 **Total Paid by Person:**\n"
+    for name, total in sorted(user_totals.items(), key=lambda item: item[1], reverse=True):
+         message += f"- {name}: ${total:.2f}\n"
+
+    await update.message.reply_text(message)
+
+async def settle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id, title").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            return
+        trip_id = trip_query.data[0]["id"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+
+    # 2. Get the "Committed" Roster
+    roster_query = supabase.table("rsvps").select("user_id, users(first_name)").eq("trip_id", trip_id).eq("status", "Committed").execute()
+    if not roster_query.data:
+        await update.message.reply_text("There are no 'Committed' members on this trip yet to split costs with!")
+        return
+        
+    # Initialize everyone's paid amount to 0
+    balances = {row['user_id']: {'name': row['users']['first_name'], 'paid': 0.0} for row in roster_query.data}
+    num_people = len(balances)
+
+    # 3. Get all Expenses
+    expenses_query = supabase.table("expenses").select("paid_by, amount").eq("trip_id", trip_id).execute()
+    
+    for exp in expenses_query.data:
+        payer_id = exp['paid_by']
+        # Only count it if the payer is a committed member (safeguard)
+        if payer_id in balances:
+            balances[payer_id]['paid'] += float(exp['amount'])
+
+    # 4. Calculate the Split
+    total_spent = sum(b['paid'] for b in balances.values())
+    if total_spent == 0:
+        await update.message.reply_text("The group hasn't spent any money yet. You're all settled!")
+        return
+        
+    split_amount = total_spent / num_people
+    
+    # 5. Determine who owes money and who is owed money
+    debtors = []   # People who paid less than the split
+    creditors = [] # People who paid more than the split
+    
+    for uid, data in balances.items():
+        net_balance = data['paid'] - split_amount
+        if net_balance > 0.01:
+            creditors.append({'name': data['name'], 'amount': net_balance})
+        elif net_balance < -0.01:
+            debtors.append({'name': data['name'], 'amount': abs(net_balance)})
+
+    # 6. Generate the Transactions (Greedy Match Algorithm)
+    transactions = []
+    i, j = 0, 0
+    
+    while i < len(debtors) and j < len(creditors):
+        debtor = debtors[i]
+        creditor = creditors[j]
+        
+        # The amount to transfer is the smaller of what the debtor owes or the creditor is owed
+        amount_to_pay = min(debtor['amount'], creditor['amount'])
+        
+        transactions.append(f"💸 **{debtor['name']}** owes **{creditor['name']}**: ${amount_to_pay:.2f}")
+        
+        # Adjust their remaining balances
+        debtor['amount'] -= amount_to_pay
+        creditor['amount'] -= amount_to_pay
+        
+        # Move to the next person if they are settled
+        if debtor['amount'] < 0.01: i += 1
+        if creditor['amount'] < 0.01: j += 1
+
+    # 7. Format the Output
+    message = f"⚖️ **Time to Settle Up!**\n\n"
+    message += f"**Total Group Spend:** ${total_spent:.2f}\n"
+    message += f"**Per Person Split ({num_people} people):** ${split_amount:.2f}\n\n"
+    
+    if not transactions:
+        message += "✅ **Everyone is perfectly even!**"
+    else:
+        message += "👇 **How to balance the books:**\n"
+        message += "\n".join(transactions)
+
+    await update.message.reply_text(message)
+
+async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id, title").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data: return
+        trip_id = trip_query.data[0]["id"]
+        title = trip_query.data[0]["title"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data: return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+        title = supabase.table("trips").select("title").eq("id", trip_id).single().execute().data["title"]
+
+    # 2. Get Committed Roster Count
+    roster_query = supabase.table("rsvps").select("id").eq("trip_id", trip_id).eq("status", "Committed").execute()
+    num_committed = len(roster_query.data)
+    
+    if num_committed == 0:
+        await update.message.reply_text("Cannot calculate budget: No one is marked as 'Committed' yet!")
+        return
+
+    # 3. Get Costs
+    itin_query = supabase.table("master_itinerary").select("title, cost_type, estimated_cost").eq("trip_id", trip_id).execute()
+    
+    if not itin_query.data:
+        await update.message.reply_text("No costs locked into the itinerary yet. Use `/lock_master` to build the budget!")
+        return
+
+    group_total = 0.0
+    per_person_total = 0.0
+    breakdown_lines = []
+    
+    for item in itin_query.data:
+        cost = item["estimated_cost"] or 0.0
+        if cost == 0: continue
+        
+        if item["cost_type"] == "Group":
+            group_total += cost
+            split_cost = cost / num_committed
+            breakdown_lines.append(f"• {item['title']}: ${cost:,.2f} total (${split_cost:,.2f} pp)")
+        elif item["cost_type"] == "Per Person":
+            per_person_total += cost
+            breakdown_lines.append(f"• {item['title']}: ${cost:,.2f} pp")
+
+    # Calculate final estimate
+    group_split = group_total / num_committed
+    grand_total_pp = group_split + per_person_total
+
+    # Format Message
+    message = f"📊 **Estimated Budget: {title}**\n"
+    message += f"*(Based on {num_committed} committed travelers)*\n\n"
+    
+    message += f"**Group Shared Costs:** ${group_total:,.2f}\n"
+    message += f"**Est. Per Person Breakdown:**\n"
+    if breakdown_lines:
+        message += "\n".join(breakdown_lines) + "\n"
+    else:
+        message += "No costs entered yet.\n"
+        
+    message += f"\n🔥 **Estimated Total Per Person:** **${grand_total_pp:,.2f}**\n"
+    message += "\n*(Note: This is just an estimate! Use Spliit or Splitwise for exact expense tracking during the trip).* "
+
+    await update.message.reply_text(message)
+
+async def itinerary(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id, title").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            await update.message.reply_text("This group isn't linked to a trip yet!")
+            return
+        trip_data = trip_query.data[0]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            await update.message.reply_text("You aren't in any active trips yet!")
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+        trip_query = supabase.table("trips").select("id, title").eq("id", trip_id).single().execute()
+        trip_data = trip_query.data
+
+    trip_id = trip_data["id"]
+    title = trip_data["title"]
+    
+    # 2. Fetch the Master Itinerary (Ordered by Start Date!)
+    itin_query = supabase.table("master_itinerary").select("*").eq("trip_id", trip_id).order("start_date").execute()
+    
+    if not itin_query.data:
+        await update.message.reply_text(f"🗓️ **Itinerary for {title}**\n\nNothing locked in yet! Use `/lock_master` to start building the schedule.")
+        return
+        
+    # 3. Format the Output
+    message = f"🗓️ **Official Itinerary: {title}**\n\n"
+    
+    for item in itin_query.data:
+        cat = item["category"].capitalize()
+        name = item["title"]
+        
+        # Convert string dates back to datetime objects for pretty formatting
+        s_date = datetime.strptime(item["start_date"], "%Y-%m-%d").strftime("%b %d")
+        e_date = datetime.strptime(item["end_date"], "%Y-%m-%d").strftime("%b %d")
+        
+        # Add some flavor: Pick an emoji based on the category!
+        emoji = "📍"
+        if cat.lower() == "accommodation": emoji = "🏠"
+        elif cat.lower() in ["flight", "flights", "transportation"]: emoji = "✈️"
+        elif cat.lower() in ["food", "dinner", "lunch", "breakfast"]: emoji = "🍔"
+        elif cat.lower() in ["activity", "excursion"]: emoji = "🎟️"
+        
+        # If it's a one-day event (like a flight), only show the start date
+        if s_date == e_date:
+            message += f"{emoji} **{cat}:** {name}\n📅 {s_date}\n\n"
+        else:
+            message += f"{emoji} **{cat}:** {name}\n📅 {s_date} to {e_date}\n\n"
+            
+    await update.message.reply_text(message)
+
+async def delete_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    raw_text = " ".join(context.args)
+    parts = [p.strip() for p in raw_text.split("-")]
+    
+    if len(parts) != 2:
+        await update.message.reply_text(
+            "⚠️ Usage: `/delete_option <category> - <Option Name>`\n"
+            "Example: `/delete_option accommodation - The Lamehouse`"
+        )
+        return
+        
+    category = parts[0].lower()
+    option_text = parts[1]
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            return
+        trip_id = trip_query.data[0]["id"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+
+    # 2. Delete from Supabase
+    response = supabase.table("poll_options").delete().eq("trip_id", trip_id).eq("category", category).eq("option_text", option_text).execute()
+    
+    if not response.data:
+        await update.message.reply_text(f"❌ Couldn't find **{option_text}** in the {category} list. Make sure the spelling is exact!")
+    else:
+        await update.message.reply_text(f"🗑️ Deleted **{option_text}** from the {category} options.")
+
+
+async def remove_itinerary(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user_id = update.effective_user.id
+    
+    raw_text = " ".join(context.args)
+    parts = [p.strip() for p in raw_text.split("-")]
+    
+    if len(parts) != 2:
+        await update.message.reply_text(
+            "⚠️ Usage: `/remove_itinerary <category> - <Title>`\n"
+            "Example: `/remove_itinerary accommodation - The Beach House`"
+        )
+        return
+        
+    category = parts[0].lower()
+    title = parts[1]
+    
+    # 1. AUTO-CONTEXT
+    trip_id = None
+    if chat.type in ['group', 'supergroup']:
+        trip_query = supabase.table("trips").select("id").eq("group_chat_id", chat.id).execute()
+        if not trip_query.data:
+            return
+        trip_id = trip_query.data[0]["id"]
+    else:
+        user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+        db_user_id = user_query.data["id"]
+        recent_rsvp = supabase.table("rsvps").select("trip_id").eq("user_id", db_user_id).order("id", desc=True).limit(1).execute()
+        if not recent_rsvp.data:
+            return
+        trip_id = recent_rsvp.data[0]["trip_id"]
+
+    # 2. Delete from Supabase Master Itinerary
+    response = supabase.table("master_itinerary").delete().eq("trip_id", trip_id).eq("category", category).eq("title", title).execute()
+    
+    if not response.data:
+        await update.message.reply_text(f"❌ Couldn't find **{title}** in the locked {category} itinerary. Check your spelling!")
+    else:
+        await update.message.reply_text(f"🗑️ Removed **{title}** from the official itinerary. The schedule has been updated.")
+
+async def wizard_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Routes incoming /start commands to the right PM Wizard, or to the normal start logic."""
+    payload = context.args[0] if context.args else ""
+    
+    if payload.startswith("addopt_"):
+        trip_id = payload.split("_")[1]
+        context.user_data["wiz_trip_id"] = trip_id
+        
+        # Fetch trip title for flavor
+        trip_query = supabase.table("trips").select("title").eq("id", trip_id).single().execute()
+        title = trip_query.data["title"]
+        
+        # Quick category keyboard
+        reply_markup = ReplyKeyboardMarkup([
+            ["Accommodation", "Flights"],
+            ["Activities", "Food"]
+        ], one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            f"Let's add an option for **{title}**!\n\nFirst, what category is this? (Tap a button or type your own)",
+            reply_markup=reply_markup
+        )
+        return ADD_OPT_CAT
+    
+    if payload.startswith("paid_"):
+        trip_id = payload.split("_")[1]
+        context.user_data["wiz_trip_id"] = trip_id
+        await update.message.reply_text("💸 Let's log an expense! \n\nHow much did you pay? (e.g., 150.50)")
+        return PAID_AMOUNT
+        
+    if payload.startswith("lock_"):
+        trip_id = payload.split("_")[1]
+        context.user_data["wiz_trip_id"] = trip_id
+        
+        reply_markup = ReplyKeyboardMarkup([
+            ["Accommodation", "Flight"],
+            ["Activity", "Food"],
+            ["Transport", "Other"]
+        ], one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "🔒 Let's lock in an itinerary item!\n\nFirst, what category is this?", 
+            reply_markup=reply_markup
+        )
+        return LOCK_CAT
+        
+    # If it's a normal start or a group invite, pass it to your original start function
+    await start(update, context)
+    return ConversationHandler.END
+
+async def wiz_addopt_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wiz_cat"] = update.message.text.lower()
+    await update.message.reply_text(
+        "Got it. Now, what's the name or title of this option?\n(e.g., 'The Beach House')", 
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return ADD_OPT_NAME
+
+async def wiz_addopt_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wiz_name"] = update.message.text
+    await update.message.reply_text(
+        "Almost done. What are the specific dates for this?\n"
+        "Example: `15 June to 18 June 2026`\n\n"
+        "*(If dates don't matter for this, just type 'skip')*"
+    )
+    return ADD_OPT_DATES
+
+
+async def wiz_addopt_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text.strip().lower()
+    trip_id = context.user_data["wiz_trip_id"]
+    
+    # Fetch trip boundaries for the smart parser
+    trip_query = supabase.table("trips").select("start_date, end_date").eq("id", trip_id).single().execute()
+    t_start = trip_query.data["start_date"]
+    t_end = trip_query.data["end_date"]
+    
+    start_date, end_date = None, None
+    if user_input != 'skip':
+        start_date, end_date = smart_parse_dates(user_input, t_start, t_end)
+        if not start_date or not end_date:
+            await update.message.reply_text("❌ I couldn't understand those dates.\nTry just the days (e.g., `15-18`), or `Day 1 to Day 3`, or type 'skip'.")
+            return ADD_OPT_DATES
+            
+    # Time to save!
+    trip_id = context.user_data["wiz_trip_id"]
+    cat = context.user_data["wiz_cat"]
+    name = context.user_data["wiz_name"]
+    user_id = update.effective_user.id
+    
+    # Get DB user ID
+    user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+    db_user_id = user_query.data["id"]
+    
+    # Save to Supabase
+    supabase.table("poll_options").insert({
+        "trip_id": trip_id,
+        "category": cat,
+        "option_text": name,
+        "start_date": start_date.isoformat() if start_date else None,
+        "end_date": end_date.isoformat() if end_date else None,
+        "added_by": db_user_id
+    }).execute()
+    
+    await update.message.reply_text("✅ Awesome, it's saved! I'll let the group know.")
+    
+    # Announce back to the group chat!
+    trip_query = supabase.table("trips").select("group_chat_id").eq("id", trip_id).execute()
+    if trip_query.data and trip_query.data[0]["group_chat_id"]:
+        group_chat_id = trip_query.data[0]["group_chat_id"]
+        first_name = update.effective_user.first_name
+        date_str = f" ({start_date.strftime('%b %d')} - {end_date.strftime('%b %d')})" if start_date else ""
+        
+        # Base announcement
+        announcement = f"💡 **New Idea!**\n{first_name} just added **{name}** to the {cat} options{date_str}!"
+        
+        # THE MILESTONE CHECK: Is this the very first option for this trip?
+        options_query = supabase.table("poll_options").select("id").eq("trip_id", trip_id).execute()
+        if len(options_query.data) == 1:
+            announcement += (
+                "\n\n🎓 **Pro Tip:** This is our first pitched idea! "
+                "Keep adding options. Once we have a few good ones, anyone can type `/vote accommodation` "
+                "(or whatever category) to generate a poll so the group can decide!"
+            )
+            
+        await context.bot.send_message(chat_id=group_chat_id, text=announcement)
+    
+    return ConversationHandler.END
+    
+async def wiz_paid_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Clean the input (remove $ if they typed it)
+    amount_text = update.message.text.replace('$', '').strip()
+    try:
+        amount = float(amount_text)
+        if amount <= 0: raise ValueError
+    except ValueError:
+        await update.message.reply_text("❌ Please enter a valid number greater than 0 (e.g., 45.50).")
+        return PAID_AMOUNT
+        
+    context.user_data["wiz_amount"] = amount
+    await update.message.reply_text("Great. What was this for? (e.g., 'Uber to the airport', 'Dinner at Marios')")
+    return PAID_DESC
+
+async def wiz_paid_desc(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    desc = update.message.text.strip()
+    trip_id = context.user_data["wiz_trip_id"]
+    amount = context.user_data["wiz_amount"]
+    user_id = update.effective_user.id
+    
+    # DB Magic
+    user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+    db_user_id = user_query.data["id"]
+    
+    supabase.table("expenses").insert({
+        "trip_id": trip_id,
+        "paid_by": db_user_id,
+        "amount": amount,
+        "description": desc
+    }).execute()
+    
+    await update.message.reply_text(f"✅ Saved! You logged ${amount:.2f} for {desc}.")
+    
+    # Announce to Group
+    trip_query = supabase.table("trips").select("group_chat_id").eq("id", trip_id).execute()
+    if trip_query.data and trip_query.data[0]["group_chat_id"]:
+        group_chat_id = trip_query.data[0]["group_chat_id"]
+        await context.bot.send_message(
+            chat_id=group_chat_id, 
+            text=f"💸 **Expense Logged!**\n{update.effective_user.first_name} paid **${amount:.2f}** for {desc}."
+        )
+    return ConversationHandler.END
+
+
+
+async def wiz_lock_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wiz_cat"] = update.message.text.lower()
+    await update.message.reply_text("What is the name or title of this booking? (e.g., 'The Beach House', 'Delta Flight 102')", reply_markup=ReplyKeyboardRemove())
+    return LOCK_TITLE
+
+async def wiz_lock_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wiz_title"] = update.message.text.strip()
+    await update.message.reply_text(
+        "When is it? Please use the exact format:\n`15 June to 18 June 2026`\n\n"
+        "*(If it's a one-day event like a flight or dinner, just use the same date twice, e.g., `15 June to 15 June 2026`)*"
+    )
+    return LOCK_DATES
+
+async def wiz_lock_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text.strip()
+    trip_id = context.user_data["wiz_trip_id"]
+    
+    # Fetch trip boundaries for the smart parser
+    trip_query = supabase.table("trips").select("start_date, end_date").eq("id", trip_id).single().execute()
+    t_start = trip_query.data["start_date"]
+    t_end = trip_query.data["end_date"]
+    
+    start_date, end_date = smart_parse_dates(user_input, t_start, t_end)
+    
+    if not start_date or not end_date:
+        await update.message.reply_text("❌ I couldn't find those dates in your trip window.\nTry just the days (e.g., `15-18`), or `Day 1 to Day 3`.")
+        return LOCK_DATES
+
+    # Store dates and move to Cost Type
+    context.user_data["wiz_start"] = start_date
+    context.user_data["wiz_end"] = end_date
+    
+    reply_markup = ReplyKeyboardMarkup([["Group Cost", "Per Person Cost"], ["Skip Cost"]], one_time_keyboard=True, resize_keyboard=True)
+    await update.message.reply_text("💰 How is this priced? Is it a total group cost (like an Airbnb) or a per-person cost (like a flight)?", reply_markup=reply_markup)
+    return LOCK_COST_TYPE
+
+async def wiz_lock_cost_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    choice = update.message.text
+    if choice == "Skip Cost":
+        context.user_data["wiz_cost_type"] = "None"
+        context.user_data["wiz_cost"] = 0.0
+        return await finalize_lock(update, context) # Jump straight to saving
+        
+    context.user_data["wiz_cost_type"] = "Group" if "Group" in choice else "Per Person"
+    await update.message.reply_text("What is the estimated amount in dollars? (e.g., 1200 or 350.50)", reply_markup=ReplyKeyboardRemove())
+    return LOCK_COST
+
+async def wiz_lock_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        cost = float(update.message.text.replace('$', '').strip())
+    except ValueError:
+        await update.message.reply_text("❌ Please enter a valid number (e.g., 1200).")
+        return LOCK_COST
+        
+    context.user_data["wiz_cost"] = cost
+    return await finalize_lock(update, context)
+
+async def finalize_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    trip_id = context.user_data["wiz_trip_id"]
+    cat = context.user_data["wiz_cat"]
+    title = context.user_data["wiz_title"]
+    start_date = context.user_data["wiz_start"]
+    end_date = context.user_data["wiz_end"]
+    cost_type = context.user_data["wiz_cost_type"]
+    cost = context.user_data["wiz_cost"]
+    user_id = update.effective_user.id
+    
+    user_query = supabase.table("users").select("id").eq("telegram_id", user_id).single().execute()
+    db_user_id = user_query.data["id"]
+    
+    # Save to Master Itinerary
+    supabase.table("master_itinerary").insert({
+        "trip_id": trip_id,
+        "category": cat,
+        "title": title,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "cost_type": cost_type,
+        "estimated_cost": cost,
+        "locked_by": db_user_id
+    }).execute()
+    
+    await update.message.reply_text("✅ Locked in! The budget and itinerary have been updated.")
+    
+    # Announce to Group
+    group_query = supabase.table("trips").select("group_chat_id").eq("id", trip_id).execute()
+    if group_query.data and group_query.data[0]["group_chat_id"]:
+        group_chat_id = group_query.data[0]["group_chat_id"]
+        
+        cost_str = f" \n💰 Est. Cost: ${cost:,.2f} ({cost_type})" if cost > 0 else ""
+        date_str = start_date.strftime('%b %d') if start_date == end_date else f"{start_date.strftime('%b %d')} to {end_date.strftime('%b %d')}"
+        
+        announcement = f"🔒 **Itinerary Update!**\n{update.effective_user.first_name} just locked in **{title}** ({cat.capitalize()}) for {date_str}!{cost_str}"
+        
+        # THE MILESTONE CHECK: Is this the first locked item?
+        itin_query = supabase.table("master_itinerary").select("id").eq("trip_id", trip_id).execute()
+        if len(itin_query.data) == 1:
+            announcement += (
+                "\n\n🎓 **Pro Tip:** We have officially locked in our first plan! "
+                "From now on, anyone can type `/itinerary` to see the master timeline, "
+                "or `/budget` to see our running cost estimates."
+            )
+            
+        await context.bot.send_message(chat_id=group_chat_id, text=announcement)
+    return ConversationHandler.END
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = """
+🧳 **TripSync Bot - Command Menu** 🧳
+
+**🚀 Setup & RSVPs**
+`/new_trip` - Start a new trip (PM only)
+`/start` - Join a trip (Group only)
+`/roster` - See who is coming
+`/change_rsvp` - Update your status
+
+**🗳️ Voting & Itinerary**
+`/add_option <category> - <Name> [- <Dates>]` - Suggest an idea
+`/vote <category> [- <Dates>]` - Start a poll
+`/lock_master <category> - <Title> - <Dates>` - Lock in a winner
+`/itinerary` - View the official schedule
+`/check_gaps` - Find missing accommodation nights
+
+**💰 Shared Ledger**
+`/paid <amount> - <description>` - Log an expense
+`/ledger` - View all expenses
+`/settle` - Calculate who owes who
+
+**🛠️ Admin/Cleanup**
+`/delete_option <category> - <Name>` - Remove a typo'd suggestion
+`/remove_itinerary <category> - <Title>` - Cancel a locked booking
+    """
+    await update.message.reply_text(help_text)
+
+# --- MAIN ---
+def main():
+    app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+
+    # Add the Conversation Handler
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("new_trip", new_trip)],
+        states={
+            TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_title)],
+            DESTINATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_destination)],
+            DATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_dates)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+   # The Master PM Wizard Handler
+    pm_wizard_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", wizard_router)],
+        states={
+            ADD_OPT_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_cat)],
+            ADD_OPT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_name)],
+            ADD_OPT_DATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_addopt_dates)],
+            # Paid States
+            PAID_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_paid_amount)],
+            PAID_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_paid_desc)],
+            # Lock States
+            LOCK_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_lock_cat)],
+            LOCK_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_lock_title)],
+            LOCK_DATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_lock_dates)],
+            # Lock Cost States
+            LOCK_COST_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_lock_cost_type)],
+            LOCK_COST: [MessageHandler(filters.TEXT & ~filters.COMMAND, wiz_lock_cost)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    
+    app.add_handler(pm_wizard_handler)
+    app.add_handler(CommandHandler("roster", roster))
+    app.add_handler(CommandHandler("change_rsvp", change_rsvp))
+    app.add_handler(CommandHandler("add_option", add_option))
+    app.add_handler(CommandHandler("vote", vote))
+    app.add_handler(CommandHandler("lock_master", lock_master))
+    app.add_handler(CommandHandler("check_gaps", check_gaps))
+    app.add_handler(CommandHandler("paid", paid))
+    app.add_handler(CommandHandler("ledger", ledger))
+    app.add_handler(CommandHandler("settle", settle))
+    app.add_handler(CommandHandler("budget", budget))
+    app.add_handler(CommandHandler("itinerary", itinerary))
+    app.add_handler(CommandHandler("delete_option", delete_option))
+    app.add_handler(CommandHandler("remove_itinerary", remove_itinerary))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(handle_rsvp, pattern="^rsvp_"))
+    
+
+    print("Trip Planner is online...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
