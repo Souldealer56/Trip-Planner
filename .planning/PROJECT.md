@@ -8,14 +8,16 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: Planning Next Milestone (v1.2/v2.0)
+## Current Milestone: v1.2 Web Parity & Complete Trip Management
 
-**Goal:** Bridge advanced collaborative workflows (expenses, voting, pitching) from the Telegram bot to the web application.
+**Goal:** Replicate all Telegram bot functionalities in the React web application, making the bot entirely optional for trip planning, voting, and expense tracking.
 
 **Target features:**
-- Webapp: Log expenses and view the live ledger
-- Webapp: Pitch options and cast votes
-- Webapp: Edit trip details
+- Webapp: Trip Creation (form/modal with title, destination, dates, base currency)
+- Webapp: RSVP status updates (update Committed, Tentative, Declined for active user)
+- Webapp: Option pitching (category, price, currency, link, description) & voting toggles
+- Webapp: Expense logging (paid-by, amount, currency, split selection)
+- Webapp: Ledger display & settlement calculation (balances and debts graph)
 
 ## Requirements
 
@@ -37,14 +39,15 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 ### Active
 
-- [ ] Webapp: Log expenses and see the trip ledger
-- [ ] Webapp: Suggest/pitch new trip options (flights, hotels)
-- [ ] Webapp: Cast votes on pitched options
-- [ ] Webapp: Edit trip details
+- [ ] Webapp: Create a new trip (form/modal with validation and redirect)
+- [ ] Webapp: RSVP status updates (Committed, Tentative, Declined dropdown/toggle)
+- [ ] Webapp: Pitch new options (category, price, currency, link, description) & cast/retract votes
+- [ ] Webapp: Log new expenses (paid-by, amount, currency, split selection)
+- [ ] Webapp: Ledger display & settlement calculation (who owes whom, conversion rates)
 
 ### Deferred to Future Milestones
 
-- [ ] Automated settlement alerts pushed to Telegram
+- [ ] Automated settlement alerts pushed to Telegram from web hooks
 
 ### Out of Scope
 
