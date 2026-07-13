@@ -8,15 +8,14 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.1 Bot Capabilities & Improvements
+## Current Milestone: Planning Next Milestone (v1.2/v2.0)
 
-**Goal:** Review and enhance the Telegram bot's capabilities, focusing on UX, voting, RSVPs, and error resilience.
+**Goal:** Bridge advanced collaborative workflows (expenses, voting, pitching) from the Telegram bot to the web application.
 
 **Target features:**
-- General UX/UI enhancements (better messages, emojis, clearer formatting)
-- Option pitching and voting improvements (richer details, multi-option voting, deadlines)
-- RSVP and Roster tracking enhancements (reminders, auto-nudging, custom status)
-- Error handling and connection resilience (retry policies, better crash logs)
+- Webapp: Log expenses and view the live ledger
+- Webapp: Pitch options and cast votes
+- Webapp: Edit trip details
 
 ## Requirements
 
@@ -27,25 +26,25 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Pitching and listing options under categories (Accommodation, Flights, Activities, Food, Transport, Other) — existing
 - ✓ Locking in itinerary items and pitching voting — existing
 - ✓ Multi-currency expense ledger and logging — existing
-- ✓ Automatic poll nudging and majority threshold alerts — existing
 - ✓ Set up clean Git tracking for GSD planning documents — v1.0
 - ✓ Initialize a React + Vite + Vanilla CSS webapp in the workspace — v1.0 (Phase 1)
 - ✓ Webapp: View trips list and trip details (destination, dates, participants/members) — v1.0 (Phase 3)
 - ✓ Webapp: Choose active participant and add new participant with auto-login — v1.0 (Phase 4)
+- ✓ Telegram Bot: Error handling and connection resilience (retry policies, crash logs) — v1.1 (Phase 6)
+- ✓ Telegram Bot: General UX/UI enhancements (messages, formatting, emojis) — v1.1 (Phase 7)
+- ✓ Telegram Bot: Option pitching and voting improvements (richer details, multi-option voting, deadlines) — v1.1 (Phase 8)
+- ✓ Telegram Bot: RSVP and Roster tracking enhancements (reminders, auto-nudging, custom status) — v1.1 (Phase 9)
 
 ### Active
 
-- [ ] Telegram Bot: General UX/UI enhancements (messages, formatting, emojis)
-- [ ] Telegram Bot: Option pitching and voting improvements (richer details, multi-option voting, deadlines)
-- [ ] Telegram Bot: RSVP and Roster tracking enhancements (reminders, auto-nudging, custom status)
-- [ ] Telegram Bot: Error handling and connection resilience (retry policies, crash logs)
+- [ ] Webapp: Log expenses and see the trip ledger
+- [ ] Webapp: Suggest/pitch new trip options (flights, hotels)
+- [ ] Webapp: Cast votes on pitched options
+- [ ] Webapp: Edit trip details
 
 ### Deferred to Future Milestones
 
-- [ ] Edit trip details (change destination, update dates) directly from the webapp
-- [ ] Suggest/pitch new trip options (flights, hotels) through the webapp
-- [ ] Cast votes on pitched options via webapp buttons
-- [ ] Log expenses and see the trip ledger through the webapp
+- [ ] Automated settlement alerts pushed to Telegram
 
 ### Out of Scope
 
@@ -55,9 +54,8 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 ## Context
 
-- Shipped **v1.0 Web App Foundations** featuring a React + Vite + Vanilla CSS client application connecting dynamically to a Supabase PostgreSQL backend.
-- The web app is structured into clean separation layers: database services (`web/src/services/`) and React custom fetching/mutation hooks (`web/src/hooks/`).
-- Views are completely styled with a premium glassmorphic Slate Dark Theme.
+- Shipped **v1.1 Bot Capabilities & Improvements** which hardened database error resilience, unified template formatting styles and emoji mappings, added option url/description fields, built real-time `/polls` tallies, traveler notes commands/web edits, and launched an automated asyncio nudging background loop.
+- The project is fully covered by a unit test suite (22/22 passing tests) validating bot operations.
 
 ## Constraints
 
@@ -75,23 +73,14 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 | Negative `telegram_id` values for web users | Completely avoids collision risks with real Telegram User IDs | ✓ Good (Phase 2 setup successful) |
 | Combined auto-load + manual refresh buttons | Simple way to display Telegram bot updates without real-time sockets | ✓ Good (Phase 3 setup successful) |
 | Blocking profile modal selector | Restricts dynamic actions to a selected active profile session | ✓ Good (Phase 4 setup successful) |
+| Centralized DB execution wrapper (`_safe_db_call`) | Ensures bot loop doesn't crash on DB timeout/failure | ✓ Good (Phase 6 setup successful) |
+| Centralized emoji map (`_UX_EMOJIS`) | Uniform emoji styling across bot templates | ✓ Good (Phase 7 setup successful) |
+| Telegram native poll tallies command (`/polls`) | Queries real-time tallies directly from TG API | ✓ Good (Phase 8 setup successful) |
+| `asyncio` background nudge loop | Lightweight non-blocking reminders without extra pip dependencies | ✓ Good (Phase 9 setup successful) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
-
 ---
-*Last updated: 2026-07-12 after v1.1 milestone initialization*
+*Last updated: 2026-07-13 after v1.1 milestone completion*
