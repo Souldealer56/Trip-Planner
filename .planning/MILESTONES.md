@@ -1,5 +1,17 @@
 # Milestones
 
+## v1.3 v1.3 (Shipped: 2026-07-14)
+
+**Phases completed:** 3 phases, 3 plans, 16 tasks
+
+**Key accomplishments:**
+
+- Global UserSessionContext provider with localStorage caching, Netflix/Slack-style traveler selector splash page, and real-time Telegram username validation
+- Privacy-filtered dashboard queries via nested relational Supabase selections, automatic Committed RSVP registration for trip creators, and automated privacy isolation verification testing
+- Traveler user database lookups by Telegram ID and username, deep link auto-login with instant URL parameter sanitization, and blocking roster membership reconciliation overlay modals on trip details views
+
+---
+
 ## 1.2 Web Parity & Complete Trip Management (Shipped: 2026-07-14)
 
 **Phases completed:** 4 phases, 5 plans, 4 tasks

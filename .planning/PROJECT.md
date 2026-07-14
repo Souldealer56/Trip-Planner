@@ -8,16 +8,16 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.3 Traveler Profiles & Access Control
+## Current Milestone: Project Scope Complete (v1.3 Traveler Profiles & Access Control)
 
 **Goal:** Restrict trip visibility to invited participants and resolve webapp login session conflicts through global traveler profiles.
 
 **Target features:**
-- Global Profile Selection splash page when not logged in (Slack/Netflix profile style).
-- Filter the trips dashboard to display only trips where the user is an RSVP participant.
-- Trip Details page session reconciliation (prompt to join or switch profile if signed-in user is not in the trip roster).
-- Auto-login support via Telegram bot magic links (`?tg_user_id=...` or `?username=...`).
-- Auto-add trip creator as Committed RSVP participant upon web trip creation.
+- Global Profile Selection splash page when not logged in (Slack/Netflix profile style) — Validated ✓
+- Filter the trips dashboard to display only trips where the user is an RSVP participant — Validated ✓
+- Trip Details page session reconciliation (prompt to join or switch profile if signed-in user is not in the trip roster) — Validated ✓
+- Auto-login support via Telegram bot magic links (`?tg_user_id=...` or `?username=...`) — Validated ✓
+- Auto-add trip creator as Committed RSVP participant upon web trip creation — Validated ✓
 
 ## Requirements
 
@@ -41,10 +41,13 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Webapp: Pitch new options & cast/retract votes — v1.2 (Phase 11)
 - ✓ Webapp: Log new expenses (paid-by, amount, currency, split selection) — v1.2 (Phase 12)
 - ✓ Webapp: Ledger display & settlement calculation (who owes whom, conversion rates) — v1.2 (Phase 13)
+- ✓ Webapp: Global user sessions caching and splash selector screen — v1.3 (Phase 14)
+- ✓ Webapp: User-scoped filtered trips dashboard and creator auto-RSVP — v1.3 (Phase 15)
+- ✓ Webapp: Session reconciliation on direct links and URL autologin parameters — v1.3 (Phase 16)
 
 ### Active
 
-- (None. All v1.2 features shipped and validated.)
+- (None. All v1.3 features shipped and validated.)
 
 ### Deferred to Future Milestones
 
@@ -60,6 +63,7 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 - Shipped **v1.1 Bot Capabilities & Improvements** which hardened database error resilience, unified template formatting styles and emoji mappings, added option url/description fields, built real-time `/polls` tallies, traveler notes commands/web edits, and launched an automated asyncio nudging background loop.
 - Shipped **v1.2 Web Parity & Complete Trip Management** which brought the webapp to full capability parity with the Telegram bot: including modal trip creation forms, user session RSVP updates, suggestion pitch forms, dynamic option lists with voting selection toggles, multi-currency custom splitting expense modals, responsive desktop-to-mobile ledgers, and optimized currency-converting greedy debt solvers.
+- Shipped **v1.3 Traveler Profiles & Access Control** which implemented global user session caching across views, Slack/Netflix-style traveler selection grids, debounced async username pre-checks, user-scoped filtered trips dashboard queries, auto-RSVP on web trip creation, and Telegram deep linking auto-login with instant URL parameters sanitization and roster reconciliation overlay modals.
 
 ## Constraints
 
@@ -84,10 +88,17 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 | Client-side JSONB updates for vote toggle | Dynamic client-side voting count caching mapped to active user IDs | ✓ Good (Phase 11 setup successful) |
 | Equal vs. Custom Roster Split toggles | Standardized checklist checks for specific participant divisions | ✓ Good (Phase 12 setup successful) |
 | USD-intermediary FX rates converter | Converts diverse cost inputs to trip base currency using live rates | ✓ Good (Phase 13 setup successful) |
+| React Context for user sessions caching | Preserves signed in active user profile state globally | ✓ Good (Phase 14 setup successful) |
+| Debounced async username pre-check validation | Prevents database username collision errors before submission | ✓ Good (Phase 14 setup successful) |
+| Nested relational Supabase queries | Enforces client-side query isolation filtering trips by participant RSVPs | ✓ Good (Phase 15 setup successful) |
+| Case-insensitive deep link lookups | Strip leading `@` to look up users by username/telegram_id case-insensitively | ✓ Good (Phase 16 setup successful) |
+| Browser history URL state replacement | Immediately deletes credentials from address bar without reloading | ✓ Good (Phase 16 setup successful) |
+| Blocking roster reconciliation modal | Enforces access control by blocking views unless registered in roster | ✓ Good (Phase 16 setup successful) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-13 after v1.2 milestone completion*
+*Last updated: 2026-07-14 after v1.3 milestone completion*
+
