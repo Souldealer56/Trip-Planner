@@ -8,9 +8,16 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-### Current Milestone: None (Milestone v1.2 Completed)
+## Current Milestone: v1.3 Traveler Profiles & Access Control
 
-Milestone v1.2 successfully brought complete parity of all Telegram bot features to the React web application, including trip creation, RSVPs, suggestion pitching and voting, expense logging, and optimized debt settlements.
+**Goal:** Restrict trip visibility to invited participants and resolve webapp login session conflicts through global traveler profiles.
+
+**Target features:**
+- Global Profile Selection splash page when not logged in (Slack/Netflix profile style).
+- Filter the trips dashboard to display only trips where the user is an RSVP participant.
+- Trip Details page session reconciliation (prompt to join or switch profile if signed-in user is not in the trip roster).
+- Auto-login support via Telegram bot magic links (`?tg_user_id=...` or `?username=...`).
+- Auto-add trip creator as Committed RSVP participant upon web trip creation.
 
 ## Requirements
 

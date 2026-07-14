@@ -8,9 +8,12 @@ import { updateRsvpNote, updateRsvpStatus } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll } from '../services/options'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
+import { useUserSession } from '../hooks/useUserSession'
 
-function TripDetails({ activeUser, onLogin, onLogout }) {
+function TripDetails() {
   const { id } = useParams()
+  const { activeUser, login: onLogin, logout: onLogout } = useUserSession()
+
 
   const {
     data: trip,

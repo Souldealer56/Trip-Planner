@@ -5,6 +5,7 @@
 - ✅ **v1.0 MVP** — Phases 1-5 (shipped 2026-07-12)
 - ✅ **v1.1 Bot Capabilities & Improvements** — Phases 6-9 (shipped 2026-07-13)
 - ✅ **v1.2 Web Parity & Complete Trip Management** — Phases 10-13 (shipped 2026-07-13)
+- 🚧 **v1.3 Traveler Profiles & Access Control** — Phases 14-16 (in progress)
 
 ## Phases
 
@@ -39,6 +40,62 @@
 
 </details>
 
+### 🚧 v1.3 Traveler Profiles & Access Control (In Progress)
+
+**Milestone Goal:** Restrict trip visibility to invited participants and resolve webapp login session conflicts through global traveler profiles.
+
+#### Phase 14: Global Sessions & Splash Profiles
+
+**Goal**: Implement global session provider and Netflix/Slack-style profile select grids.
+**Depends on**: Phase 13
+**Requirements**: SESS-01, SESS-02, PROF-01, PROF-02, PROF-03
+**Success Criteria**:
+
+  1. User session is saved globally at the root component and persists in `localStorage` across page reloads.
+  2. Landing page `/trips` displays splash profile select grid if user is not signed in.
+  3. Global log out button in the header resets session and redirects to splash.
+  4. Form on splash allows creating a new traveler profile dynamically in database with negative `telegram_id`.
+
+**Plans**: 1 plan
+
+Plans:
+
+- [x] 14-01: Global Session Provider & Splash Profiles
+
+#### Phase 15: Filtered Trips Dashboard & Auto-RSVP
+
+**Goal**: Restrict trip visibility to invited participants and auto-rsvp creators.
+**Depends on**: Phase 14
+**Requirements**: PRIV-01, PRIV-02, PRIV-03
+**Success Criteria**:
+
+  1. Dashboard lists only the trips where the active user is an RSVP participant.
+  2. Verification that no uninvited trip data is loaded client-side via Supabase network queries.
+  3. Creating a new trip on the webapp automatically creates a Committed RSVP record for the active creator user.
+
+**Plans**: 1 plan
+
+Plans:
+
+- [ ] 15-01: Filtered Trips Dashboard & Auto-RSVP
+
+#### Phase 16: Session Reconciliation & Bot Deep Linking
+
+**Goal**: Reconcile active session on direct links and handle URL params for autologin.
+**Depends on**: Phase 15
+**Requirements**: RECON-01, RECON-02, RECON-03, RECON-04, LINK-01, LINK-02
+**Success Criteria**:
+
+  1. Accessing a trip details page checks if the active session user is in the trip roster.
+  2. Shows an overlay modal if they are not in the roster, prompting them to "Join Trip" (creating the RSVP record) or "Switch Profile" (logout/redirect).
+  3. Landing URLs with `?tg_user_id=...` or `?username=...` parse the params, fetch matching database user, auto-login, and immediately sanitise URL query parameters.
+
+**Plans**: 1 plan
+
+Plans:
+
+- [ ] 16-01: Session Reconciliation & Bot Deep Linking
+
 ## Progress
 
 **Execution Order:**
@@ -59,3 +116,6 @@ Phases execute in numeric order.
 | 11. Webapp Option Pitching & Voting | v1.2 | 1/1 | Complete | 2026-07-13 |
 | 12. Webapp Expense Logging & Ledger | v1.2 | 1/1 | Complete | 2026-07-13 |
 | 13. Webapp Debts Settlement Optimization | v1.2 | 1/1 | Complete | 2026-07-13 |
+| 14. Global Sessions & Splash Profiles | v1.3 | 1/1 | Complete    | 2026-07-14 |
+| 15. Filtered Trips Dashboard & Auto-RSVP | v1.3 | 0/1 | Not started | - |
+| 16. Session Reconciliation & Bot Deep Linking | v1.3 | 0/1 | Not started | - |

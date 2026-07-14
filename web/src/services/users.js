@@ -26,3 +26,45 @@ export async function createUser(username, firstName) {
   }
   return data
 }
+
+/**
+ * Fetches all user records from the users table, ordered alphabetically by first_name.
+ * @returns {Promise<Array>} A promise resolving to an array of user objects.
+ */
+export async function fetchAllUsers() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .order('first_name', { ascending: true })
+
+  if (error) {
+    throw error
+  }
+  return data
+}
+
+/**
+ * Checks if a given username is available (not already registered).
+ * If the input is empty or null, returns true.
+ * @param {string} username The username to check.
+ * @returns {Promise<boolean>} Resolves to true if available, false if taken.
+ */
+export async function checkUsernameAvailable(username) {
+  if (!username) return true
+  const cleanUsername = username.trim().toLowerCase()
+  if (!cleanUsername) return true
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .ilike('username', cleanUsername)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  // If data is null, it means no user exists with this username, so it is available
+  return data === null
+}
+
