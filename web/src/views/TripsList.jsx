@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTrips } from '../hooks/useTrips'
 import { formatDateRange } from '../utils/format'
 import { createTrip } from '../services/trips'
+import { createRsvp } from '../services/rsvps'
 import { useUserSession } from '../hooks/useUserSession'
 import { fetchAllUsers, checkUsernameAvailable, createUser } from '../services/users'
 
@@ -34,7 +35,7 @@ const getAvatarColor = (id) => {
 
 function TripsList() {
   const { activeUser, login, logout } = useUserSession()
-  const { data: trips, loading, error, refresh } = useTrips()
+  const { data: trips, loading, error, refresh } = useTrips(activeUser?.id)
   const navigate = useNavigate()
 
   // Trips Form Modal States
@@ -142,6 +143,12 @@ function TripsList() {
         endDate,
         baseCurrency
       )
+
+      // Auto-RSVP the creator as Committed
+      if (activeUser?.id) {
+        await createRsvp(newTrip.id, activeUser.id, 'Committed')
+      }
+
       // Reset form states
       setTitle('')
       setDestination('')

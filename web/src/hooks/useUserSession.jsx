@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { fetchUserByTelegramId, fetchUserByUsername } from '../services/users'
 
 const UserSessionContext = createContext(null)
 
@@ -23,6 +24,42 @@ export function UserSessionProvider({ children }) {
     localStorage.removeItem('trip_planner_active_user')
     setActiveUser(null)
   }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tgUserIdParam = params.get('tg_user_id')
+    const usernameParam = params.get('username')
+
+    if (tgUserIdParam || usernameParam) {
+      const performAutoLogin = async () => {
+        try {
+          let user = null
+          if (tgUserIdParam) {
+            const tgId = parseInt(tgUserIdParam, 10)
+            if (!isNaN(tgId)) {
+              user = await fetchUserByTelegramId(tgId)
+            }
+          } else if (usernameParam) {
+            user = await fetchUserByUsername(usernameParam)
+          }
+
+          if (user) {
+            login(user)
+          }
+        } catch (err) {
+          console.error('Failed auto-login via URL params:', err)
+        } finally {
+          // Immediately sanitise URL parameters
+          params.delete('tg_user_id')
+          params.delete('username')
+          const newSearch = params.toString()
+          const newPath = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash
+          window.history.replaceState(null, '', newPath)
+        }
+      }
+      performAutoLogin()
+    }
+  }, [])
 
   return (
     <UserSessionContext.Provider value={{ activeUser, login, logout }}>

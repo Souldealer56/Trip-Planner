@@ -4,7 +4,7 @@ import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
 import { formatDateRange } from '../utils/format'
-import { updateRsvpNote, updateRsvpStatus } from '../services/rsvps'
+import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll } from '../services/options'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
@@ -29,15 +29,15 @@ function TripDetails() {
     refresh: refreshRoster
   } = useRsvpRoster(id)
 
-  const {
-    addParticipant,
-    loading: joinLoading,
-    error: joinError
-  } = useAddParticipant()
+  const { addParticipant, loading: joinLoading, error: joinError } = useAddParticipant()
 
   const [showJoinForm, setShowJoinForm] = useState(false)
   const [firstName, setFirstName] = useState('')
   const [username, setUsername] = useState('')
+
+  // Reconciliation states
+  const [reconcileLoading, setReconcileLoading] = useState(false)
+  const [reconcileError, setReconcileError] = useState('')
 
   const [userNote, setUserNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
@@ -357,6 +357,23 @@ function TripDetails() {
     }
   }
 
+  const handleJoinRoster = async () => {
+    if (!activeUser) return
+    setReconcileLoading(true)
+    setReconcileError('')
+    try {
+      await createRsvp(id, activeUser.id, 'Committed')
+      await refreshRoster()
+    } catch (err) {
+      console.error('Failed to join trip roster:', err)
+      setReconcileError(err.message || 'Failed to join trip roster. Please try again.')
+    } finally {
+      setReconcileLoading(false)
+    }
+  }
+
+  const activeUserInRoster = activeUser ? roster.some(m => m.user_id === activeUser.id) : false
+
   // Determine if the modal should show the join form pane
   const displayJoinForm = showJoinForm || roster.length === 0
 
@@ -499,61 +516,92 @@ function TripDetails() {
                         padding: '0.75rem',
                         borderRadius: 'var(--border-radius-sm)',
                         border: '1px solid var(--border-light)',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        color: 'var(--text-main)',
-                        fontFamily: 'inherit',
-                        outline: 'none'
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-main)'
                       }}
                     />
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Telegram Username (Optional)</label>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--text-muted)' }}>@</span>
-                      <input
-                        type="text"
-                        placeholder="username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        style={{
-                          padding: '0.75rem 0.75rem 0.75rem 1.75rem',
-                          borderRadius: 'var(--border-radius-sm)',
-                          border: '1px solid var(--border-light)',
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          color: 'var(--text-main)',
-                          fontFamily: 'inherit',
-                          width: '100%',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="e.g. alex_smith"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: 'var(--border-radius-sm)',
+                        border: '1px solid var(--border-light)',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-main)'
+                      }}
+                    />
                   </div>
 
                   {joinError && (
-                    <div style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', textAlign: 'center' }}>
-                      ⚠️ {joinError}
+                    <div style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem' }}>
+                      {joinError}
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    <button type="submit" disabled={joinLoading} className="btn" style={{ width: '100%' }}>
-                      {joinLoading ? 'Joining...' : 'Join & Sign In'}
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowJoinForm(false)}
+                      className="btn btn-secondary"
+                      style={{ flex: 1 }}
+                    >
+                      Back
                     </button>
-                    {roster.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowJoinForm(false)}
-                        className="btn btn-secondary"
-                        style={{ width: '100%' }}
-                      >
-                        Back to List
-                      </button>
-                    )}
+                    <button
+                      type="submit"
+                      className="btn"
+                      disabled={joinLoading}
+                      style={{ flex: 1 }}
+                    >
+                      {joinLoading ? 'Joining...' : 'Join'}
+                    </button>
                   </div>
                 </form>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Blocking Roster Reconciliation Modal */}
+      {!loading && !error && activeUser && !activeUserInRoster && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-card animate-fade-in" style={{ textAlign: 'center', maxWidth: '400px' }}>
+            <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem' }}>Not on the Roster</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              You are signed in as <strong>{activeUser.first_name}</strong>, but you are not registered as a participant for this trip.
+            </p>
+            
+            {reconcileError && (
+              <p style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                {reconcileError}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button 
+                onClick={handleJoinRoster} 
+                className="btn" 
+                disabled={reconcileLoading}
+                style={{ width: '100%' }}
+              >
+                {reconcileLoading ? 'Joining...' : 'Join Trip'}
+              </button>
+              <button 
+                onClick={onLogout} 
+                className="btn btn-secondary" 
+                style={{ width: '100%' }}
+              >
+                Switch Profile / Sign Out
+              </button>
+            </div>
           </div>
         </div>
       )}

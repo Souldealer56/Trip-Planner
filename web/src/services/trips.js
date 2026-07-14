@@ -1,19 +1,27 @@
 import { supabase } from './supabase'
 
 /**
- * Fetches all trips from the database ordered by start_date ascending.
+ * Fetches trips for a specific user from the database ordered by start_date ascending.
+ * @param {string} userId The UUID of the traveler.
  * @returns {Promise<Array>} A promise resolving to an array of trips.
  */
-export async function fetchTrips() {
+export async function fetchTrips(userId) {
+  if (!userId) return []
+
   const { data, error } = await supabase
-    .from('trips')
-    .select('id, title, destination, start_date, end_date, base_currency')
-    .order('start_date', { ascending: true })
+    .from('rsvps')
+    .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency)')
+    .eq('user_id', userId)
 
   if (error) {
     throw error
   }
+
+  // Map to clean trip structures and sort by start_date ascending
   return data
+    .map(r => r.trips)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
 }
 
 /**

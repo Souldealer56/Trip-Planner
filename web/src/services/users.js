@@ -68,3 +68,43 @@ export async function checkUsernameAvailable(username) {
   return data === null
 }
 
+/**
+ * Fetches a traveler profile by their Telegram ID.
+ * @param {number} telegramId The Telegram user ID.
+ * @returns {Promise<Object|null>} The user object or null.
+ */
+export async function fetchUserByTelegramId(telegramId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('telegram_id', telegramId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+  return data
+}
+
+/**
+ * Fetches a traveler profile by their username (case-insensitive, strips leading @).
+ * @param {string} username The username.
+ * @returns {Promise<Object|null>} The user object or null.
+ */
+export async function fetchUserByUsername(username) {
+  if (!username) return null
+  const cleanUsername = username.trim().replace(/^@/, '')
+  
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('username', cleanUsername)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+  return data
+}
+
+
