@@ -1,10 +1,65 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTrips } from '../hooks/useTrips'
 import { formatDateRange } from '../utils/format'
+import { createTrip } from '../services/trips'
 
 function TripsList() {
   const { data: trips, loading, error, refresh } = useTrips()
+  const navigate = useNavigate()
+
+  // Form Modal States
+  const [showModal, setShowModal] = useState(false)
+  const [title, setTitle] = useState('')
+  const [destination, setDestination] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [baseCurrency, setBaseCurrency] = useState('USD')
+  const [submitting, setSubmitting] = useState(false)
+  const [validationError, setValidationError] = useState('')
+
+  const handleCreateTrip = async (e) => {
+    e.preventDefault()
+    setValidationError('')
+
+    if (!title.trim() || !destination.trim() || !startDate || !endDate) {
+      setValidationError('All fields are required.')
+      return
+    }
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    if (end < start) {
+      setValidationError('End date cannot be before start date.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const newTrip = await createTrip(
+        title.trim(),
+        destination.trim(),
+        startDate,
+        endDate,
+        baseCurrency
+      )
+      // Reset form states
+      setTitle('')
+      setDestination('')
+      setStartDate('')
+      setEndDate('')
+      setBaseCurrency('USD')
+      setShowModal(false)
+
+      // Redirect to newly created trip
+      navigate(`/trips/${newTrip.id}`)
+    } catch (err) {
+      console.error('Failed to create trip:', err)
+      setValidationError(err.message || 'Failed to create trip. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', width: '100%' }} className="animate-fade-in">
@@ -13,12 +68,21 @@ function TripsList() {
           <h1 style={{ color: 'var(--primary-light)', fontSize: '2rem' }}>TripSync Planner</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Collaborative group trips synced with Telegram</p>
         </div>
-        <button onClick={refresh} className="btn btn-secondary" title="Refresh trips list">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-          </svg>
-          Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={() => setShowModal(true)} className="btn" title="Create new trip">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New Trip
+          </button>
+          <button onClick={refresh} className="btn btn-secondary" title="Refresh trips list">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {loading && (
@@ -56,10 +120,10 @@ function TripsList() {
           </svg>
           <h2 style={{ marginBottom: '0.5rem', color: 'var(--text-main)' }}>No Trips Found</h2>
           <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
-            There are no collaborative trip plans synced to the database yet. Launch the Telegram Bot to pitch options and lock in your first trip!
+            There are no collaborative trip plans synced to the database yet. Click the "New Trip" button to get started!
           </p>
-          <button onClick={refresh} className="btn">
-            Check Again
+          <button onClick={() => setShowModal(true)} className="btn">
+            Create a Trip
           </button>
         </div>
       )}
@@ -85,6 +149,90 @@ function TripsList() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* New Trip Creation Modal Overlay */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ color: 'var(--primary-light)', marginBottom: '1rem', fontSize: '1.5rem' }}>Create New Trip</h2>
+            {validationError && (
+              <div style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', marginBottom: '1rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: 'var(--border-radius-sm)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                ⚠️ {validationError}
+              </div>
+            )}
+            <form onSubmit={handleCreateTrip} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Trip Title *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Summer Vacation 2026"
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Destination *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  placeholder="e.g. Hawaii, USA"
+                  required
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Start Date *</label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>End Date *</label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Base Currency *</label>
+                <select
+                  className="input-field select-field"
+                  value={baseCurrency}
+                  onChange={(e) => setBaseCurrency(e.target.value)}
+                  required
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="JPY">JPY (¥)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="AUD">AUD ($)</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary" disabled={submitting}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn" disabled={submitting}>
+                  {submitting ? 'Creating...' : 'Create Trip'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

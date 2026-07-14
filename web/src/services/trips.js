@@ -33,3 +33,31 @@ export async function fetchTripById(id) {
   }
   return data
 }
+
+/**
+ * Creates a new trip in the database.
+ * @param {string} title The title of the trip.
+ * @param {string} destination The destination of the trip.
+ * @param {string} startDate The start date string (YYYY-MM-DD).
+ * @param {string} endDate The end date string (YYYY-MM-DD).
+ * @param {string} baseCurrency The base currency.
+ * @returns {Promise<Object>} A promise resolving to the created trip object.
+ */
+export async function createTrip(title, destination, startDate, endDate, baseCurrency) {
+  const { data, error } = await supabase
+    .from('trips')
+    .insert({
+      title,
+      destination,
+      start_date: startDate,
+      end_date: endDate,
+      base_currency: baseCurrency
+    })
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
+}

@@ -63,3 +63,25 @@ export async function updateRsvpNote(tripId, userId, notes) {
   }
   return data
 }
+
+/**
+ * Updates the RSVP status field for a specific participant.
+ * @param {string} tripId The UUID of the trip.
+ * @param {string} userId The UUID of the user.
+ * @param {string} status The status to set ('Committed', 'Tentative', 'Declined').
+ * @returns {Promise<Object>} A promise resolving to the updated RSVP record.
+ */
+export async function updateRsvpStatus(tripId, userId, status) {
+  const { data, error } = await supabase
+    .from('rsvps')
+    .update({ status })
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
+}
