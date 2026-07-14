@@ -1,5 +1,17 @@
 # Milestones
 
+## 1.2 Web Parity & Complete Trip Management (Shipped: 2026-07-14)
+
+**Phases completed:** 4 phases, 5 plans, 4 tasks
+
+**Key accomplishments:**
+
+- Collaborative Web Option Pitching and Multi-Option Voting Implementation
+- 2026-07-13
+- 2026-07-13
+
+---
+
 ## v1.1 Bot Capabilities & Improvements (Shipped: 2026-07-13)
 
 **Phases completed:** 4 phases, 4 plans, 6 tasks
