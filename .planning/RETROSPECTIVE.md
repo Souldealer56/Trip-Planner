@@ -61,9 +61,39 @@ This living document captures technical decisions, patterns, lessons, and cost o
 
 ---
 
+## Milestone: v1.2 — Web Parity & Complete Trip Management
+
+**Shipped:** 2026-07-13
+**Phases:** 4 | **Plans:** 5 | **Tasks:** 16
+
+### What Was Built
+- Webapp Trip creation form modals with inline redirect logic and validations.
+- Active user session bar RSVP status selectors triggering Supabase updates.
+- Horizontal tabs category filters, option pitching modals, and cast/retract vote cards.
+- Add Expense form modals supporting custom currencies and selective split checklists.
+- Responsive desktop ledger tables transitioning to mobile card lists.
+- Settle Up tab panel calculating net balances and optimized greedy matching settlement paths.
+
+### What Worked
+- **Modular Database Services:** Separating options and expense API service methods into clean standalone JS files with separate Node.js verification scripts allowed direct database assertions before UI wiring.
+- **Reactive Calculations during Render:** Computing total spend, split shares, net balances, and greedy transactions dynamically during render simplified state management and guaranteed real-time visual updates.
+
+### What Was Inefficient
+- **Playwright CDN Block:** Playwright driver download 404 errors from Azure mirrors persisted, requiring manual verification and lint gates instead of E2E browser tests.
+
+### Patterns Established
+- **Equal vs. Custom Toggle Checklist Pattern:** Toggling off equal splitting dynamically reveals custom checkbox list selectors populated from roster hooks.
+- **Two-Tab Ledger & Settle Overview Pattern:** Housing both the scrollable expense list and optimized settlement paths in a single card using minor inline toggle switches keeps layout density clean.
+
+### Key Lessons
+- Dynamic client-side conversions can retrieve exchange rates from open APIs (open.er-api.com) and convert currencies relative to USD without leaking API keys to client browsers.
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Date | Phases | Plans | Codebase LOC | Velocity (LOC/hr) | Notable |
 |-----------|------|--------|-------|--------------|-------------------|---------|
 | v1.0 MVP  | 2026-07-12 | 5 | 9 | ~1,200 LOC | - | Playwright 404 CDN bypass |
 | v1.1 Bot  | 2026-07-13 | 4 | 4 | ~3,500 LOC | - | native asyncio background loop |
+| v1.2 Web  | 2026-07-13 | 4 | 5 | ~5,600 LOC | - | Dynamic Settle solver & split toggles |

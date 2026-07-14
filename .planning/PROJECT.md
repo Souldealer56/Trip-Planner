@@ -8,16 +8,9 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.2 Web Parity & Complete Trip Management
+### Current Milestone: None (Milestone v1.2 Completed)
 
-**Goal:** Replicate all Telegram bot functionalities in the React web application, making the bot entirely optional for trip planning, voting, and expense tracking.
-
-**Target features:**
-- Webapp: Trip Creation (form/modal with title, destination, dates, base currency)
-- Webapp: RSVP status updates (update Committed, Tentative, Declined for active user)
-- Webapp: Option pitching (category, price, currency, link, description) & voting toggles
-- Webapp: Expense logging (paid-by, amount, currency, split selection)
-- Webapp: Ledger display & settlement calculation (balances and debts graph)
+Milestone v1.2 successfully brought complete parity of all Telegram bot features to the React web application, including trip creation, RSVPs, suggestion pitching and voting, expense logging, and optimized debt settlements.
 
 ## Requirements
 
@@ -36,14 +29,15 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Telegram Bot: General UX/UI enhancements (messages, formatting, emojis) — v1.1 (Phase 7)
 - ✓ Telegram Bot: Option pitching and voting improvements (richer details, multi-option voting, deadlines) — v1.1 (Phase 8)
 - ✓ Telegram Bot: RSVP and Roster tracking enhancements (reminders, auto-nudging, custom status) — v1.1 (Phase 9)
+- ✓ Webapp: Create a new trip (form/modal with validation and redirect) — v1.2 (Phase 10)
+- ✓ Webapp: RSVP status updates (Committed, Tentative, Declined dropdown/toggle) — v1.2 (Phase 10)
+- ✓ Webapp: Pitch new options & cast/retract votes — v1.2 (Phase 11)
+- ✓ Webapp: Log new expenses (paid-by, amount, currency, split selection) — v1.2 (Phase 12)
+- ✓ Webapp: Ledger display & settlement calculation (who owes whom, conversion rates) — v1.2 (Phase 13)
 
 ### Active
 
-- [ ] Webapp: Create a new trip (form/modal with validation and redirect)
-- [ ] Webapp: RSVP status updates (Committed, Tentative, Declined dropdown/toggle)
-- [ ] Webapp: Pitch new options (category, price, currency, link, description) & cast/retract votes
-- [ ] Webapp: Log new expenses (paid-by, amount, currency, split selection)
-- [ ] Webapp: Ledger display & settlement calculation (who owes whom, conversion rates)
+- (None. All v1.2 features shipped and validated.)
 
 ### Deferred to Future Milestones
 
@@ -58,7 +52,7 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 ## Context
 
 - Shipped **v1.1 Bot Capabilities & Improvements** which hardened database error resilience, unified template formatting styles and emoji mappings, added option url/description fields, built real-time `/polls` tallies, traveler notes commands/web edits, and launched an automated asyncio nudging background loop.
-- The project is fully covered by a unit test suite (22/22 passing tests) validating bot operations.
+- Shipped **v1.2 Web Parity & Complete Trip Management** which brought the webapp to full capability parity with the Telegram bot: including modal trip creation forms, user session RSVP updates, suggestion pitch forms, dynamic option lists with voting selection toggles, multi-currency custom splitting expense modals, responsive desktop-to-mobile ledgers, and optimized currency-converting greedy debt solvers.
 
 ## Constraints
 
@@ -80,10 +74,13 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 | Centralized emoji map (`_UX_EMOJIS`) | Uniform emoji styling across bot templates | ✓ Good (Phase 7 setup successful) |
 | Telegram native poll tallies command (`/polls`) | Queries real-time tallies directly from TG API | ✓ Good (Phase 8 setup successful) |
 | `asyncio` background nudge loop | Lightweight non-blocking reminders without extra pip dependencies | ✓ Good (Phase 9 setup successful) |
+| Client-side JSONB updates for vote toggle | Dynamic client-side voting count caching mapped to active user IDs | ✓ Good (Phase 11 setup successful) |
+| Equal vs. Custom Roster Split toggles | Standardized checklist checks for specific participant divisions | ✓ Good (Phase 12 setup successful) |
+| USD-intermediary FX rates converter | Converts diverse cost inputs to trip base currency using live rates | ✓ Good (Phase 13 setup successful) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-13 after v1.1 milestone completion*
+*Last updated: 2026-07-13 after v1.2 milestone completion*
