@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { verifyLoginToken } from '../services/auth';
 import { useUserSession } from '../hooks/useUserSession';
+import { createRsvp } from '../services/rsvps';
 
 function VerifyLogin() {
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
@@ -32,10 +33,25 @@ function VerifyLogin() {
           const user = await verifyLoginToken(token);
           setStatus('success');
           login(user);
-          // Redirect to dashboard after a short delay so the user sees the success state
-          setTimeout(() => {
-            navigate('/trips');
-          }, 1500);
+          
+          // Check for pending invite redirect
+          const pendingTripId = localStorage.getItem('trip_planner_pending_invite_trip_id');
+          if (pendingTripId) {
+            try {
+              await createRsvp(pendingTripId, user.id, 'Tentative');
+            } catch (rsvpErr) {
+              console.log('User already had an RSVP or failed creating one:', rsvpErr);
+            }
+            localStorage.removeItem('trip_planner_pending_invite_trip_id');
+            setTimeout(() => {
+              navigate(`/trips/${pendingTripId}`);
+            }, 1500);
+          } else {
+            // Redirect to dashboard after a short delay so the user sees the success state
+            setTimeout(() => {
+              navigate('/trips');
+            }, 1500);
+          }
         } catch (err) {
           console.error('Verification error:', err);
           setStatus('error');

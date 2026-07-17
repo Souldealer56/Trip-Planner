@@ -62,6 +62,20 @@ function TripDetails() {
     }
   }
 
+  const [showCopiedToast, setShowCopiedToast] = useState(false)
+
+  const handleCopyInviteLink = () => {
+    const inviteUrl = `${window.location.origin}/join/${id}`
+    navigator.clipboard.writeText(inviteUrl)
+      .then(() => {
+        setShowCopiedToast(true)
+        setTimeout(() => setShowCopiedToast(false), 2000)
+      })
+      .catch(err => {
+        console.error('Failed to copy invite link:', err)
+        alert('Could not copy link automatically. Here is the link: ' + inviteUrl)
+      })
+  }
 
   const {
     data: trip,
@@ -849,7 +863,61 @@ function TripDetails() {
           {/* Roster & Participants Card */}
           <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
             <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>👥 RSVP Roster</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span>👥 RSVP Roster</span>
+                <button
+                  onClick={handleCopyInviteLink}
+                  style={{
+                    position: 'relative',
+                    padding: '0.35rem 0.75rem',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    color: 'var(--primary-light, #60a5fa)',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    transition: 'all 0.15s ease',
+                  }}
+                  className="join-btn"
+                  title="Copy Invite Link"
+                >
+                  🔗 Share
+                  {showCopiedToast && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '125%',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: '#1e293b',
+                        color: '#f8fafc',
+                        padding: '0.3rem 0.6rem',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem',
+                        whiteSpace: 'nowrap',
+                        border: '1px solid var(--border-light, #334155)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        zIndex: 10,
+                        animation: 'fadeInOut 2s ease forwards',
+                      }}
+                    >
+                      Copied!
+                    </span>
+                  )}
+                </button>
+                <style>{`
+                  @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translate(-50%, 5px); }
+                    15% { opacity: 1; transform: translate(-50%, 0); }
+                    85% { opacity: 1; transform: translate(-50%, 0); }
+                    100% { opacity: 0; transform: translate(-50%, -5px); }
+                  }
+                `}</style>
+              </span>
               <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
                 {roster.length} participant{roster.length !== 1 ? 's' : ''}
               </span>
