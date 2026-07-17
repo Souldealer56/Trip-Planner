@@ -5,7 +5,8 @@
 - ✅ **v1.0 MVP** — Phases 1-5 (shipped 2026-07-12)
 - ✅ **v1.1 Bot Capabilities & Improvements** — Phases 6-9 (shipped 2026-07-13)
 - ✅ **v1.2 Web Parity & Complete Trip Management** — Phases 10-13 (shipped 2026-07-13)
-- 🚧 **v1.3 Traveler Profiles & Access Control** — Phases 14-16 (in progress)
+- ✅ **v1.3 Traveler Profiles & Access Control** — Phases 14-16 (shipped 2026-07-14)
+- 🚧 **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (in progress)
 
 ## Phases
 
@@ -40,61 +41,68 @@
 
 </details>
 
-### 🚧 v1.3 Traveler Profiles & Access Control (In Progress)
+<details>
+<summary>✅ v1.3 Traveler Profiles & Access Control (Phases 14-16) — SHIPPED 2026-07-14</summary>
 
-**Milestone Goal:** Restrict trip visibility to invited participants and resolve webapp login session conflicts through global traveler profiles.
+- [x] Phase 14: Global Sessions & Splash Profiles (1/1 plan) — completed 2026-07-14
+- [x] Phase 15: Filtered Trips Dashboard & Auto-RSVP (1/1 plan) — completed 2026-07-14
+- [x] Phase 16: Session Reconciliation & Bot Deep Linking (1/1 plan) — completed 2026-07-14
 
-#### Phase 14: Global Sessions & Splash Profiles
+</details>
 
-**Goal**: Implement global session provider and Netflix/Slack-style profile select grids.
-**Depends on**: Phase 13
-**Requirements**: SESS-01, SESS-02, PROF-01, PROF-02, PROF-03
+### 🚧 v1.4 Standalone Webapp & Hybrid Onboarding (In Progress)
+
+**Milestone Goal:** Detach the project from Telegram so users can sign up, join, and use the webapp with or without Telegram, supporting a hybrid model.
+
+#### [x] Phase 17: Custom Passwordless Email Login — completed 2026-07-17
+
+**Goal**: Implement the custom, database-agnostic passwordless login mechanism.
+**Depends on**: Phase 16
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04
 **Success Criteria**:
+  1. User can enter email in the landing/splash page to request a login link.
+  2. Supabase inserts a new token in the `login_tokens` table, triggering a Database Webhook to Resend API.
+  3. Clicking the email link navigates to `/verify?token=...`, verifying token is valid, not expired, and unused.
+  4. Session is cached in `localStorage` and URL parameters are sanitized immediately.
+  5. User can link/unlink email profiles to/from Telegram user accounts on their profile page.
 
-  1. User session is saved globally at the root component and persists in `localStorage` across page reloads.
-  2. Landing page `/trips` displays splash profile select grid if user is not signed in.
-  3. Global log out button in the header resets session and redirects to splash.
-  4. Form on splash allows creating a new traveler profile dynamically in database with negative `telegram_id`.
+**Plans**: 0 plans
 
-**Plans**: 1 plan
+#### Phase 18: Shareable Web Invite Links & Standalone Roster Onboarding
 
-Plans:
-
-- [x] 14-01: Global Session Provider & Splash Profiles
-
-#### Phase 15: Filtered Trips Dashboard & Auto-RSVP
-
-**Goal**: Restrict trip visibility to invited participants and auto-rsvp creators.
-**Depends on**: Phase 14
-**Requirements**: PRIV-01, PRIV-02, PRIV-03
+**Goal**: Enable direct sharing of trips and standalone user registration.
+**Depends on**: Phase 17
+**Requirements**: INV-01, INV-02
 **Success Criteria**:
+  1. Shareable trip link can be generated and copied to clipboard (`/join/:tripId`).
+  2. Accessing `/join/:tripId` as a guest displays onboarding wizard to enter/create profile.
+  3. Once logged in, the user is added directly to the trip roster as a Committed participant and redirected to the trip planner dashboard.
 
-  1. Dashboard lists only the trips where the active user is an RSVP participant.
-  2. Verification that no uninvited trip data is loaded client-side via Supabase network queries.
-  3. Creating a new trip on the webapp automatically creates a Committed RSVP record for the active creator user.
+**Plans**: 0 plans
 
-**Plans**: 1 plan
+#### Phase 19: Hybrid Bot-Web Coexistence
 
-Plans:
-
-- [x] 15-01: Filtered Trips Dashboard & Auto-RSVP
-
-#### Phase 16: Session Reconciliation & Bot Deep Linking
-
-**Goal**: Reconcile active session on direct links and handle URL params for autologin.
-**Depends on**: Phase 15
-**Requirements**: RECON-01, RECON-02, RECON-03, RECON-04, LINK-01, LINK-02
+**Goal**: Ensure bot and web interfaces work seamlessly on the same trips without collisions.
+**Depends on**: Phase 18
+**Requirements**: HYB-01, HYB-02, HYB-03
 **Success Criteria**:
+  1. Users can have standard Telegram user records, negative web IDs, or email-only profiles.
+  2. Bot command menus and database queries in `main.py` support case-insensitive matching by username/email.
+  3. Webapp roster display, option list, voting, and ledger handle mixed users without crashes.
 
-  1. Accessing a trip details page checks if the active session user is in the trip roster.
-  2. Shows an overlay modal if they are not in the roster, prompting them to "Join Trip" (creating the RSVP record) or "Switch Profile" (logout/redirect).
-  3. Landing URLs with `?tg_user_id=...` or `?username=...` parse the params, fetch matching database user, auto-login, and immediately sanitise URL query parameters.
+**Plans**: 0 plans
 
-**Plans**: 1 plan
+#### Phase 20: In-App Activity Log & Notification Feed
 
-Plans:
+**Goal**: Log mutations and display a chronological feed drawer on the web app.
+**Depends on**: Phase 19
+**Requirements**: NOTIF-01, NOTIF-02
+**Success Criteria**:
+  1. Changes on options, voting, expenses, and RSVPs write a record to `activity_log`.
+  2. Slide-out Notification Feed drawer shows a chronological list of recent logs for the trip.
+  3. Header displays badge indicating unread notifications count.
 
-- [x] 16-01: Session Reconciliation & Bot Deep Linking
+**Plans**: 0 plans
 
 ## Progress
 
@@ -116,6 +124,10 @@ Phases execute in numeric order.
 | 11. Webapp Option Pitching & Voting | v1.2 | 1/1 | Complete | 2026-07-13 |
 | 12. Webapp Expense Logging & Ledger | v1.2 | 1/1 | Complete | 2026-07-13 |
 | 13. Webapp Debts Settlement Optimization | v1.2 | 1/1 | Complete | 2026-07-13 |
-| 14. Global Sessions & Splash Profiles | v1.3 | 1/1 | Complete    | 2026-07-14 |
-| 15. Filtered Trips Dashboard & Auto-RSVP | v1.3 | 1/1 | Complete    | 2026-07-14 |
-| 16. Session Reconciliation & Bot Deep Linking | v1.3 | 1/1 | Complete    | 2026-07-14 |
+| 14. Global Sessions & Splash Profiles | v1.3 | 1/1 | Complete | 2026-07-14 |
+| 15. Filtered Trips Dashboard & Auto-RSVP | v1.3 | 1/1 | Complete | 2026-07-14 |
+| 16. Session Reconciliation & Bot Deep Linking | v1.3 | 1/1 | Complete | 2026-07-14 |
+| 17. Custom Passwordless Email Login | v1.4 | 0/0 | Planned | — |
+| 18. Shareable Web Invite Links & Standalone Roster Onboarding | v1.4 | 0/0 | Planned | — |
+| 19. Hybrid Bot-Web Coexistence | v1.4 | 0/0 | Planned | — |
+| 20. In-App Activity Log & Notification Feed | v1.4 | 0/0 | Planned | — |

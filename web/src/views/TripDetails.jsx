@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
@@ -9,10 +9,58 @@ import { fetchOptions, pitchOption, toggleVote, fetchActivePoll } from '../servi
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
 import { useUserSession } from '../hooks/useUserSession'
+import { generateTelegramLinkCode, disconnectTelegram } from '../services/users'
 
 function TripDetails() {
   const { id } = useParams()
   const { activeUser, login: onLogin, logout: onLogout } = useUserSession()
+  const navigate = useNavigate()
+
+  // Redirect unauthenticated users back to splash screen
+  React.useEffect(() => {
+    if (!activeUser) {
+      navigate('/trips')
+    }
+  }, [activeUser, navigate])
+
+  // Telegram account linking states
+  const [linkCode, setLinkCode] = useState('')
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [linkingLoading, setLinkingLoading] = useState(false)
+  const [linkError, setLinkError] = useState('')
+
+  const handleLinkTelegram = async () => {
+    if (!activeUser) return
+    setLinkingLoading(true)
+    setLinkError('')
+    try {
+      const code = await generateTelegramLinkCode(activeUser.id)
+      setLinkCode(code)
+      setShowLinkModal(true)
+    } catch (err) {
+      console.error('Failed to generate Telegram link code:', err)
+      setLinkError(err.message || 'Failed to start linking process. Please try again.')
+    } finally {
+      setLinkingLoading(false)
+    }
+  }
+
+  const handleDisconnectTelegram = async () => {
+    if (!activeUser) return
+    if (!window.confirm('Are you sure you want to disconnect your Telegram account from this profile?')) return
+    
+    setLinkingLoading(true)
+    try {
+      const updatedUser = await disconnectTelegram(activeUser.id)
+      onLogin(updatedUser) // Update local session
+      alert('Telegram account successfully disconnected.')
+    } catch (err) {
+      console.error('Failed to disconnect Telegram:', err)
+      alert(err.message || 'Failed to disconnect Telegram account. Please try again.')
+    } finally {
+      setLinkingLoading(false)
+    }
+  }
 
 
   const {
@@ -423,6 +471,26 @@ function TripDetails() {
                 </div>
               )
             })()}
+            {activeUser.email && activeUser.telegram_id < 0 && (
+              <button 
+                onClick={handleLinkTelegram} 
+                className="btn btn-secondary" 
+                style={{ padding: '4px 8px', fontSize: '0.8rem', borderColor: 'var(--primary-light)', color: 'var(--primary-light)' }}
+                disabled={linkingLoading}
+              >
+                {linkingLoading ? 'Loading...' : 'Link Telegram Account'}
+              </button>
+            )}
+            {activeUser.telegram_id > 0 && (
+              <button 
+                onClick={handleDisconnectTelegram} 
+                className="btn btn-secondary" 
+                style={{ padding: '4px 8px', fontSize: '0.8rem', borderColor: 'hsl(0, 80%, 60%)', color: 'hsl(0, 80%, 60%)' }}
+                disabled={linkingLoading}
+              >
+                {linkingLoading ? 'Loading...' : 'Disconnect Telegram'}
+              </button>
+            )}
             <button onClick={onLogout} className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.8rem' }}>
               Switch Profile
             </button>
@@ -1338,6 +1406,43 @@ function TripDetails() {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Account Linking Modal */}
+      {showLinkModal && (
+        <div className="modal-overlay" onClick={() => setShowLinkModal(false)}>
+          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', fontSize: '1.4rem' }}>Link Telegram Account</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+              This will merge all RSVP history, expenses, and votes from your Telegram profile into this email account. This action cannot be undone.
+            </p>
+            
+            <div style={{ 
+              background: 'rgba(255, 255, 255, 0.05)', 
+              padding: '1rem', 
+              borderRadius: '8px', 
+              border: '1px solid var(--border-light)', 
+              marginBottom: '1.5rem' 
+            }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>YOUR LINK CODE:</span>
+              <strong style={{ fontSize: '1.8rem', color: 'var(--primary-light)', letterSpacing: '2px' }}>{linkCode}</strong>
+            </div>
+
+            <a 
+              href={`https://t.me/TripSyncBot?start=link_${linkCode}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn"
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', marginBottom: '0.75rem' }}
+            >
+              Open Telegram Bot
+            </a>
+
+            <button onClick={() => setShowLinkModal(false)} className="btn btn-secondary" style={{ width: '100%' }}>
+              Cancel
+            </button>
           </div>
         </div>
       )}

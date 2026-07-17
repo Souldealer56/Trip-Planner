@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTrips } from '../hooks/useTrips'
+import { useUserSession } from '../hooks/useUserSession'
 import { formatDateRange } from '../utils/format'
 import { createTrip } from '../services/trips'
 import { createRsvp } from '../services/rsvps'
-import { useUserSession } from '../hooks/useUserSession'
 import { fetchAllUsers, checkUsernameAvailable, createUser } from '../services/users'
+import { requestLoginLink } from '../services/auth'
 
 // Helper to extract initials from name
 const getInitials = (name) => {
@@ -31,6 +32,187 @@ const getAvatarColor = (id) => {
   ]
   const seed = typeof id === 'number' ? id : (id ? id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0)
   return colors[Math.abs(seed) % colors.length]
+}
+
+function SplashLogin() {
+  const [emailInput, setEmailInput] = React.useState('');
+  const [loginLoading, setLoginLoading] = React.useState(false);
+  const [loginSuccess, setLoginSuccess] = React.useState(false);
+  const [loginError, setLoginError] = React.useState('');
+  const [debugToken, setDebugToken] = React.useState('');
+
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    if (!emailInput.trim()) return;
+
+    setLoginLoading(true);
+    setLoginError('');
+    setLoginSuccess(false);
+    setDebugToken('');
+
+    try {
+      const token = await requestLoginLink(emailInput);
+      setLoginSuccess(true);
+      setDebugToken(token);
+    } catch (err) {
+      console.error(err);
+      setLoginError(err.message || 'Failed to send login link. Please try again.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: '2rem',
+      maxWidth: '450px',
+      margin: '0 auto',
+      width: '100%',
+      minHeight: '80vh',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }} className="animate-fade-in">
+      <div className="glass-card" style={{
+        width: '100%',
+        padding: '2.5rem',
+        borderRadius: '16px',
+        border: '1px solid var(--border-light)',
+        background: 'rgba(30, 41, 59, 0.7)',
+        boxShadow: 'var(--shadow-premium)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.5rem'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ color: 'var(--primary-light)', fontSize: '2.2rem', marginBottom: '0.5rem', fontWeight: '800' }}>TripSync Planner</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Collaborative group trips synced with Telegram</p>
+        </div>
+
+        {loginSuccess ? (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            alignItems: 'center',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#22c55e',
+              fontSize: '1.8rem',
+              fontWeight: 'bold'
+            }}>
+              ✓
+            </div>
+            <div>
+              <h3 style={{ color: 'var(--text-main)', fontSize: '1.2rem', marginBottom: '0.5rem', fontWeight: '600' }}>Check your email</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                We've sent a magic login link to <strong>{emailInput}</strong>. Click it to log in instantly.
+              </p>
+            </div>
+
+            {import.meta.env.DEV && debugToken && (
+              <div style={{
+                marginTop: '1.5rem',
+                padding: '1rem',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left'
+              }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary-light)', display: 'block', marginBottom: '0.5rem' }}>
+                  🔧 DEV MODE DEBUG LINK:
+                </span>
+                <a 
+                  href={`/verify?token=${debugToken}`}
+                  style={{
+                    fontSize: '0.85rem',
+                    color: '#38bdf8',
+                    textDecoration: 'underline',
+                    wordBreak: 'break-all',
+                    display: 'block'
+                  }}
+                >
+                  Click here to verify locally ({debugToken.slice(0, 8)}...)
+                </a>
+              </div>
+            )}
+
+            <button 
+              onClick={() => {
+                setLoginSuccess(false);
+                setEmailInput('');
+              }}
+              className="btn btn-secondary"
+              style={{ width: '100%', marginTop: '0.5rem' }}
+            >
+              Back to Sign In
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: '700', color: 'var(--text-main)', margin: '0' }}>Sign In</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0', lineHeight: '1.4' }}>
+              Enter your email address to receive a secure, passwordless magic link to access your trips.
+            </p>
+
+            {loginError && (
+              <div style={{
+                color: 'hsl(0, 85%, 65%)',
+                fontSize: '0.85rem',
+                background: 'rgba(239, 68, 68, 0.1)',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                lineHeight: '1.4'
+              }}>
+                ⚠️ {loginError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>Email Address</label>
+              <input
+                type="email"
+                className="input-field"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="you@example.com"
+                required
+                disabled={loginLoading}
+                style={{ fontSize: '0.95rem', height: '42px' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn"
+              disabled={loginLoading}
+              style={{
+                height: '42px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '600',
+                fontSize: '0.95rem'
+              }}
+            >
+              {loginLoading ? 'Sending link...' : 'Send Magic Link'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function TripsList() {
@@ -209,221 +391,10 @@ function TripsList() {
     return nameMatch || userMatch
   })
 
-  // If no traveler is signed in, render the splash selection grid overlay
+  // If no traveler is signed in, render the splash login overlay
   if (!activeUser) {
     return (
-      <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', width: '100%', minHeight: '80vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }} className="animate-fade-in">
-        <style>{`
-          .profile-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            user-select: none;
-          }
-          .profile-card:hover .profile-avatar {
-            transform: scale(1.08);
-            border-color: var(--primary-light) !important;
-            box-shadow: var(--shadow-hover) !important;
-          }
-          .profile-card:hover .profile-name {
-            color: var(--primary-light) !important;
-          }
-          .profile-avatar-add {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 3px dashed var(--border-light);
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            justifyContent: center;
-            font-size: 2.5rem;
-            margin-bottom: 0.75rem;
-            box-shadow: none;
-            transition: var(--transition-smooth);
-          }
-          .profile-card:hover .profile-avatar-add {
-            transform: scale(1.08);
-            border-color: var(--primary-light) !important;
-            color: var(--primary-light) !important;
-            background: rgba(255, 255, 255, 0.06) !important;
-          }
-        `}</style>
-        
-        <h1 style={{ color: 'var(--text-main)', fontSize: '2.5rem', marginBottom: '0.5rem', fontWeight: '800', textAlign: 'center' }}>Who is traveling?</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '2.5rem', textAlign: 'center' }}>Select a traveler profile to view trips, manage RSVPs, and split expenses.</p>
-
-        {loadingUsers ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', margin: '2rem 0' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid var(--border-light)', borderTopColor: 'var(--primary)', animation: 'spin 1s linear infinite' }} />
-            <span style={{ color: 'var(--text-muted)' }}>Loading profiles...</span>
-          </div>
-        ) : usersError ? (
-          <div className="glass-card error-card" style={{ padding: '2rem', textAlign: 'center', maxWidth: '400px' }}>
-            <p style={{ color: 'hsl(0, 85%, 65%)', marginBottom: '1rem' }}>{usersError}</p>
-            <button onClick={() => window.location.reload()} className="btn">Retry</button>
-          </div>
-        ) : (
-          <>
-            {/* Real-time search bar */}
-            <div style={{ position: 'relative', width: '100%', maxWidth: '450px', marginBottom: '2.5rem' }}>
-              <input
-                type="text"
-                placeholder="Search traveler by name or @username..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-field"
-                style={{
-                  paddingLeft: '2.75rem',
-                  borderRadius: '50px',
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-light)',
-                  height: '46px',
-                  fontSize: '1rem'
-                }}
-              />
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </div>
-
-            {/* Profiles Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 120px))', gap: '2rem', width: '100%', maxWidth: '650px', justifyContent: 'center', marginBottom: '3rem' }}>
-              {filteredUsers.map((user) => {
-                const initials = getInitials(user.first_name)
-                const avatarColor = getAvatarColor(user.id || user.first_name)
-                return (
-                  <div key={user.id} onClick={() => login(user)} className="profile-card">
-                    <div style={{
-                      width: '100px',
-                      height: '100px',
-                      borderRadius: '50%',
-                      backgroundColor: avatarColor,
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '2rem',
-                      fontWeight: 'bold',
-                      marginBottom: '0.75rem',
-                      border: '3px solid transparent',
-                      boxShadow: 'var(--shadow-premium)',
-                      transition: 'var(--transition-smooth)'
-                    }} className="profile-avatar">
-                      {initials}
-                    </div>
-                    <span style={{ color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }} className="profile-name">
-                      {user.first_name}
-                    </span>
-                    {user.username ? (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>
-                        @{user.username}
-                      </span>
-                    ) : (
-                      <span style={{ color: 'transparent', fontSize: '0.75rem' }}>-</span>
-                    )}
-                  </div>
-                )
-              })}
-
-              {/* Add traveler card */}
-              <div onClick={() => setShowRegisterModal(true)} className="profile-card">
-                <div className="profile-avatar-add">
-                  +
-                </div>
-                <span style={{ color: 'var(--text-muted)', fontWeight: '600', fontSize: '0.95rem' }} className="profile-name">
-                  Add Traveler
-                </span>
-                <span style={{ color: 'transparent', fontSize: '0.75rem' }}>-</span>
-              </div>
-            </div>
-
-            {filteredUsers.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '1rem 0' }}>
-                <p style={{ marginBottom: '1rem' }}>No profiles match "{searchQuery}".</p>
-                <button
-                  onClick={() => {
-                    setNewFirstName(searchQuery)
-                    setShowRegisterModal(true)
-                  }}
-                  className="btn btn-secondary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                  Create Traveler "{searchQuery}"
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Traveler Registration Modal */}
-        {showRegisterModal && (
-          <div className="modal-overlay" onClick={() => setShowRegisterModal(false)}>
-            <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-              <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', fontSize: '1.4rem' }}>Create Traveler Profile</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>Set up your traveler identity to log expenses and confirm RSVPs.</p>
-              
-              {registerError && (
-                <div style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', marginBottom: '1rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: 'var(--border-radius-sm)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                  ⚠️ {registerError}
-                </div>
-              )}
-              
-              <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>First Name *</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={newFirstName}
-                    onChange={(e) => setNewFirstName(e.target.value)}
-                    placeholder="e.g. Alex"
-                    required
-                    disabled={registerSubmitting}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Telegram Username (Optional)</label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: '600', pointerEvents: 'none' }}>@</span>
-                    <input
-                      type="text"
-                      className="input-field"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      placeholder="username"
-                      style={{ paddingLeft: '1.75rem' }}
-                      disabled={registerSubmitting}
-                    />
-                  </div>
-                  {usernameChecking && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Checking username availability...</span>
-                  )}
-                  {usernameError && (
-                    <span style={{ fontSize: '0.75rem', color: 'hsl(0, 85%, 65%)', lineHeight: '1.2' }}>{usernameError}</span>
-                  )}
-                  {!usernameChecking && !usernameError && newUsername.trim() && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-light)' }}>✓ Username is available</span>
-                  )}
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                  <button type="button" onClick={() => setShowRegisterModal(false)} className="btn btn-secondary" disabled={registerSubmitting}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn" disabled={registerSubmitting || !usernameAvailable || usernameChecking}>
-                    {registerSubmitting ? 'Registering...' : 'Create & Sign In'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
+      <SplashLogin />
     )
   }
 

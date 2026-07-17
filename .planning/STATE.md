@@ -1,20 +1,19 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Traveler Profiles & Access Control
-current_phase: 3
-status: Awaiting next milestone
-stopped_at: Milestone archived
-last_updated: "2026-07-14T22:33:51.509Z"
-last_activity: 2026-07-14
-last_activity_desc: Milestone v1.3 completed and archived
+milestone: v1.4
+milestone_name: Standalone Webapp & Hybrid Onboarding
+current_phase: 18
+status: paused
+stopped_at: Phase 17 execution completed
+last_updated: "2026-07-17T22:50:00.000Z"
+last_activity: 2026-07-17
+last_activity_desc: Phase 17 execution completed and verified.
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
-current_phase_name: Session Reconciliation & Bot Deep Linking
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -24,14 +23,14 @@ current_phase_name: Session Reconciliation & Bot Deep Linking
 See: .planning/PROJECT.md (updated 2026-07-12)
 
 **Core value:** Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
-**Current focus:** Phase 13 — webapp-debts-settlement-optimization
+**Current focus:** Phase 18 — Shareable Web Invite Links & Standalone Roster Onboarding
 
 ## Current Position
 
-Phase: Milestone v1.3 complete
+Phase: Phase 18 — Shareable Web Invite Links & Standalone Roster Onboarding
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-14 — Milestone v1.3 completed and archived
+Status: Paused
+Last activity: 2026-07-17 — Phase 17 execution completed and verified.
 
 ## Performance Metrics
 
@@ -93,10 +92,10 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-14T22:33:51.487Z
-Stopped at: Milestone archived
-Resume file: .planning/phases/16-session-reconciliation-bot-deep-linking/16-CONTEXT.md
+Last session: 2026-07-17T22:50:00Z
+Stopped at: Phase 17 completed and verified
+Resume file: .planning/phases/18-shareable-web-invite-links-and-standalone-roster-onboarding/18-PLAN.md
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Start with /gsd-discuss-phase 18 to begin planning the next phase.

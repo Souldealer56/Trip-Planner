@@ -8,16 +8,15 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: Project Scope Complete (v1.3 Traveler Profiles & Access Control)
+## Current Milestone: v1.4 Standalone Webapp & Hybrid Onboarding
 
-**Goal:** Restrict trip visibility to invited participants and resolve webapp login session conflicts through global traveler profiles.
+**Goal:** Detach the project from Telegram so users can sign up, join, and use the webapp with or without Telegram, supporting a hybrid model.
 
 **Target features:**
-- Global Profile Selection splash page when not logged in (Slack/Netflix profile style) — Validated ✓
-- Filter the trips dashboard to display only trips where the user is an RSVP participant — Validated ✓
-- Trip Details page session reconciliation (prompt to join or switch profile if signed-in user is not in the trip roster) — Validated ✓
-- Auto-login support via Telegram bot magic links (`?tg_user_id=...` or `?username=...`) — Validated ✓
-- Auto-add trip creator as Committed RSVP participant upon web trip creation — Validated ✓
+- Custom Passwordless Email Login using database-agnostic public schema "login_tokens" table and transactional email flow
+- Shareable Web Invite Links (e.g. `/join/:tripId`) to onboard new web-only users directly onto the trip roster
+- Hybrid Bot-Web Coexistence allowing both Telegram-linked and standalone web-only users to participate in the same trips
+- In-App Visual Notification Center (badge & feed) on the webapp to alert users of pitches, votes, and expense updates
 
 ## Requirements
 
@@ -100,5 +99,5 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-14 after v1.3 milestone completion*
+*Last updated: 2026-07-14 for v1.4 milestone start*
 

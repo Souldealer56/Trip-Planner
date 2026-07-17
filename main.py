@@ -1012,6 +1012,94 @@ async def wizard_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     payload = context.args[0] if context.args else ""
 
+    # --- Link Telegram Account ---
+    if payload.startswith("link_"):
+        code = payload[len("link_"):].strip().upper()
+        tg_user = update.effective_user
+        try:
+            # 1. Fetch user by telegram_link_code
+            res = (
+                supabase.table("users")
+                .select("*")
+                .eq("telegram_link_code", code)
+                .execute()
+            )
+            if not res.data:
+                await update.message.reply_text(
+                    "❌ <b>Invalid verification code.</b> Please request a new link code from the web app.",
+                    parse_mode="HTML"
+                )
+                return ConversationHandler.END
+
+            target_user = res.data[0]
+            expires_at_str = target_user.get("telegram_link_expires_at")
+
+            # 2. Check if expired
+            is_expired = False
+            if expires_at_str:
+                expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                if expires_at < datetime.now(timezone.utc):
+                    is_expired = True
+
+            if is_expired:
+                # Clear expired code
+                supabase.table("users").update({
+                    "telegram_link_code": None,
+                    "telegram_link_expires_at": None
+                }).eq("id", target_user["id"]).execute()
+
+                await update.message.reply_text(
+                    "❌ <b>Verification code has expired.</b> Please request a new link code from the web app.",
+                    parse_mode="HTML"
+                )
+                return ConversationHandler.END
+
+            # 3. Check if there is an existing positive telegram_id record that needs merging
+            stale_res = (
+                supabase.table("users")
+                .select("*")
+                .eq("telegram_id", tg_user.id)
+                .execute()
+            )
+            
+            stale_user = None
+            if stale_res.data:
+                for u in stale_res.data:
+                    if u["id"] != target_user["id"]:
+                        stale_user = u
+                        break
+
+            if stale_user:
+                # Call merge_users RPC transaction
+                supabase.rpc("merge_users", {
+                    "target_id": target_user["id"],
+                    "stale_id": stale_user["id"]
+                }).execute()
+
+            # Update target user's telegram_id with the real positive one, clear link code
+            supabase.table("users").update({
+                "telegram_id": tg_user.id,
+                "telegram_link_code": None,
+                "telegram_link_expires_at": None,
+                "username": tg_user.username,
+                "first_name": tg_user.first_name
+            }).eq("id", target_user["id"]).execute()
+
+            await update.message.reply_text(
+                f"🎉 <b>Account Linked Successfully!</b>\n\n"
+                f"Your Telegram profile has been linked to the email account <b>{target_user['email']}</b>.\n\n"
+                f"All your RSVPs, expenses, and votes are now synced!",
+                parse_mode="HTML"
+            )
+            return ConversationHandler.END
+
+        except Exception as e:
+            await update.message.reply_text(
+                "⚠️ <b>An error occurred during account linking.</b> Please try again or request a new code.",
+                parse_mode="HTML"
+            )
+            return ConversationHandler.END
+
     # --- Add Option Wizard ---
     if payload.startswith("addopt_"):
         trip_id = payload[len("addopt_"):]

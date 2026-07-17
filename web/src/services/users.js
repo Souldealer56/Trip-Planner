@@ -107,4 +107,62 @@ export async function fetchUserByUsername(username) {
   return data
 }
 
+/**
+ * Generate a temporary verification code to link a Telegram account.
+ * Valid for 5 minutes.
+ * @param {string} userId - The user's ID
+ * @returns {Promise<string>} The generated link code
+ */
+export async function generateTelegramLinkCode(userId) {
+  // Generate a random 6-character uppercase alphanumeric code
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      telegram_link_code: code,
+      telegram_link_expires_at: expiresAt
+    })
+    .eq('id', userId);
+
+  if (error) {
+    throw error;
+  }
+
+  return code;
+}
+
+/**
+ * Disconnect a user's profile from Telegram by reverting to a negative telegram_id.
+ * @param {string} userId - The user's ID
+ * @returns {Promise<Object>} The updated user profile
+ */
+export async function disconnectTelegram(userId) {
+  const tempTelegramId = -1000000 - Math.floor(Math.random() * 1000000);
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      telegram_id: tempTelegramId,
+      telegram_link_code: null,
+      telegram_link_expires_at: null
+    })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+
 
