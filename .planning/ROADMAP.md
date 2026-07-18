@@ -60,6 +60,7 @@
 **Depends on**: Phase 16
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04
 **Success Criteria**:
+
   1. User can enter email in the landing/splash page to request a login link.
   2. Supabase inserts a new token in the `login_tokens` table, triggering a Database Webhook to Resend API.
   3. Clicking the email link navigates to `/verify?token=...`, verifying token is valid, not expired, and unused.
@@ -74,6 +75,7 @@
 **Depends on**: Phase 17
 **Requirements**: INV-01, INV-02
 **Success Criteria**:
+
   1. Shareable trip link can be generated and copied to clipboard (`/join/:tripId`).
   2. Accessing `/join/:tripId` as a guest displays onboarding wizard to enter/create profile.
   3. Once logged in, the user is added directly to the trip roster as a Committed participant and redirected to the trip planner dashboard.
@@ -86,6 +88,7 @@
 **Depends on**: Phase 18
 **Requirements**: HYB-01, HYB-02, HYB-03
 **Success Criteria**:
+
   1. Users can have standard Telegram user records, negative web IDs, or email-only profiles.
   2. Bot command menus and database queries in `main.py` support case-insensitive matching by username/email.
   3. Webapp roster display, option list, voting, and ledger handle mixed users without crashes.
@@ -98,6 +101,7 @@
 **Depends on**: Phase 19
 **Requirements**: NOTIF-01, NOTIF-02
 **Success Criteria**:
+
   1. Changes on options, voting, expenses, and RSVPs write a record to `activity_log`.
   2. Slide-out Notification Feed drawer shows a chronological list of recent logs for the trip.
   3. Header displays badge indicating unread notifications count.
@@ -129,5 +133,5 @@ Phases execute in numeric order.
 | 16. Session Reconciliation & Bot Deep Linking | v1.3 | 1/1 | Complete | 2026-07-14 |
 | 17. Custom Passwordless Email Login | v1.4 | 0/0 | Planned | — |
 | 18. Shareable Web Invite Links & Standalone Roster Onboarding | v1.4 | 0/0 | Planned | — |
-| 19. Hybrid Bot-Web Coexistence | v1.4 | 0/0 | Planned | — |
+| 19. Hybrid Bot-Web Coexistence | v1.4 | 0/1 | Complete    | 2026-07-18 |
 | 20. In-App Activity Log & Notification Feed | v1.4 | 0/0 | Planned | — |
