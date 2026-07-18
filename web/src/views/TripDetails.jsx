@@ -951,6 +951,43 @@ function TripDetails() {
                       <div>
                         <div style={{ fontWeight: '600', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {user.first_name || 'Anonymous User'}
+                          {user.telegram_id > 0 ? (
+                            <span 
+                              style={{ 
+                                fontSize: '0.7rem', 
+                                background: 'rgba(56, 189, 248, 0.1)', 
+                                color: '#38bdf8', 
+                                border: '1px solid rgba(56, 189, 248, 0.25)', 
+                                padding: '1px 6px', 
+                                borderRadius: '4px', 
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px'
+                              }}
+                              title="Telegram-linked profile"
+                            >
+                              ✈️ Telegram
+                            </span>
+                          ) : (
+                            <span 
+                              style={{ 
+                                fontSize: '0.7rem', 
+                                background: 'rgba(52, 211, 153, 0.1)', 
+                                color: '#34d399', 
+                                border: '1px solid rgba(52, 211, 153, 0.25)', 
+                                padding: '1px 6px', 
+                                borderRadius: '4px', 
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px'
+                              }}
+                              title="Email/Web profile"
+                            >
+                              ✉️ Email
+                            </span>
+                          )}
                           {isCurrentUser && <span style={{ fontSize: '0.8rem', background: 'var(--primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>You</span>}
                         </div>
                         {user.username && (

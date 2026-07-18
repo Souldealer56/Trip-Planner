@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 from telegram import (
     Update,
+    User,
     ReplyKeyboardRemove,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
@@ -308,6 +309,82 @@ async def get_db_user_id(telegram_id: int) -> str | None:
     )
     if result and result.data:
         return result.data.get("id")
+    return None
+
+
+async def _get_or_link_user(tg_user: User) -> str | None:
+    """
+    Resolves the internal DB user ID for a Telegram user.
+    If the telegram_id exists, returns the ID.
+    If not, queries by username case-insensitively. If found, updates the telegram_id and returns the ID.
+    Otherwise, creates a new user profile and returns the ID.
+    """
+    if tg_user.is_bot:
+        return None
+
+    try:
+        # 1. Check if telegram_id exists
+        res = await _safe_db_call(
+            lambda: supabase.table("users")
+            .select("id")
+            .eq("telegram_id", tg_user.id)
+            .maybeSingle()
+            .execute()
+        )
+        if res and res.data:
+            # Update username/first_name if they changed
+            await _safe_db_call(
+                lambda: supabase.table("users")
+                .update({
+                    "username": tg_user.username,
+                    "first_name": tg_user.first_name
+                })
+                .eq("telegram_id", tg_user.id)
+                .execute()
+            )
+            return res.data["id"]
+
+        # 2. Check if username exists case-insensitively
+        if tg_user.username:
+            res_uname = await _safe_db_call(
+                lambda: supabase.table("users")
+                .select("id")
+                .ilike("username", tg_user.username)
+                .maybeSingle()
+                .execute()
+            )
+            if res_uname and res_uname.data:
+                user_id = res_uname.data["id"]
+                # Link by updating telegram_id
+                await _safe_db_call(
+                    lambda: supabase.table("users")
+                    .update({
+                        "telegram_id": tg_user.id,
+                        "username": tg_user.username,
+                        "first_name": tg_user.first_name
+                    })
+                    .eq("id", user_id)
+                    .execute()
+                )
+                logger.info(f"Auto-linked user {user_id} via matching username: {tg_user.username}")
+                return user_id
+
+        # 3. Create new user profile
+        user_data = {
+            "telegram_id": tg_user.id,
+            "username": tg_user.username,
+            "first_name": tg_user.first_name,
+        }
+        res_insert = await _safe_db_call(
+            lambda: supabase.table("users")
+            .upsert(user_data, on_conflict="telegram_id")
+            .execute()
+        )
+        if res_insert and res_insert.data:
+            return res_insert.data[0]["id"]
+    except Exception as e:
+        logger.error(f"Error in _get_or_link_user: {e}", exc_info=True)
+
     return None
 
 
@@ -653,15 +730,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Register the user (skip bots)
     if not tg_user.is_bot:
-        user_data = {
-            "telegram_id": tg_user.id,
-            "username": tg_user.username,
-            "first_name": tg_user.first_name,
-        }
-        try:
-            supabase.table("users").upsert(user_data, on_conflict="telegram_id").execute()
-        except Exception:
-            pass  # Non-fatal; user may already exist
+        await _get_or_link_user(tg_user)
 
     # --- Group chat: bind to a trip ---
     if chat.type in ["group", "supergroup"]:
@@ -1163,19 +1232,11 @@ async def handle_rsvp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Use maxsplit=2 to safely handle UUIDs that contain underscores
     _, trip_id, status = query.data.split("_", 2)
 
-    user_data = {
-        "telegram_id": query.from_user.id,
-        "username": query.from_user.username,
-        "first_name": query.from_user.first_name,
-    }
-
     try:
-        user_response = (
-            supabase.table("users")
-            .upsert(user_data, on_conflict="telegram_id")
-            .execute()
-        )
-        db_user_id = user_response.data[0]["id"]
+        db_user_id = await _get_or_link_user(query.from_user)
+        if not db_user_id:
+            raise ValueError("Failed to resolve db_user_id")
+
         supabase.table("rsvps").upsert(
             {"trip_id": trip_id, "user_id": db_user_id, "status": status},
             on_conflict="trip_id, user_id",
