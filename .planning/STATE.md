@@ -100,4 +100,4 @@ Resume file: .planning/phases/19-hybrid-bot-web-coexistence/19-CONTEXT.md
 
 ## Operator Next Steps
 
-- Plan Phase 19 with /gsd-plan-phase 19
+- Discuss Phase 20 with /gsd-discuss-phase 20
