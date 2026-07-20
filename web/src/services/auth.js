@@ -88,7 +88,7 @@ export async function verifyLoginToken(token) {
 
   if (!user) {
     // 4. Standalone Onboarding: Create traveler profile with a temporary negative Telegram ID
-    const tempTelegramId = -1000000 - Math.floor(Math.random() * 1000000);
+    const tempTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
     const emailPrefix = tokenRecord.email.split('@')[0];
     const firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
     const username = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -99,7 +99,7 @@ export async function verifyLoginToken(token) {
         email: tokenRecord.email,
         telegram_id: tempTelegramId,
         first_name: firstName,
-        username: username || 'traveler'
+        username: username || null
       })
       .select()
       .single();
