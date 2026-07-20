@@ -7,6 +7,7 @@
 - ✅ **v1.2 Web Parity & Complete Trip Management** — Phases 10-13 (shipped 2026-07-13)
 - ✅ **v1.3 Traveler Profiles & Access Control** — Phases 14-16 (shipped 2026-07-14)
 - ✅ **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (shipped 2026-07-20)
+- 🚧 **v1.5 Trip Settings, User Profiles & Pitching Audit** — Phases 21-23 (in progress)
 
 
 ## Phases
@@ -51,61 +52,54 @@
 
 </details>
 
-### 🚧 v1.4 Standalone Webapp & Hybrid Onboarding (In Progress)
+<details>
+<summary>✅ v1.4 Standalone Webapp & Hybrid Onboarding (Phases 17-20) — SHIPPED 2026-07-20</summary>
 
-**Milestone Goal:** Detach the project from Telegram so users can sign up, join, and use the webapp with or without Telegram, supporting a hybrid model.
+- [x] Phase 17: Custom Passwordless Email Login (1/1 plan) — completed 2026-07-17
+- [x] Phase 18: Shareable Web Invite Links & Standalone Roster Onboarding (1/1 plan) — completed 2026-07-17
+- [x] Phase 19: Hybrid Bot-Web Coexistence (1/1 plan) — completed 2026-07-18
+- [x] Phase 20: In-App Activity Log & Notification Feed (1/1 plan) — completed 2026-07-20
 
-#### [x] Phase 17: Custom Passwordless Email Login — completed 2026-07-17
+</details>
 
-**Goal**: Implement the custom, database-agnostic passwordless login mechanism.
-**Depends on**: Phase 16
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04
+### 🚧 v1.5 Trip Settings, User Profiles & Pitching Audit (In Progress)
+
+**Milestone Goal:** Enable full trip metadata editing (dates, currency, description) with option date-reconciliation handling, fix option pitching RLS policies, and add a dedicated User Profile page for personal settings.
+
+#### Phase 21: Option Pitching & Database RLS Audit
+
+**Goal**: Audit option pitching and voting tables (`active_polls`, `poll_options`, `activity_log`) to ensure all database mutations execute cleanly without RLS policy failures.
+**Depends on**: Phase 20
+**Requirements**: PITCH-01, PITCH-02
 **Success Criteria**:
 
-  1. User can enter email in the landing/splash page to request a login link.
-  2. Supabase inserts a new token in the `login_tokens` table, triggering a Database Webhook to Resend API.
-  3. Clicking the email link navigates to `/verify?token=...`, verifying token is valid, not expired, and unused.
-  4. Session is cached in `localStorage` and URL parameters are sanitized immediately.
-  5. User can link/unlink email profiles to/from Telegram user accounts on their profile page.
+  1. User can pitch new options under any category on the web client without database errors.
+  2. Casting and retracting votes on options updates voter lists and tallies across both web app and Telegram bot.
 
 **Plans**: 1 plan
 
-#### [x] Phase 18: Shareable Web Invite Links & Standalone Roster Onboarding — completed 2026-07-17
+#### Phase 22: Editable Trip Settings & Date/Currency Reconciliation
 
-**Goal**: Enable direct sharing of trips and standalone user registration.
-**Depends on**: Phase 17
-**Requirements**: INV-01, INV-02
+**Goal**: Enable updating trip title, destination, description, start/end dates, and base currency with date-range option reconciliation.
+**Depends on**: Phase 21
+**Requirements**: SETT-01, SETT-02, SETT-03
 **Success Criteria**:
 
-  1. Shareable trip link can be generated and copied to clipboard (`/join/:tripId`).
-  2. Accessing `/join/:tripId` as a guest displays onboarding wizard to enter/create profile.
-  3. Once logged in, the user is added directly to the trip roster as a Committed participant and redirected to the trip planner dashboard.
+  1. User can edit trip title, destination, description, dates, and base currency via web modal and bot commands.
+  2. Changing trip dates checks all pitched options and highlights options falling outside the new date range with a warning banner.
+  3. Changing trip base currency updates ledger display and currency conversion calculations without corrupting logged expenses.
 
 **Plans**: 1 plan
 
-#### [x] Phase 19: Hybrid Bot-Web Coexistence — completed 2026-07-18
+#### Phase 23: User Profile Management Page
 
-**Goal**: Ensure bot and web interfaces work seamlessly on the same trips without collisions.
-**Depends on**: Phase 18
-**Requirements**: HYB-01, HYB-02, HYB-03
+**Goal**: Add a dedicated `/profile` page for viewing traveler details, avatar styling, and linking/unlinking Telegram accounts.
+**Depends on**: Phase 22
+**Requirements**: PROF-01, PROF-02
 **Success Criteria**:
 
-  1. Users can have standard Telegram user records, negative web IDs, or email-only profiles.
-  2. Bot command menus and database queries in `main.py` support case-insensitive matching by username/email.
-  3. Webapp roster display, option list, voting, and ledger handle mixed users without crashes.
-
-**Plans**: 1 plan
-
-#### [x] Phase 20: In-App Activity Log & Notification Feed — completed 2026-07-20
-
-**Goal**: Log mutations and display a chronological feed drawer on the web app.
-**Depends on**: Phase 19
-**Requirements**: NOTIF-01, NOTIF-02
-**Success Criteria**:
-
-  1. Changes on options, voting, expenses, and RSVPs write a record to `activity_log`.
-  2. Slide-out Notification Feed drawer shows a chronological list of recent logs for the trip.
-  3. Header displays badge indicating unread notifications count.
+  1. User can navigate to `/profile` to view traveler info, email, Telegram account status, and avatar.
+  2. User can update display name and securely generate/verify Telegram account linking codes.
 
 **Plans**: 1 plan
 
@@ -136,4 +130,6 @@ Phases execute in numeric order.
 | 18. Shareable Web Invite Links & Standalone Roster Onboarding | v1.4 | 1/1 | Complete | 2026-07-17 |
 | 19. Hybrid Bot-Web Coexistence | v1.4 | 1/1 | Complete | 2026-07-18 |
 | 20. In-App Activity Log & Notification Feed | v1.4 | 1/1 | Complete | 2026-07-20 |
-
+| 21. Option Pitching & Database RLS Audit | v1.5 | 0/1 | Not started | - |
+| 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 0/1 | Not started | - |
+| 23. User Profile Management Page | v1.5 | 0/1 | Not started | - |

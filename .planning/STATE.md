@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Standalone Webapp & Hybrid Onboarding
-current_phase: 4
-status: Awaiting next milestone
-stopped_at: Phase 20 Plan 1 executed and verified
-last_updated: "2026-07-20T23:09:58.657Z"
+milestone: v1.5
+milestone_name: Trip Settings, User Profiles & Pitching Audit
+status: planning
+last_updated: "2026-07-20T23:22:31.612Z"
 last_activity: 2026-07-20
-last_activity_desc: Milestone v1.4 completed and archived
 progress:
-  total_phases: 4
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 1
-  percent: 25
-current_phase_name: In-App Activity Log & Notification Feed
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-12)
 
 ## Current Position
 
-Phase: Milestone v1.4 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-20 — Milestone v1.4 completed and archived
+Status: Defining requirements
+Last activity: 2026-07-20 — Milestone v1.5 started
 
 ## Performance Metrics
 

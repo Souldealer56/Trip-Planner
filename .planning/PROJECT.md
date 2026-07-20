@@ -8,9 +8,14 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: Milestone v1.4 Completed (Preparing for Next Milestone)
+## Current Milestone: v1.5 Trip Settings, User Profiles & Pitching Audit
 
-**Goal:** Detach the project from Telegram so users can sign up, join, and use the webapp with or without Telegram, supporting a hybrid model.
+**Goal:** Enable full trip metadata editing (dates, currency, description) with option date-reconciliation handling, fix option pitching RLS policies, and add a dedicated User Profile page for personal settings.
+
+**Target features:**
+- Option pitching & database mutation RLS audit (verifying `active_polls` & `poll_options` mutations)
+- Editable trip settings (title, destination, description, dates, base currency) with date-range option conflict warnings
+- Dedicated User Profile page (`/profile`) allowing users to view/edit profile parameters and link/unlink Telegram accounts
 
 ---
 
