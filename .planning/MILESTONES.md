@@ -1,5 +1,18 @@
 # Milestones
 
+## v1.4 Standalone Webapp & Hybrid Onboarding (Shipped: 2026-07-20)
+
+**Phases completed:** 4 phases, 4 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Custom Passwordless Email Login mechanism with magic link token verification, session caching, and Telegram account linking.
+- Shareable Web Invite Links (`/join/:tripId`) with standalone guest onboarding and automatic trip RSVP registration.
+- Hybrid Bot-Web Coexistence ensuring Telegram users, web-only negative IDs, and email profiles work seamlessly without collisions.
+- In-App Activity Log & Notification Feed with Postgres triggers, relative timestamps, and slide-out feed drawer.
+
+---
+
 ## v1.3 v1.3 (Shipped: 2026-07-14)
 
 **Phases completed:** 3 phases, 3 plans, 16 tasks

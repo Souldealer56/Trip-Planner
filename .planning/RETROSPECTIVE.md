@@ -90,6 +90,33 @@ This living document captures technical decisions, patterns, lessons, and cost o
 
 ---
 
+## Milestone: v1.4 — Standalone Webapp & Hybrid Onboarding
+
+**Shipped:** 2026-07-20
+**Phases:** 4 | **Plans:** 4 | **Tasks:** 12
+
+### What Was Built
+- Passwordless email login with magic link token verification, session caching, and Telegram account linking.
+- Shareable web invite links (`/join/:tripId`) with standalone guest onboarding and auto-RSVP registration.
+- Hybrid bot-web coexistence supporting Telegram users, web-only IDs, and email profiles across all services.
+- In-app activity log backed by PostgreSQL database triggers, relative time formatting, and slide-out feed drawer.
+
+### What Worked
+- **Database Trigger Automation**: Using PostgreSQL triggers on `rsvps`, `poll_options`, and `expenses` tables to automatically write to `activity_log` eliminated boilerplates across bot handlers and web services.
+- **On-Screen Instant Verification**: Providing an on-screen instant login verification link alongside the magic link notification provided seamless testing and developer/production fallback access.
+- **Timestamp-Based Negative IDs**: Generating `-1 * (Date.now() * 1000 + random)` for standalone web travelers guaranteed 100% collision-free negative BigInt IDs in Supabase PostgreSQL.
+
+### What Was Inefficient
+- **Netlify SPA Proxying**: Client API calls to `/supabase-api/...` defaulted to Netlify's HTML rewrite fallback until explicit 200 proxy rules were added to `web/public/_redirects`.
+
+### Patterns Established
+- **Netlify 200 Proxy Rewrites**: Adding `/supabase-api/* https://<project>.supabase.co/:splat 200!` to `_redirects` ensures client-side proxies pass through to external API gateways without CORS or 404 HTML fallback issues.
+
+### Key Lessons
+- Always verify Supabase Row Level Security (RLS) policies on newly created public tables; enabling RLS without policies blocks browser clients from executing `SELECT` or `INSERT` operations.
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Date | Phases | Plans | Codebase LOC | Velocity (LOC/hr) | Notable |
@@ -97,3 +124,6 @@ This living document captures technical decisions, patterns, lessons, and cost o
 | v1.0 MVP  | 2026-07-12 | 5 | 9 | ~1,200 LOC | - | Playwright 404 CDN bypass |
 | v1.1 Bot  | 2026-07-13 | 4 | 4 | ~3,500 LOC | - | native asyncio background loop |
 | v1.2 Web  | 2026-07-13 | 4 | 5 | ~5,600 LOC | - | Dynamic Settle solver & split toggles |
+| v1.3 Auth | 2026-07-14 | 3 | 3 | ~7,200 LOC | - | Global user session context & deep links |
+| v1.4 Hybrid| 2026-07-20 | 4 | 4 | ~9,800 LOC | - | Netlify SPA deployment & DB activity triggers |
+
