@@ -3,13 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
-import { formatDateRange } from '../utils/format'
+import { formatDateRange, formatRelativeTime } from '../utils/format'
 import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll } from '../services/options'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
 import { useUserSession } from '../hooks/useUserSession'
 import { generateTelegramLinkCode, disconnectTelegram } from '../services/users'
+import { fetchActivityLogs } from '../services/activity'
 
 function TripDetails() {
   const { id } = useParams()
@@ -63,6 +64,44 @@ function TripDetails() {
   }
 
   const [showCopiedToast, setShowCopiedToast] = useState(false)
+
+  // Activity Feed & Notification Drawer states
+  const [activityLogs, setActivityLogs] = useState([])
+  const [showActivityDrawer, setShowActivityDrawer] = useState(false)
+  const [lastReadTimestamp, setLastReadTimestamp] = useState(() => {
+    return localStorage.getItem(`trip_planner_last_read_log_${id}`) || null
+  })
+
+  const loadActivityLogs = React.useCallback(async () => {
+    try {
+      const logs = await fetchActivityLogs(id)
+      setActivityLogs(logs || [])
+    } catch (err) {
+      console.error('Failed to load activity logs:', err)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (activeUser) {
+      loadActivityLogs()
+    }
+  }, [activeUser, loadActivityLogs])
+
+  const unreadCount = React.useMemo(() => {
+    if (!lastReadTimestamp) return activityLogs.length
+    const lastReadTime = new Date(lastReadTimestamp).getTime()
+    return activityLogs.filter(log => new Date(log.created_at).getTime() > lastReadTime).length
+  }, [activityLogs, lastReadTimestamp])
+
+  const handleToggleDrawer = () => {
+    const nextShow = !showActivityDrawer
+    setShowActivityDrawer(nextShow)
+    if (nextShow) {
+      const nowIso = new Date().toISOString()
+      setLastReadTimestamp(nowIso)
+      localStorage.setItem(`trip_planner_last_read_log_${id}`, nowIso)
+    }
+  }
 
   const handleCopyInviteLink = () => {
     const inviteUrl = `${window.location.origin}/join/${id}`
@@ -171,6 +210,7 @@ function TripDetails() {
       setPitchDesc('')
       setShowPitchModal(false)
       loadOptionsAndPoll()
+      loadActivityLogs()
     } catch (err) {
       console.error('Failed to pitch option:', err)
       setPitchError(err.message || 'Failed to pitch option.')
@@ -184,6 +224,7 @@ function TripDetails() {
     try {
       const updatedPoll = await toggleVote(id, activeTab, optionId, activeUser.id, !hasVoted)
       setActivePoll(updatedPoll)
+      loadActivityLogs()
     } catch (err) {
       console.error('Failed to toggle vote:', err)
     }
@@ -295,6 +336,7 @@ function TripDetails() {
       )
       setShowExpenseModal(false)
       loadExpenses()
+      loadActivityLogs()
     } catch (err) {
       console.error('Failed to log expense:', err)
       setExpenseError(err.message || 'Failed to log expense.')
@@ -372,6 +414,7 @@ function TripDetails() {
     if (activeUser) {
       loadOptionsAndPoll()
       loadExpenses()
+      loadActivityLogs()
       fetchExchangeRates().then(setRates).catch(console.error)
     }
   }
@@ -456,6 +499,30 @@ function TripDetails() {
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
             </svg>
             Refresh
+          </button>
+          <button
+            onClick={handleToggleDrawer}
+            className="btn btn-secondary"
+            style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            title="Activity Feed & Notifications"
+          >
+            🔔 Activity
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  backgroundColor: 'var(--accent, #10b981)',
+                  color: '#ffffff',
+                  borderRadius: '10px',
+                  padding: '1px 6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  lineHeight: '1',
+                  marginLeft: '2px'
+                }}
+              >
+                {unreadCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1551,6 +1618,94 @@ function TripDetails() {
           </div>
         </div>
       )}
+
+      {/* Activity Feed Slide-Out Drawer */}
+      {showActivityDrawer && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowActivityDrawer(false)}
+          style={{ justifyContent: 'flex-end', padding: 0, zIndex: 1100 }}
+        >
+          <div
+            className="glass-card animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '380px',
+              maxWidth: '90vw',
+              height: '100vh',
+              borderRadius: 0,
+              borderLeft: '1px solid var(--border-light)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
+              boxShadow: '-4px 0 24px rgba(0,0,0,0.5)',
+              background: 'var(--bg-main, #0f172a)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🔔 Activity Feed</span>
+              </h2>
+              <button
+                onClick={() => setShowActivityDrawer(false)}
+                className="btn btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+              >
+                Close
+              </button>
+            </div>
+
+            {activityLogs.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '2rem' }}>
+                No activity recorded yet for this trip.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {activityLogs.map((log) => {
+                  const isNew = !lastReadTimestamp || new Date(log.created_at).getTime() > new Date(lastReadTimestamp).getTime()
+                  let icon = '📝'
+                  if (log.action_type === 'update_rsvp') icon = '🎒'
+                  else if (log.action_type === 'pitch_option') icon = '💡'
+                  else if (log.action_type === 'vote_option' || log.action_type === 'vote_poll') icon = '🗳️'
+                  else if (log.action_type === 'add_expense') icon = '💸'
+
+                  return (
+                    <div
+                      key={log.id}
+                      style={{
+                        padding: '0.85rem 1rem',
+                        background: isNew ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: isNew ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
+                        borderRadius: 'var(--border-radius-sm)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-main)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <span>{icon}</span>
+                          <span>{log.description}</span>
+                        </span>
+                        {isNew && (
+                          <span style={{ fontSize: '0.65rem', background: 'var(--accent, #10b981)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold', flexShrink: 0 }}>
+                            NEW
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right', marginTop: '2px' }}>
+                        {formatRelativeTime(log.created_at)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

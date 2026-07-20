@@ -132,5 +132,33 @@ export async function toggleVote(tripId, category, optionId, userId, cast) {
   if (error) {
     throw error
   }
+
+  // Insert activity log entry
+  try {
+    let userName = 'Someone'
+    if (userId) {
+      const { data: userRec } = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('id', userId)
+        .maybeSingle()
+      if (userRec?.first_name) {
+        userName = userRec.first_name
+      }
+    }
+    const actionDesc = cast
+      ? `${userName} voted on an option in ${category}`
+      : `${userName} removed vote in ${category}`
+
+    await supabase.from('activity_log').insert({
+      trip_id: tripId,
+      user_id: userId || null,
+      action_type: 'vote_option',
+      description: actionDesc
+    })
+  } catch (logErr) {
+    console.error('Failed to log voting activity:', logErr)
+  }
+
   return data
 }

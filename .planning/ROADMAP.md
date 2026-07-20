@@ -6,7 +6,8 @@
 - ✅ **v1.1 Bot Capabilities & Improvements** — Phases 6-9 (shipped 2026-07-13)
 - ✅ **v1.2 Web Parity & Complete Trip Management** — Phases 10-13 (shipped 2026-07-13)
 - ✅ **v1.3 Traveler Profiles & Access Control** — Phases 14-16 (shipped 2026-07-14)
-- 🚧 **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (in progress)
+- ✅ **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (shipped 2026-07-20)
+
 
 ## Phases
 
@@ -95,7 +96,7 @@
 
 **Plans**: 0 plans
 
-#### Phase 20: In-App Activity Log & Notification Feed
+#### [x] Phase 20: In-App Activity Log & Notification Feed — completed 2026-07-20
 
 **Goal**: Log mutations and display a chronological feed drawer on the web app.
 **Depends on**: Phase 19
@@ -106,7 +107,7 @@
   2. Slide-out Notification Feed drawer shows a chronological list of recent logs for the trip.
   3. Header displays badge indicating unread notifications count.
 
-**Plans**: 0 plans
+**Plans**: 1 plan
 
 ## Progress
 
@@ -131,7 +132,8 @@ Phases execute in numeric order.
 | 14. Global Sessions & Splash Profiles | v1.3 | 1/1 | Complete | 2026-07-14 |
 | 15. Filtered Trips Dashboard & Auto-RSVP | v1.3 | 1/1 | Complete | 2026-07-14 |
 | 16. Session Reconciliation & Bot Deep Linking | v1.3 | 1/1 | Complete | 2026-07-14 |
-| 17. Custom Passwordless Email Login | v1.4 | 0/0 | Planned | — |
-| 18. Shareable Web Invite Links & Standalone Roster Onboarding | v1.4 | 0/0 | Planned | — |
-| 19. Hybrid Bot-Web Coexistence | v1.4 | 0/1 | Complete    | 2026-07-18 |
-| 20. In-App Activity Log & Notification Feed | v1.4 | 0/0 | Planned | — |
+| 17. Custom Passwordless Email Login | v1.4 | 1/1 | Complete | 2026-07-17 |
+| 18. Shareable Web Invite Links & Standalone Roster Onboarding | v1.4 | 1/1 | Complete | 2026-07-17 |
+| 19. Hybrid Bot-Web Coexistence | v1.4 | 1/1 | Complete | 2026-07-18 |
+| 20. In-App Activity Log & Notification Feed | v1.4 | 1/1 | Complete | 2026-07-20 |
+

@@ -1,0 +1,88 @@
+# Requirements: Trip Planner
+
+**Defined:** 2026-07-14
+**Core Value:** Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
+
+## v1 Requirements
+
+Requirements for milestone v1.4. Each maps to roadmap phases.
+
+### Passwordless Email Login (AUTH)
+
+- [ ] **AUTH-01**: User can request a login magic link by entering their email address on the web splash login page.
+- [ ] **AUTH-02**: User receives a passwordless magic link in their email containing a secure high-entropy token.
+- [ ] **AUTH-03**: User can click the email magic link to land on a `/verify` route, validating the token and caching their session.
+- [ ] **AUTH-04**: User can link their Telegram account/username to their email profile to merge their travel histories.
+
+### Shareable Invite Links (INV)
+
+- [ ] **INV-01**: User can generate and copy a unique invite URL (`/join/:tripId`) from the trip details view.
+- [ ] **INV-02**: Unauthenticated visitor landing on `/join/:tripId` is guided through onboarding, then is auto-committed to the trip roster.
+
+### Hybrid Bot-Web Coexistence (HYB)
+
+- [x] **HYB-01**: Database schema supports users with real Telegram IDs, negative web IDs, and email addresses.
+- [x] **HYB-02**: Webapp Roster, Option Pitching, Voting, and Ledger views process actions from both bot and web users.
+- [x] **HYB-03**: Telegram bot matches user queries case-insensitively by username or email to link bot commands with web profiles.
+
+### Notification Center (NOTIF)
+
+- [x] **NOTIF-01**: User is alerted to new trip events via visual notifications and indicator badges on the web UI.
+- [x] **NOTIF-02**: User can open a slide-out Notification Feed drawer displaying recent pitches, votes, and ledger changes.
+
+---
+
+## v2 Requirements
+
+Deferred to future releases. Tracked but not in current roadmap.
+
+### SMS Notifications
+
+- **SMS-01**: User can verify a phone number and receive SMS alerts (requires paid SMS gateway integration).
+
+### Social OAuth
+
+- **AUTH-05**: User can sign up/log in using third-party social accounts (Google, Apple).
+
+---
+
+## Out of Scope
+
+Explicitly excluded to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Password Authentication | Adds security overhead, password hashing tables, and reset flows. Passwordless OTP is cleaner. |
+| Self-hosted Mail Server | High maintenance, poor IP reputation, and deliverability issues. Standard REST mail APIs are preferred. |
+| Real-time WebSockets | Adds polling server overhead and connection management costs. We will use query reloads and state checks. |
+
+---
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| AUTH-01 | Phase 17 | Complete |
+| AUTH-02 | Phase 17 | Complete |
+| AUTH-03 | Phase 17 | Complete |
+| AUTH-04 | Phase 17 | Complete |
+| INV-01 | Phase 18 | Complete |
+| INV-02 | Phase 18 | Complete |
+| HYB-01 | Phase 19 | Complete |
+| HYB-02 | Phase 19 | Complete |
+| HYB-03 | Phase 19 | Complete |
+| NOTIF-01 | Phase 20 | Complete |
+| NOTIF-02 | Phase 20 | Complete |
+
+**Coverage:**
+
+- v1 requirements: 11 total
+- Mapped to phases: 11
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-07-14*
+*Last updated: 2026-07-20 after Phase 20 completion*
+

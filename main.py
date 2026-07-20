@@ -1358,7 +1358,7 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     active_poll = await _safe_db_call(
         lambda: supabase.table("active_polls")
-        .select("id, voter_ids")
+        .select("id, voter_ids, trip_id, category")
         .eq("telegram_poll_id", poll_id)
         .execute()
     )
@@ -1368,6 +1368,8 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     record = active_poll.data[0]
     record_id = record["id"]
     voter_ids = record.get("voter_ids") or []
+    trip_id = record.get("trip_id")
+    category = record.get("category") or "options"
 
     if not selected_options:
         if tg_user_id in voter_ids:
@@ -1382,6 +1384,20 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         .eq("id", record_id)
         .execute()
     )
+
+    if trip_id:
+        db_user_id = await get_db_user_id(tg_user_id)
+        user_name = poll_answer.user.first_name if (poll_answer.user and poll_answer.user.first_name) else "Someone"
+        action_desc = f"{user_name} voted on {category} poll" if selected_options else f"{user_name} retracted vote on {category} poll"
+        await _safe_db_call(
+            lambda: supabase.table("activity_log").insert({
+                "trip_id": trip_id,
+                "user_id": db_user_id,
+                "action_type": "vote_poll",
+                "description": action_desc
+            }).execute()
+        )
+
 
 
 # ---------------------------------------------------------------------------
