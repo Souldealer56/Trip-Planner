@@ -1,0 +1,2441 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "",
+    "title": "standard public schema",
+    "version": "14.5"
+  },
+  "host": "obilxzpljuphlkkchnam.supabase.co:443",
+  "basePath": "/",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json",
+    "application/vnd.pgrst.object+json;nulls=stripped",
+    "application/vnd.pgrst.object+json",
+    "text/csv"
+  ],
+  "produces": [
+    "application/json",
+    "application/vnd.pgrst.object+json;nulls=stripped",
+    "application/vnd.pgrst.object+json",
+    "text/csv"
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "produces": [
+          "application/openapi+json",
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "OpenAPI description (this document)",
+        "tags": [
+          "Introspection"
+        ]
+      }
+    },
+    "/active_polls": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.telegram_poll_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.group_chat_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.poll_options_json"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.sent_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.committed_count"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.voter_ids"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.voter_selections"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.votes_by_option"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.stale_nudge_sent"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.majority_nudge_sent"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/active_polls"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "active_polls"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.active_polls"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "active_polls"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.telegram_poll_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.group_chat_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.poll_options_json"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.sent_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.committed_count"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.voter_ids"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.voter_selections"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.votes_by_option"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.stale_nudge_sent"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.majority_nudge_sent"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "active_polls"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.telegram_poll_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.group_chat_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.poll_options_json"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.sent_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.committed_count"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.voter_ids"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.voter_selections"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.votes_by_option"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.stale_nudge_sent"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.active_polls.majority_nudge_sent"
+          },
+          {
+            "$ref": "#/parameters/body.active_polls"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "active_polls"
+        ]
+      }
+    },
+    "/trips": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.trips.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.organizer_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.destination"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.vibe"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.group_chat_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.base_currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.last_rsvp_nudge_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/trips"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "trips"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.trips"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "trips"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.trips.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.organizer_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.destination"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.vibe"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.group_chat_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.base_currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.last_rsvp_nudge_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "trips"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.trips.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.organizer_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.destination"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.vibe"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.group_chat_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.base_currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.trips.last_rsvp_nudge_at"
+          },
+          {
+            "$ref": "#/parameters/body.trips"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/poll_options": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.option_text"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.added_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.link"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.estimated_cost"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.description"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/poll_options"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "poll_options"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.poll_options"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "poll_options"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.option_text"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.added_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.link"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.estimated_cost"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.description"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "poll_options"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.option_text"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.added_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.link"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.estimated_cost"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.poll_options.description"
+          },
+          {
+            "$ref": "#/parameters/body.poll_options"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "poll_options"
+        ]
+      }
+    },
+    "/expenses": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.expenses.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.paid_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.split_users"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/expenses"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "expenses"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.expenses"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "expenses"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.expenses.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.paid_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.split_users"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "expenses"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.expenses.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.paid_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.expenses.split_users"
+          },
+          {
+            "$ref": "#/parameters/body.expenses"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "expenses"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.users.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.telegram_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.first_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.username"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/users"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.users"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.users.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.telegram_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.first_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.username"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.users.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.telegram_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.first_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.username"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.users.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.users"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/master_itinerary": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.locked_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.cost_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.estimated_cost"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.currency"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/master_itinerary"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "master_itinerary"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.master_itinerary"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "master_itinerary"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.locked_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.cost_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.estimated_cost"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.currency"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "master_itinerary"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.category"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.locked_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.cost_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.estimated_cost"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.master_itinerary.currency"
+          },
+          {
+            "$ref": "#/parameters/body.master_itinerary"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "master_itinerary"
+        ]
+      }
+    },
+    "/rsvps": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.notes"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/rsvps"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "rsvps"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.rsvps"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "rsvps"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.notes"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "rsvps"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rsvps.notes"
+          },
+          {
+            "$ref": "#/parameters/body.rsvps"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "rsvps"
+        ]
+      }
+    },
+    "/bug_reports": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.username"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.report_text"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/bug_reports"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "bug_reports"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.bug_reports"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "bug_reports"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.username"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.report_text"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "bug_reports"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.username"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.trip_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.report_text"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bug_reports.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.bug_reports"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "bug_reports"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "active_polls": {
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "trip_id": {
+          "description": "Note:\nThis is a Foreign Key to `trips.id`.<fk table='trips' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "telegram_poll_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "group_chat_id": {
+          "format": "bigint",
+          "type": "integer"
+        },
+        "category": {
+          "format": "text",
+          "type": "string"
+        },
+        "poll_options_json": {
+          "format": "jsonb"
+        },
+        "sent_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "committed_count": {
+          "default": 0,
+          "format": "integer",
+          "type": "integer"
+        },
+        "voter_ids": {
+          "format": "bigint[]",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "voter_selections": {
+          "format": "jsonb"
+        },
+        "votes_by_option": {
+          "format": "jsonb"
+        },
+        "stale_nudge_sent": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "majority_nudge_sent": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "trips": {
+      "required": [
+        "id",
+        "destination",
+        "base_currency"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "organizer_id": {
+          "description": "Note:\nThis is a Foreign Key to `users.id`.<fk table='users' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "destination": {
+          "format": "text",
+          "type": "string"
+        },
+        "vibe": {
+          "format": "text",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "end_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "group_chat_id": {
+          "format": "bigint",
+          "type": "integer"
+        },
+        "title": {
+          "format": "text",
+          "type": "string"
+        },
+        "base_currency": {
+          "default": "USD",
+          "format": "text",
+          "type": "string"
+        },
+        "last_rsvp_nudge_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "poll_options": {
+      "required": [
+        "id",
+        "category",
+        "option_text"
+      ],
+      "properties": {
+        "id": {
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "bigint",
+          "type": "integer"
+        },
+        "trip_id": {
+          "description": "Note:\nThis is a Foreign Key to `trips.id`.<fk table='trips' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "category": {
+          "format": "text",
+          "type": "string"
+        },
+        "option_text": {
+          "format": "text",
+          "type": "string"
+        },
+        "added_by": {
+          "description": "Note:\nThis is a Foreign Key to `users.id`.<fk table='users' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "end_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "link": {
+          "format": "text",
+          "type": "string"
+        },
+        "estimated_cost": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "currency": {
+          "format": "text",
+          "type": "string"
+        },
+        "description": {
+          "format": "text",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "expenses": {
+      "required": [
+        "id",
+        "amount",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "trip_id": {
+          "description": "Note:\nThis is a Foreign Key to `trips.id`.<fk table='trips' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "paid_by": {
+          "description": "Note:\nThis is a Foreign Key to `users.id`.<fk table='users' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "amount": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "description": {
+          "format": "text",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "currency": {
+          "default": "USD",
+          "format": "text",
+          "type": "string"
+        },
+        "split_users": {
+          "format": "jsonb"
+        }
+      },
+      "type": "object"
+    },
+    "users": {
+      "required": [
+        "id",
+        "telegram_id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "telegram_id": {
+          "format": "bigint",
+          "type": "integer"
+        },
+        "first_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "username": {
+          "format": "text",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "master_itinerary": {
+      "required": [
+        "id",
+        "category",
+        "title",
+        "start_date",
+        "end_date"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "trip_id": {
+          "description": "Note:\nThis is a Foreign Key to `trips.id`.<fk table='trips' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "category": {
+          "format": "text",
+          "type": "string"
+        },
+        "title": {
+          "format": "text",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "end_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "locked_by": {
+          "description": "Note:\nThis is a Foreign Key to `users.id`.<fk table='users' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "cost_type": {
+          "format": "text",
+          "type": "string"
+        },
+        "estimated_cost": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "currency": {
+          "format": "text",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "rsvps": {
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "trip_id": {
+          "description": "Note:\nThis is a Foreign Key to `trips.id`.<fk table='trips' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "user_id": {
+          "description": "Note:\nThis is a Foreign Key to `users.id`.<fk table='users' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "status": {
+          "format": "text",
+          "type": "string"
+        },
+        "notes": {
+          "format": "text",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "bug_reports": {
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "integer",
+          "type": "integer"
+        },
+        "user_id": {
+          "format": "bigint",
+          "type": "integer"
+        },
+        "username": {
+          "format": "text",
+          "type": "string"
+        },
+        "trip_id": {
+          "description": "Note:\nThis is a Foreign Key to `trips.id`.<fk table='trips' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "report_text": {
+          "format": "text",
+          "type": "string"
+        },
+        "status": {
+          "default": "open",
+          "format": "text",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "parameters": {
+    "preferParams": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "in": "header",
+      "type": "string"
+    },
+    "preferReturn": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "enum": [
+        "return=representation",
+        "return=minimal",
+        "return=none"
+      ],
+      "in": "header",
+      "type": "string"
+    },
+    "preferCount": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "enum": [
+        "count=none"
+      ],
+      "in": "header",
+      "type": "string"
+    },
+    "preferPost": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "enum": [
+        "return=representation",
+        "return=minimal",
+        "return=none",
+        "resolution=ignore-duplicates",
+        "resolution=merge-duplicates"
+      ],
+      "in": "header",
+      "type": "string"
+    },
+    "select": {
+      "name": "select",
+      "description": "Filtering Columns",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "on_conflict": {
+      "name": "on_conflict",
+      "description": "On Conflict",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "order": {
+      "name": "order",
+      "description": "Ordering",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "range": {
+      "name": "Range",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "in": "header",
+      "type": "string"
+    },
+    "rangeUnit": {
+      "name": "Range-Unit",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "default": "items",
+      "in": "header",
+      "type": "string"
+    },
+    "offset": {
+      "name": "offset",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "limit": {
+      "name": "limit",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.active_polls": {
+      "name": "active_polls",
+      "description": "active_polls",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/active_polls"
+      }
+    },
+    "rowFilter.active_polls.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.trip_id": {
+      "name": "trip_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.telegram_poll_id": {
+      "name": "telegram_poll_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.group_chat_id": {
+      "name": "group_chat_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.category": {
+      "name": "category",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.poll_options_json": {
+      "name": "poll_options_json",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.sent_at": {
+      "name": "sent_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.committed_count": {
+      "name": "committed_count",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.voter_ids": {
+      "name": "voter_ids",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.voter_selections": {
+      "name": "voter_selections",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.votes_by_option": {
+      "name": "votes_by_option",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.stale_nudge_sent": {
+      "name": "stale_nudge_sent",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.active_polls.majority_nudge_sent": {
+      "name": "majority_nudge_sent",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.trips": {
+      "name": "trips",
+      "description": "trips",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/trips"
+      }
+    },
+    "rowFilter.trips.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.organizer_id": {
+      "name": "organizer_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.destination": {
+      "name": "destination",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.vibe": {
+      "name": "vibe",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.start_date": {
+      "name": "start_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.end_date": {
+      "name": "end_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.group_chat_id": {
+      "name": "group_chat_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.title": {
+      "name": "title",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.base_currency": {
+      "name": "base_currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.trips.last_rsvp_nudge_at": {
+      "name": "last_rsvp_nudge_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.poll_options": {
+      "name": "poll_options",
+      "description": "poll_options",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/poll_options"
+      }
+    },
+    "rowFilter.poll_options.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.trip_id": {
+      "name": "trip_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.category": {
+      "name": "category",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.option_text": {
+      "name": "option_text",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.added_by": {
+      "name": "added_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.start_date": {
+      "name": "start_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.end_date": {
+      "name": "end_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.link": {
+      "name": "link",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.estimated_cost": {
+      "name": "estimated_cost",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.currency": {
+      "name": "currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.poll_options.description": {
+      "name": "description",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.expenses": {
+      "name": "expenses",
+      "description": "expenses",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/expenses"
+      }
+    },
+    "rowFilter.expenses.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.trip_id": {
+      "name": "trip_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.paid_by": {
+      "name": "paid_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.amount": {
+      "name": "amount",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.description": {
+      "name": "description",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.currency": {
+      "name": "currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.expenses.split_users": {
+      "name": "split_users",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.users": {
+      "name": "users",
+      "description": "users",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/users"
+      }
+    },
+    "rowFilter.users.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.users.telegram_id": {
+      "name": "telegram_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.users.first_name": {
+      "name": "first_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.users.username": {
+      "name": "username",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.users.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.master_itinerary": {
+      "name": "master_itinerary",
+      "description": "master_itinerary",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/master_itinerary"
+      }
+    },
+    "rowFilter.master_itinerary.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.trip_id": {
+      "name": "trip_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.category": {
+      "name": "category",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.title": {
+      "name": "title",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.start_date": {
+      "name": "start_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.end_date": {
+      "name": "end_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.locked_by": {
+      "name": "locked_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.cost_type": {
+      "name": "cost_type",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.estimated_cost": {
+      "name": "estimated_cost",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.master_itinerary.currency": {
+      "name": "currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.rsvps": {
+      "name": "rsvps",
+      "description": "rsvps",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/rsvps"
+      }
+    },
+    "rowFilter.rsvps.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rsvps.trip_id": {
+      "name": "trip_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rsvps.user_id": {
+      "name": "user_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rsvps.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rsvps.notes": {
+      "name": "notes",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.bug_reports": {
+      "name": "bug_reports",
+      "description": "bug_reports",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/bug_reports"
+      }
+    },
+    "rowFilter.bug_reports.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bug_reports.user_id": {
+      "name": "user_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bug_reports.username": {
+      "name": "username",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bug_reports.trip_id": {
+      "name": "trip_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bug_reports.report_text": {
+      "name": "report_text",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bug_reports.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bug_reports.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    }
+  },
+  "externalDocs": {
+    "description": "PostgREST Documentation",
+    "url": "https://postgrest.org/en/v14/references/api.html"
+  }
+}

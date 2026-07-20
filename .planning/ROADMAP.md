@@ -9,7 +9,6 @@
 - ✅ **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (shipped 2026-07-20)
 - 🚧 **v1.5 Trip Settings, User Profiles & Pitching Audit** — Phases 21-23 (in progress)
 
-
 ## Phases
 
 <details>
@@ -76,7 +75,9 @@
   1. User can pitch new options under any category on the web client without database errors.
   2. Casting and retracting votes on options updates voter lists and tallies across both web app and Telegram bot.
 
-**Plans**: 1 plan
+**Plans**: 1/1 plans complete
+
+- [ ] 21-PLAN.md
 
 #### Phase 22: Editable Trip Settings & Date/Currency Reconciliation
 
@@ -130,6 +131,6 @@ Phases execute in numeric order.
 | 18. Shareable Web Invite Links & Standalone Roster Onboarding | v1.4 | 1/1 | Complete | 2026-07-17 |
 | 19. Hybrid Bot-Web Coexistence | v1.4 | 1/1 | Complete | 2026-07-18 |
 | 20. In-App Activity Log & Notification Feed | v1.4 | 1/1 | Complete | 2026-07-20 |
-| 21. Option Pitching & Database RLS Audit | v1.5 | 0/1 | Not started | - |
+| 21. Option Pitching & Database RLS Audit | v1.5 | 1/1 | Complete   | 2026-07-20 |
 | 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 0/1 | Not started | - |
 | 23. User Profile Management Page | v1.5 | 0/1 | Not started | - |

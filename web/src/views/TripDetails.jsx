@@ -191,11 +191,14 @@ function TripDetails() {
       return
     }
 
+    const validCats = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
+    const targetCat = validCats.includes(pitchCategory) ? pitchCategory : (validCats.includes(activeTab) ? activeTab : 'Accommodation')
+
     setPitchLoading(true)
     try {
       await pitchOption(
         id,
-        activeTab,
+        targetCat,
         pitchName.trim(),
         pitchCost ? parseFloat(pitchCost) : null,
         pitchCost ? pitchCurrency : null,
@@ -791,6 +794,8 @@ function TripDetails() {
               <button 
                 onClick={() => {
                   setPitchError('')
+                  const defaultCat = CATEGORIES.includes(activeTab) ? activeTab : 'Accommodation'
+                  setPitchCategory(defaultCat)
                   setShowPitchModal(true)
                 }} 
                 className="btn"
@@ -1347,12 +1352,26 @@ function TripDetails() {
         <div className="modal-overlay">
           <div className="modal-content glass-card animate-fade-in">
             <div>
-              <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', textAlign: 'center' }}>Pitch {activeTab} Option</h2>
+              <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', textAlign: 'center' }}>Pitch New Option</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-                Suggest a new {activeTab.toLowerCase()} option for the group to vote on.
+                Suggest a new option for the group to vote on.
               </p>
 
               <form onSubmit={handlePitchSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Category *</label>
+                  <select
+                    value={pitchCategory}
+                    onChange={(e) => setPitchCategory(e.target.value)}
+                    className="input-field select-field"
+                    required
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Option Name / Title *</label>
                   <input

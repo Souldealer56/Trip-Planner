@@ -3,8 +3,8 @@
 ## Requirements
 
 ### Option Pitching & Database RLS Audit
-- [ ] **PITCH-01**: User can pitch options across all categories (Accommodation, Flights, Activities, Food, Transport, Other) on the web app without database RLS errors.
-- [ ] **PITCH-02**: Casting and retracting votes on options updates real-time voter counts on both web client and Telegram bot.
+- [x] **PITCH-01**: User can pitch options across all categories (Accommodation, Flights, Activities, Food, Transport, Other) on the web app without database RLS errors.
+- [x] **PITCH-02**: Casting and retracting votes on options updates real-time voter counts on both web client and Telegram bot.
 
 ### Editable Trip Settings & Reconciliations
 - [ ] **SETT-01**: Trip members can edit trip metadata (title, destination, description, start/end dates, base currency) via web modal.
@@ -21,8 +21,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PITCH-01 | Phase 21 | Pending |
-| PITCH-02 | Phase 21 | Pending |
+| PITCH-01 | Phase 21 | Complete |
+| PITCH-02 | Phase 21 | Complete |
 | SETT-01 | Phase 22 | Pending |
 | SETT-02 | Phase 22 | Pending |
 | SETT-03 | Phase 22 | Pending |
