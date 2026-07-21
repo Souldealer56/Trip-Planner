@@ -87,7 +87,7 @@
   3. Expense logging, custom roster split checklists, and greedy settlement algorithms calculate debts accurately.
   4. User profile editing, avatar color persistence, passwordless email login, and Telegram linking execute cleanly.
 
-**Plans**: 0/1 plans complete
+**Plans**: 1/1 plans complete
 
 - [ ] 24-PLAN.md
 
@@ -121,4 +121,4 @@ Phases execute in numeric order.
 | 21. Option Pitching & Database RLS Audit | v1.5 | 1/1 | Complete | 2026-07-20 |
 | 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 1/1 | Complete | 2026-07-21 |
 | 23. User Profile Management Page | v1.5 | 1/1 | Complete | 2026-07-21 |
-| 24. Full Platform Feature & Flow Audit | v1.6 | 0/1 | Planned | - |
+| 24. Full Platform Feature & Flow Audit | v1.6 | 1/1 | Complete   | 2026-07-21 |

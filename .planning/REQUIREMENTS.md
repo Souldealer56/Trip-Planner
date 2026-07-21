@@ -3,10 +3,10 @@
 ## Requirements
 
 ### Feature & Flow Audit
-- [ ] **AUD-01**: Option Pitching, Voting & Poll Tallies E2E audit & fix across web client and Telegram bot.
-- [ ] **AUD-02**: Trip Settings, Date Reconciliation Warnings & Base Currency FX Conversions E2E audit & fix.
-- [ ] **AUD-03**: Expense Logging, Split Checklists & Debt Settlement Solvers E2E audit & fix.
-- [ ] **AUD-04**: User Profiles, Passwordless Magic Link Login & Telegram Link/Unlink E2E audit & fix.
+- [x] **AUD-01**: Option Pitching, Voting & Poll Tallies E2E audit & fix across web client and Telegram bot.
+- [x] **AUD-02**: Trip Settings, Date Reconciliation Warnings & Base Currency FX Conversions E2E audit & fix.
+- [x] **AUD-03**: Expense Logging, Split Checklists & Debt Settlement Solvers E2E audit & fix.
+- [x] **AUD-04**: User Profiles, Passwordless Magic Link Login & Telegram Link/Unlink E2E audit & fix.
 
 ---
 
@@ -14,10 +14,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUD-01 | Phase 24 | Pending |
-| AUD-02 | Phase 24 | Pending |
-| AUD-03 | Phase 24 | Pending |
-| AUD-04 | Phase 24 | Pending |
+| AUD-01 | Phase 24 | Complete |
+| AUD-02 | Phase 24 | Complete |
+| AUD-03 | Phase 24 | Complete |
+| AUD-04 | Phase 24 | Complete |
 
 ---
 
