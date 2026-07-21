@@ -164,5 +164,25 @@ export async function disconnectTelegram(userId) {
   return data;
 }
 
+/**
+ * Updates a user's profile details (first_name, username).
+ * @param {string} userId - The user's UUID
+ * @param {Object} updates - Object containing fields to update (first_name, username)
+ * @returns {Promise<Object>} The updated user record
+ */
+export async function updateUserProfile(userId, updates) {
+  const { data, error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
+}
+
 
 

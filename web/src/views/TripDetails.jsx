@@ -662,6 +662,9 @@ function TripDetails() {
                 {linkingLoading ? 'Loading...' : 'Disconnect Telegram'}
               </button>
             )}
+            <Link to="/profile" className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              👤 My Profile
+            </Link>
             <button onClick={onLogout} className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.8rem' }}>
               Switch Profile
             </button>

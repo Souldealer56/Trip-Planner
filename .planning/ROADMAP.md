@@ -104,7 +104,7 @@
   1. User can navigate to `/profile` to view traveler info, email, Telegram account status, and avatar.
   2. User can update display name and securely generate/verify Telegram account linking codes.
 
-**Plans**: 0/1 plans executed
+**Plans**: 1/1 plans complete
 
 - [ ] 23-PLAN.md
 
@@ -137,4 +137,4 @@ Phases execute in numeric order.
 | 20. In-App Activity Log & Notification Feed | v1.4 | 1/1 | Complete | 2026-07-20 |
 | 21. Option Pitching & Database RLS Audit | v1.5 | 1/1 | Complete   | 2026-07-20 |
 | 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 1/1 | Complete   | 2026-07-21 |
-| 23. User Profile Management Page | v1.5 | 0/1 | Planned    |  |
+| 23. User Profile Management Page | v1.5 | 1/1 | Complete   | 2026-07-21 |

@@ -4,6 +4,7 @@ import TripsList from './views/TripsList'
 import TripDetails from './views/TripDetails'
 import VerifyLogin from './views/VerifyLogin'
 import JoinTrip from './views/JoinTrip'
+import Profile from './views/Profile'
 import { UserSessionProvider } from './hooks/useUserSession'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="/trips/:id" element={<TripDetails />} />
           <Route path="/verify" element={<VerifyLogin />} />
           <Route path="/join/:tripId" element={<JoinTrip />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </UserSessionProvider>
     </Router>

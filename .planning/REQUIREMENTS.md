@@ -12,8 +12,8 @@
 - [x] **SETT-03**: Changing trip base currency updates ledger display and currency conversion calculations seamlessly without corrupting existing expense logs.
 
 ### User Profile Management
-- [ ] **PROF-01**: User can view a dedicated User Profile page (`/profile`) displaying their traveler details, email, Telegram link status, and avatar.
-- [ ] **PROF-02**: User can edit personal profile settings (first name/display name) and link or unlink their Telegram account securely.
+- [x] **PROF-01**: User can view a dedicated User Profile page (`/profile`) displaying their traveler details, email, Telegram link status, and avatar.
+- [x] **PROF-02**: User can edit personal profile settings (first name/display name) and link or unlink their Telegram account securely.
 
 ---
 
@@ -26,5 +26,5 @@
 | SETT-01 | Phase 22 | Complete |
 | SETT-02 | Phase 22 | Complete |
 | SETT-03 | Phase 22 | Complete |
-| PROF-01 | Phase 23 | Pending |
-| PROF-02 | Phase 23 | Pending |
+| PROF-01 | Phase 23 | Complete |
+| PROF-02 | Phase 23 | Complete |

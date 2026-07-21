@@ -25,6 +25,15 @@ export function UserSessionProvider({ children }) {
     setActiveUser(null)
   }
 
+  const updateActiveUser = (updatedFields) => {
+    setActiveUser(prev => {
+      if (!prev) return null
+      const updated = { ...prev, ...updatedFields }
+      localStorage.setItem('trip_planner_active_user', JSON.stringify(updated))
+      return updated
+    })
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const tgUserIdParam = params.get('tg_user_id')
@@ -62,7 +71,7 @@ export function UserSessionProvider({ children }) {
   }, [])
 
   return (
-    <UserSessionContext.Provider value={{ activeUser, login, logout }}>
+    <UserSessionContext.Provider value={{ activeUser, login, logout, updateActiveUser }}>
       {children}
     </UserSessionContext.Provider>
   )

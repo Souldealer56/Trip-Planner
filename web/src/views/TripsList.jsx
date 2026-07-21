@@ -434,9 +434,14 @@ function TripsList() {
             {activeUser.username ? ` (@${activeUser.username})` : ''}
           </span>
         </div>
-        <button onClick={logout} className="btn btn-secondary" style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
-          Change Traveler
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link to="/profile" className="btn btn-secondary" style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
+            👤 My Profile
+          </Link>
+          <button onClick={logout} className="btn btn-secondary" style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
+            Change Traveler
+          </button>
+        </div>
       </div>
 
       <div className="page-header">
