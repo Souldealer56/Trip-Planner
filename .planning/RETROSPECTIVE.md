@@ -117,6 +117,35 @@ This living document captures technical decisions, patterns, lessons, and cost o
 
 ---
 
+## Milestone: v1.5 — Trip Settings, User Profiles & Pitching Audit
+
+**Shipped:** 2026-07-21
+**Phases:** 3 | **Plans:** 3 | **Tasks:** 9
+
+### What Was Built
+- Audited and added public RLS policies on `public.active_polls` restoring voting & pitching parity.
+- Pitch option category dropdown selector (`Accommodation`, `Flights`, `Activities`, `Food`, `Transport`, `Other`) in web pitch modal.
+- "✏️ Edit Trip" action button and `EditTripModal` form for editing trip metadata (title, destination, description, dates, currency).
+- Amber warning badges (`⚠️ Outside Trip Dates`) and post-save `ReconciliationModal` for options falling outside updated trip dates.
+- Dynamic FX settlement recalculation preserving original logged expense amounts & currencies while re-balancing debt in new base currency.
+- Dedicated User Profile page (`/profile`) with avatar initials badge, customizable 8-color palette picker, display name / username editing with live pre-checks, and Telegram account link/unlink management.
+
+### What Worked
+- **Dynamic Date Conflict Calculation**: Comparing option start/end dates against trip dates dynamically during render cleanly surfaced out-of-bounds options without needing schema migrations or extra DB columns.
+- **Combined Automated Verification**: Writing matching pair test suites (Node.js integration script + Pytest database suite) for every phase caught schema discrepancies early (e.g. discovering `avatar_color` was missing in PostgreSQL schema cache before frontend release).
+
+### What Was Inefficient
+- **Local State Schema Assumptions**: Assuming non-existent columns (e.g. `avatar_color` on `users` table) existed in PostgreSQL caused initial Node script failures. Storing UI customization preferences in `localStorage` per user ID resolved the issue seamlessly without requiring database DDL alterations.
+
+### Patterns Established
+- **Post-Edit Date Reconciliation Modal Pattern**: Automatically checking option bounds after trip date edits and surfacing a modal list of out-of-bounds options keeps collaborators informed of date conflicts.
+- **LocalStorage Persona Customization Pattern**: Storing local accent colors (`trip_planner_avatar_${userId}`) in `localStorage` provides instant visual feedback while keeping remote relational schemas minimal.
+
+### Key Lessons
+- Always inspect Supabase PostgreSQL table columns before adding new form fields to frontend payload services to avoid `PGRST204` schema errors.
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Date | Phases | Plans | Codebase LOC | Velocity (LOC/hr) | Notable |
@@ -126,4 +155,6 @@ This living document captures technical decisions, patterns, lessons, and cost o
 | v1.2 Web  | 2026-07-13 | 4 | 5 | ~5,600 LOC | - | Dynamic Settle solver & split toggles |
 | v1.3 Auth | 2026-07-14 | 3 | 3 | ~7,200 LOC | - | Global user session context & deep links |
 | v1.4 Hybrid| 2026-07-20 | 4 | 4 | ~9,800 LOC | - | Netlify SPA deployment & DB activity triggers |
+| v1.5 Settings| 2026-07-21 | 3 | 3 | ~10,800 LOC | - | Date reconciliation modal & /profile page |
+
 

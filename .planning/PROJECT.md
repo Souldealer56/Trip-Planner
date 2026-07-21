@@ -2,20 +2,15 @@
 
 ## What This Is
 
-A collaborative trip planning platform consisting of a Telegram bot (TripSync Bot) that handles group chat interactions, RSVP tracking, option pitching, voting, and expenses logging, alongside a modern React-based web application for viewing trips, pitching options, logging expenses, and managing participants.
+A collaborative trip planning platform consisting of a Telegram bot (TripSync Bot) that handles group chat interactions, RSVP tracking, option pitching, voting, and expenses logging, alongside a modern React-based web application for viewing trips, pitching options, logging expenses, editing trip settings, and managing traveler profiles.
 
 ## Core Value
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.5 Trip Settings, User Profiles & Pitching Audit
+## Current State: v1.5 Shipped
 
-**Goal:** Enable full trip metadata editing (dates, currency, description) with option date-reconciliation handling, fix option pitching RLS policies, and add a dedicated User Profile page for personal settings.
-
-**Target features:**
-- Option pitching & database mutation RLS audit (verifying `active_polls` & `poll_options` mutations)
-- Editable trip settings (title, destination, description, dates, base currency) with date-range option conflict warnings
-- Dedicated User Profile page (`/profile`) allowing users to view/edit profile parameters and link/unlink Telegram accounts
+**Completed Milestone:** v1.5 Trip Settings, User Profiles & Pitching Audit (shipped 2026-07-21)
 
 ---
 
@@ -48,10 +43,13 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Webapp: Shareable web invite links (`/join/:tripId`) & standalone guest onboarding — v1.4 (Phase 18)
 - ✓ Hybrid: Bot-web coexistence supporting Telegram users, web-only IDs, and email profiles — v1.4 (Phase 19)
 - ✓ Webapp: In-app activity log & notification feed drawer with relative timestamps — v1.4 (Phase 20)
+- ✓ Option pitching & database RLS audit (open RLS policies on `active_polls`) — v1.5 (Phase 21)
+- ✓ Editable trip settings (title, destination, description, dates, base currency) with date conflict warnings — v1.5 (Phase 22)
+- ✓ Dedicated User Profile page (`/profile`) allowing users to edit profile parameters & manage Telegram link status — v1.5 (Phase 23)
 
 ### Active
 
-- (None. All v1.4 features shipped and validated.)
+- (None. All v1.5 features shipped and validated.)
 
 ### Deferred to Future Milestones
 
@@ -59,7 +57,6 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 ### Out of Scope
 
-- [ ] Webapp editing of trip metadata in v1 — deferred to keep scope focused
 - [ ] Direct webapp booking or reservation integration — out of scope
 - [ ] Full OAuth authentication in v1 — deferred in favor of passwordless magic links & standalone guest registration
 
@@ -69,6 +66,7 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - Shipped **v1.2 Web Parity & Complete Trip Management** which brought the webapp to full capability parity with the Telegram bot: including modal trip creation forms, user session RSVP updates, suggestion pitch forms, dynamic option lists with voting selection toggles, multi-currency custom splitting expense modals, responsive desktop-to-mobile ledgers, and optimized currency-converting greedy debt solvers.
 - Shipped **v1.3 Traveler Profiles & Access Control** which implemented global user session caching across views, Slack/Netflix-style traveler selection grids, debounced async username pre-checks, user-scoped filtered trips dashboard queries, auto-RSVP on web trip creation, and Telegram deep linking auto-login with instant URL parameters sanitization and roster reconciliation overlay modals.
 - Shipped **v1.4 Standalone Webapp & Hybrid Onboarding** which detached the application from requiring Telegram: including passwordless email login magic links, `/join/:tripId` invite URLs with guest onboarding, hybrid user profile merging (Telegram + web), and a real-time Postgres trigger-backed Activity Feed drawer on the web app.
+- Shipped **v1.5 Trip Settings, User Profiles & Pitching Audit** which added editable trip settings with date conflict reconciliation warnings & dynamic FX matrix recalculation, audited database RLS policies to fix option pitching/voting, and built a dedicated `/profile` page with avatar customization and Telegram account link/unlink management.
 
 ## Constraints
 
@@ -100,10 +98,14 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 | Browser history URL state replacement | Immediately deletes credentials from address bar without reloading | ✓ Good (Phase 16 setup successful) |
 | Blocking roster reconciliation modal | Enforces access control by blocking views unless registered in roster | ✓ Good (Phase 16 setup successful) |
 | PostgreSQL Triggers for `activity_log` | Automatically logs RSVPs, pitches, and expenses at DB layer | ✓ Good (Phase 20 setup successful) |
+| Public RLS policies for `active_polls` | Enables web & bot voting parity without DB mutation errors | ✓ Good (Phase 21 setup successful) |
+| Date reconciliation modal & warning badges | Surfaces out-of-bounds options after trip date updates | ✓ Good (Phase 22 setup successful) |
+| Dynamic FX settlement matrix recalculation | Preserves expense amounts while recalculating settlements in base currency | ✓ Good (Phase 22 setup successful) |
+| Dedicated `/profile` view & avatar color picker | Personalizes traveler identity & simplifies Telegram account linking/unlinking | ✓ Good (Phase 23 setup successful) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-20 after v1.4 milestone completion*
+*Last updated: 2026-07-21 after v1.5 milestone completion*

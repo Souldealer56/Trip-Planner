@@ -1,5 +1,15 @@
 # Milestones
 
+## v1.5 Trip Settings, User Profiles & Pitching Audit (Shipped: 2026-07-21)
+
+**Phases completed:** 3 phases, 3 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v1.4 Standalone Webapp & Hybrid Onboarding (Shipped: 2026-07-20)
 
 **Phases completed:** 4 phases, 4 plans, 0 tasks
