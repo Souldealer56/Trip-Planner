@@ -1,5 +1,15 @@
 # Milestones
 
+## v1.6 Full Platform Feature Audit & System Hardening (Shipped: 2026-07-21)
+
+**Phases completed:** 1 phases, 1 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v1.5 Trip Settings, User Profiles & Pitching Audit (Shipped: 2026-07-21)
 
 **Phases completed:** 3 phases, 3 plans, 0 tasks

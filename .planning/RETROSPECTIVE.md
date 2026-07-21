@@ -146,6 +146,24 @@ This living document captures technical decisions, patterns, lessons, and cost o
 
 ---
 
+## Milestone: v1.6 — Full Platform Feature Audit & System Hardening
+
+**Shipped:** 2026-07-21
+**Phases:** 1 | **Plans:** 1 | **Tasks:** 3
+
+### What Was Built
+- Diagnosed missing `pitchCategory` state variable in `TripDetails.jsx` (`const [pitchCategory, setPitchCategory] = useState('Accommodation')`), restoring option pitch submissions.
+- Built comprehensive Node.js integration verification script `web/verify-full-audit.cjs` testing Option Pitching (`AUD-01`), Trip Settings (`AUD-02`), Expense Logging (`AUD-03`), and User Profiles (`AUD-04`).
+- Built Pytest database test suite `tests/test_full_audit.py` testing backend operations.
+
+### What Worked
+- **Targeted E2E Auditing**: Pair testing through dedicated Node.js integration scripts alongside Pytest database suites caught React component state gaps immediately.
+
+### Key Lessons
+- Always verify React component state declarations when adding category selection dropdowns to avoid undefined state exceptions.
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Date | Phases | Plans | Codebase LOC | Velocity (LOC/hr) | Notable |
@@ -156,5 +174,7 @@ This living document captures technical decisions, patterns, lessons, and cost o
 | v1.3 Auth | 2026-07-14 | 3 | 3 | ~7,200 LOC | - | Global user session context & deep links |
 | v1.4 Hybrid| 2026-07-20 | 4 | 4 | ~9,800 LOC | - | Netlify SPA deployment & DB activity triggers |
 | v1.5 Settings| 2026-07-21 | 3 | 3 | ~10,800 LOC | - | Date reconciliation modal & /profile page |
+| v1.6 Audit| 2026-07-21 | 1 | 1 | ~11,100 LOC | - | Pitching state fix & E2E audit suite |
+
 
 
