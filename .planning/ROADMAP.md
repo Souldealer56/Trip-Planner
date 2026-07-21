@@ -90,7 +90,9 @@
   2. Changing trip dates checks all pitched options and highlights options falling outside the new date range with a warning banner.
   3. Changing trip base currency updates ledger display and currency conversion calculations without corrupting logged expenses.
 
-**Plans**: 1 plan
+**Plans**: 0/1 plans executed
+
+- [ ] 22-PLAN.md
 
 #### Phase 23: User Profile Management Page
 
@@ -132,5 +134,5 @@ Phases execute in numeric order.
 | 19. Hybrid Bot-Web Coexistence | v1.4 | 1/1 | Complete | 2026-07-18 |
 | 20. In-App Activity Log & Notification Feed | v1.4 | 1/1 | Complete | 2026-07-20 |
 | 21. Option Pitching & Database RLS Audit | v1.5 | 1/1 | Complete   | 2026-07-20 |
-| 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 0/1 | Not started | - |
+| 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 0/1 | Planned    |  |
 | 23. User Profile Management Page | v1.5 | 0/1 | Not started | - |

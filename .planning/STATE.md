@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Trip Settings, User Profiles & Pitching Audit
-current_phase: 21
-current_phase_name: Option Pitching & Database RLS Audit
+current_phase: 22
+current_phase_name: Editable Trip Settings & Date/Currency Reconciliation
 status: in_progress
-stopped_at: Phase 22 context gathered
-last_updated: "2026-07-20T23:33:06.799Z"
-last_activity: 2026-07-20
-last_activity_desc: Phase 21 executed and verified
+stopped_at: Phase 22 planned
+last_updated: "2026-07-21T01:23:15.000Z"
+last_activity: 2026-07-21
+last_activity_desc: Phase 22 planned
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 1
+  total_plans: 2
   completed_plans: 1
   percent: 33
 ---
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-12)
 
 **Core value:** Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
-**Current focus:** Phase 21 — Option Pitching & Database RLS Audit
+**Current focus:** Phase 22 — Editable Trip Settings & Date/Currency Reconciliation
 
 ## Current Position
 
-Phase: 21 (Option Pitching & Database RLS Audit)
-Plan: 21-1 (Option Pitching & Database RLS Audit)
-Status: Phase 21 completed
-Last activity: 2026-07-20 — Phase 21 executed and verified
+Phase: 22 (Editable Trip Settings & Date/Currency Reconciliation)
+Plan: 22-1 (Editable Trip Settings & Date/Currency Reconciliation)
+Status: Phase 22 planned
+Last activity: 2026-07-21 — Phase 22 planned
 
 ## Performance Metrics
 
