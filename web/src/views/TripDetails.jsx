@@ -238,6 +238,7 @@ function TripDetails() {
   const [activePoll, setActivePoll] = useState(null)
 
   const [showPitchModal, setShowPitchModal] = useState(false)
+  const [pitchCategory, setPitchCategory] = useState('Accommodation')
   const [pitchName, setPitchName] = useState('')
   const [pitchCost, setPitchCost] = useState('')
   const [pitchCurrency, setPitchCurrency] = useState('USD')
