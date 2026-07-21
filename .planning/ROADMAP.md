@@ -8,6 +8,7 @@
 - ✅ **v1.3 Traveler Profiles & Access Control** — Phases 14-16 (shipped 2026-07-14)
 - ✅ **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (shipped 2026-07-20)
 - ✅ **v1.5 Trip Settings, User Profiles & Pitching Audit** — Phases 21-23 (shipped 2026-07-21)
+- 🚧 **v1.6 Full Platform Feature Audit & System Hardening** — Phase 24 (in progress)
 
 ## Phases
 
@@ -55,7 +56,7 @@
 <summary>✅ v1.4 Standalone Webapp & Hybrid Onboarding (Phases 17-20) — SHIPPED 2026-07-20</summary>
 
 - [x] Phase 17: Custom Passwordless Email Login (1/1 plan) — completed 2026-07-17
-- [x] Phase 18: Shareable Web Invite Links & Standalone Roster Onboarding (1/1 plan) — completed 2026-07-17
+- [x] Phase 18: Shareable Web Invite Links (`/join/:tripId`) & Standalone Roster Onboarding (1/1 plan) — completed 2026-07-17
 - [x] Phase 19: Hybrid Bot-Web Coexistence (1/1 plan) — completed 2026-07-18
 - [x] Phase 20: In-App Activity Log & Notification Feed (1/1 plan) — completed 2026-07-20
 
@@ -69,6 +70,26 @@
 - [x] Phase 23: User Profile Management Page (1/1 plan) — completed 2026-07-21
 
 </details>
+
+### 🚧 v1.6 Full Platform Feature Audit & System Hardening (In Progress)
+
+**Milestone Goal:** Perform an end-to-end audit and hardening across all web and Telegram bot capabilities to ensure 100% bug-free operation and feature stability.
+
+#### Phase 24: Full Platform Feature & Flow Audit
+
+**Goal**: Audit, verify, and resolve any functional edge cases across Option Pitching, Trip Settings, Expense Ledgers, and User Profiles.
+**Depends on**: Phase 23
+**Requirements**: AUD-01, AUD-02, AUD-03, AUD-04
+**Success Criteria**:
+
+  1. Option pitching, category switching, and voting operate without missing state or database errors.
+  2. Trip settings editing, date range reconciliation warnings, and FX base currency conversions update dynamically.
+  3. Expense logging, custom roster split checklists, and greedy settlement algorithms calculate debts accurately.
+  4. User profile editing, avatar color persistence, passwordless email login, and Telegram linking execute cleanly.
+
+**Plans**: 0/1 plans complete
+
+- [ ] 24-PLAN.md
 
 ## Progress
 
@@ -100,3 +121,4 @@ Phases execute in numeric order.
 | 21. Option Pitching & Database RLS Audit | v1.5 | 1/1 | Complete | 2026-07-20 |
 | 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 1/1 | Complete | 2026-07-21 |
 | 23. User Profile Management Page | v1.5 | 1/1 | Complete | 2026-07-21 |
+| 24. Full Platform Feature & Flow Audit | v1.6 | 0/1 | Planned | - |

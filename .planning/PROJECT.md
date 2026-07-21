@@ -8,9 +8,15 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current State: v1.5 Shipped
+## Current Milestone: v1.6 Full Platform Feature Audit & System Hardening
 
-**Completed Milestone:** v1.5 Trip Settings, User Profiles & Pitching Audit (shipped 2026-07-21)
+**Goal:** Perform an end-to-end audit and hardening across all web and Telegram bot capabilities to ensure 100% bug-free operation and feature stability.
+
+**Target features:**
+- E2E audit of Option Pitching, Voting & Poll Tallies (`AUD-01`)
+- E2E audit of Trip Settings, Date Reconciliation Warnings & Base Currency FX Conversions (`AUD-02`)
+- E2E audit of Expense Logging, Split Checklists & Debt Settlement Solvers (`AUD-03`)
+- E2E audit of User Profiles, Passwordless Magic Link Login & Telegram Link/Unlink Flows (`AUD-04`)
 
 ---
 
@@ -49,7 +55,10 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 ### Active
 
-- (None. All v1.5 features shipped and validated.)
+- [ ] **AUD-01**: Option Pitching, Voting & Poll Tallies E2E audit & fix.
+- [ ] **AUD-02**: Trip Settings, Date Reconciliation & FX Base Currency E2E audit & fix.
+- [ ] **AUD-03**: Expense Logging, Split Checklists & Debt Settlement E2E audit & fix.
+- [ ] **AUD-04**: User Profiles, Magic Link Login & Telegram Link/Unlink E2E audit & fix.
 
 ### Deferred to Future Milestones
 
@@ -108,4 +117,4 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-21 after v1.5 milestone completion*
+*Last updated: 2026-07-21 for v1.6 milestone setup*
