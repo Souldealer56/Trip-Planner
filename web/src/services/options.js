@@ -162,3 +162,45 @@ export async function toggleVote(tripId, category, optionId, userId, cast) {
 
   return data
 }
+
+/**
+ * Checks if an option's start/end dates fall outside the trip's start/end dates.
+ * @param {Object} option The option object with start_date and end_date.
+ * @param {string} tripStartDate The trip start date string (YYYY-MM-DD).
+ * @param {string} tripEndDate The trip end date string (YYYY-MM-DD).
+ * @returns {boolean} True if the option has dates and any date falls outside [tripStartDate, tripEndDate].
+ */
+export function checkOptionDateConflict(option, tripStartDate, tripEndDate) {
+  if (!tripStartDate || !tripEndDate) return false
+  if (!option || (!option.start_date && !option.end_date)) return false
+
+  const tripStart = new Date(tripStartDate)
+  const tripEnd = new Date(tripEndDate)
+
+  if (option.start_date) {
+    const optStart = new Date(option.start_date)
+    if (optStart < tripStart || optStart > tripEnd) return true
+  }
+  if (option.end_date) {
+    const optEnd = new Date(option.end_date)
+    if (optEnd < tripStart || optEnd > tripEnd) return true
+  }
+  return false
+}
+
+/**
+ * Fetches all pitched options across all categories for a trip.
+ * @param {string} tripId The UUID of the trip.
+ * @returns {Promise<Array>} A promise resolving to an array of all option records.
+ */
+export async function fetchAllTripOptions(tripId) {
+  const { data, error } = await supabase
+    .from('poll_options')
+    .select('*')
+    .eq('trip_id', tripId)
+
+  if (error) {
+    throw error
+  }
+  return data || []
+}

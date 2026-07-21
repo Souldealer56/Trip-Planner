@@ -5,7 +5,8 @@ import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
 import { formatDateRange, formatRelativeTime } from '../utils/format'
 import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
-import { fetchOptions, pitchOption, toggleVote, fetchActivePoll } from '../services/options'
+import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions } from '../services/options'
+import { updateTrip } from '../services/trips'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
 import { useUserSession } from '../hooks/useUserSession'
@@ -142,6 +143,92 @@ function TripDetails() {
 
   const [userNote, setUserNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+
+  // Edit Trip states
+  const [showEditTripModal, setShowEditTripModal] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDestination, setEditDestination] = useState('')
+  const [editVibe, setEditVibe] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
+  const [editBaseCurrency, setEditBaseCurrency] = useState('USD')
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  // Date reconciliation modal states
+  const [showReconcileModal, setShowReconcileModal] = useState(false)
+  const [conflictingOptions, setConflictingOptions] = useState([])
+
+  const handleOpenEditModal = () => {
+    if (!trip) return
+    setEditTitle(trip.title || '')
+    setEditDestination(trip.destination || '')
+    setEditVibe(trip.vibe || '')
+    setEditStartDate(trip.start_date || '')
+    setEditEndDate(trip.end_date || '')
+    setEditBaseCurrency(trip.base_currency || 'USD')
+    setEditError('')
+    setShowEditTripModal(true)
+  }
+
+  const handleEditTripSubmit = async (e) => {
+    e.preventDefault()
+    setEditError('')
+    if (!editTitle.trim()) {
+      setEditError('Trip title is required.')
+      return
+    }
+    if (!editDestination.trim()) {
+      setEditError('Destination is required.')
+      return
+    }
+    if (editStartDate && editEndDate && new Date(editStartDate) > new Date(editEndDate)) {
+      setEditError('Start date must be before or equal to end date.')
+      return
+    }
+
+    setEditLoading(true)
+    try {
+      const datesChanged = (editStartDate !== trip.start_date || editEndDate !== trip.end_date)
+      await updateTrip(id, {
+        title: editTitle.trim(),
+        destination: editDestination.trim(),
+        vibe: editVibe.trim() || null,
+        start_date: editStartDate,
+        end_date: editEndDate,
+        base_currency: editBaseCurrency
+      })
+
+      try {
+        await supabase.from('activity_log').insert({
+          trip_id: id,
+          user_id: activeUser?.id || null,
+          action_type: 'update_trip',
+          description: `${activeUser?.first_name || 'Someone'} updated trip details`
+        })
+      } catch (logErr) {
+        console.error('Failed to log trip update:', logErr)
+      }
+
+      setShowEditTripModal(false)
+      refreshTrip()
+      loadActivityLogs()
+
+      if (datesChanged && editStartDate && editEndDate) {
+        const allOptions = await fetchAllTripOptions(id)
+        const conflicts = allOptions.filter(opt => checkOptionDateConflict(opt, editStartDate, editEndDate))
+        if (conflicts.length > 0) {
+          setConflictingOptions(conflicts)
+          setShowReconcileModal(true)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update trip:', err)
+      setEditError(err.message || 'Failed to update trip.')
+    } finally {
+      setEditLoading(false)
+    }
+  }
 
   const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
 
@@ -763,20 +850,31 @@ function TripDetails() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Trip Info Header Card */}
           <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
-            <h1 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', fontSize: '2.25rem' }}>{trip.title}</h1>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '1rem', fontSize: '1rem', color: 'var(--text-muted)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>📍</span>
-                <strong style={{ color: 'var(--text-main)' }}>{trip.destination}</strong>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h1 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', fontSize: '2.25rem' }}>{trip.title}</h1>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '1rem', fontSize: '1rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📍</span>
+                    <strong style={{ color: 'var(--text-main)' }}>{trip.destination}</strong>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📅</span>
+                    <span>{formatDateRange(trip.start_date, trip.end_date)}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>💱</span>
+                    <span>Currency: <strong style={{ color: 'var(--text-main)' }}>{trip.base_currency}</strong></span>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>📅</span>
-                <span>{formatDateRange(trip.start_date, trip.end_date)}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>💱</span>
-                <span>Currency: <strong style={{ color: 'var(--text-main)' }}>{trip.base_currency}</strong></span>
-              </div>
+              <button
+                onClick={handleOpenEditModal}
+                className="btn btn-secondary"
+                style={{ padding: '6px 14px', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                ✏️ Edit Trip
+              </button>
             </div>
             {trip.vibe && (
               <p style={{ marginTop: '1.5rem', fontStyle: 'italic', color: 'var(--text-muted)', borderLeft: '3px solid var(--primary)', paddingLeft: '1rem' }}>
@@ -845,6 +943,7 @@ function TripDetails() {
                   const votesCount = activePoll?.votes_by_option?.[optIdStr] || 0
                   const userVotes = activePoll?.voter_selections?.[activeUser.id] || []
                   const hasVoted = userVotes.map(String).includes(optIdStr)
+                  const isDateConflicting = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
                   
                   return (
                     <div 
@@ -879,6 +978,28 @@ function TripDetails() {
                             {votesCount} vote{votesCount !== 1 ? 's' : ''}
                           </span>
                         </div>
+
+                        {isDateConflicting && (
+                          <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+                            <span 
+                              style={{ 
+                                background: 'rgba(245, 158, 11, 0.15)', 
+                                color: '#f59e0b', 
+                                border: '1px solid rgba(245, 158, 11, 0.3)', 
+                                padding: '2px 8px', 
+                                borderRadius: '4px', 
+                                fontSize: '0.75rem', 
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title="Option dates fall outside trip start/end dates"
+                            >
+                              ⚠️ Outside Trip Dates
+                            </span>
+                          </div>
+                        )}
 
                         {opt.estimated_cost && (
                           <div style={{ fontSize: '0.9rem', color: 'var(--primary-light)', fontWeight: '600', marginBottom: '8px' }}>
@@ -1721,6 +1842,178 @@ function TripDetails() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Trip Modal Overlay */}
+      {showEditTripModal && (
+        <div className="modal-overlay" onClick={() => setShowEditTripModal(false)}>
+          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', width: '90%' }}>
+            <div>
+              <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', textAlign: 'center' }}>Edit Trip Settings</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+                Update destination, dates, currency, and vibe for this trip.
+              </p>
+
+              <form onSubmit={handleEditTripSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Trip Title *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Summer Vacation in Maui"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    required
+                    className="input-field"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Destination *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Maui, Hawaii"
+                    value={editDestination}
+                    onChange={(e) => setEditDestination(e.target.value)}
+                    required
+                    className="input-field"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Start Date</label>
+                    <input
+                      type="date"
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>End Date</label>
+                    <input
+                      type="date"
+                      value={editEndDate}
+                      onChange={(e) => setEditEndDate(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Base Currency</label>
+                  <select
+                    value={editBaseCurrency}
+                    onChange={(e) => setEditBaseCurrency(e.target.value)}
+                    className="input-field select-field"
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="CAD">CAD ($)</option>
+                    <option value="AUD">AUD ($)</option>
+                    <option value="JPY">JPY (¥)</option>
+                    <option value="CHF">CHF (Fr)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Trip Vibe / Description (Optional)</label>
+                  <textarea
+                    placeholder="e.g. Beach relaxation & volcano hikes"
+                    value={editVibe}
+                    onChange={(e) => setEditVibe(e.target.value)}
+                    rows="3"
+                    className="input-field"
+                    style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                  />
+                </div>
+
+                {editError && (
+                  <div style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem' }}>
+                    {editError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditTripModal(false)}
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={editLoading}
+                    style={{ flex: 1 }}
+                  >
+                    {editLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Post-Save Date Reconciliation Modal */}
+      {showReconcileModal && (
+        <div className="modal-overlay" onClick={() => setShowReconcileModal(false)}>
+          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '540px', width: '90%' }}>
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '2.5rem' }}>⚠️</span>
+                <h2 style={{ color: '#f59e0b', margin: '0.5rem 0' }}>Option Dates Reconciliation</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                  Trip dates were updated. The following pitched option(s) fall outside the new trip range ({formatDateRange(trip?.start_date, trip?.end_date)}):
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '240px', overflowY: 'auto', margin: '1rem 0', paddingRight: '4px' }}>
+                {conflictingOptions.map((opt) => (
+                  <div
+                    key={opt.id}
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ color: 'var(--text-main)' }}>{opt.option_text}</strong>
+                      <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                        {opt.category}
+                      </span>
+                    </div>
+                    {(opt.start_date || opt.end_date) && (
+                      <div style={{ fontSize: '0.8rem', color: '#f59e0b' }}>
+                        📅 Option dates: {formatDateRange(opt.start_date, opt.end_date)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                <button
+                  onClick={() => setShowReconcileModal(false)}
+                  className="btn"
+                  style={{ width: '100%' }}
+                >
+                  Understood & Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

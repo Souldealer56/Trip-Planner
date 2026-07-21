@@ -7,9 +7,9 @@
 - [x] **PITCH-02**: Casting and retracting votes on options updates real-time voter counts on both web client and Telegram bot.
 
 ### Editable Trip Settings & Reconciliations
-- [ ] **SETT-01**: Trip members can edit trip metadata (title, destination, description, start/end dates, base currency) via web modal.
-- [ ] **SETT-02**: Changing trip dates checks pitched options and displays a date-reconciliation warning banner for options falling outside the new date range.
-- [ ] **SETT-03**: Changing trip base currency updates ledger display and currency conversion calculations seamlessly without corrupting existing expense logs.
+- [x] **SETT-01**: Trip members can edit trip metadata (title, destination, description, start/end dates, base currency) via web modal.
+- [x] **SETT-02**: Changing trip dates checks pitched options and displays a date-reconciliation warning banner for options falling outside the new date range.
+- [x] **SETT-03**: Changing trip base currency updates ledger display and currency conversion calculations seamlessly without corrupting existing expense logs.
 
 ### User Profile Management
 - [ ] **PROF-01**: User can view a dedicated User Profile page (`/profile`) displaying their traveler details, email, Telegram link status, and avatar.
@@ -23,8 +23,8 @@
 |-------------|-------|--------|
 | PITCH-01 | Phase 21 | Complete |
 | PITCH-02 | Phase 21 | Complete |
-| SETT-01 | Phase 22 | Pending |
-| SETT-02 | Phase 22 | Pending |
-| SETT-03 | Phase 22 | Pending |
+| SETT-01 | Phase 22 | Complete |
+| SETT-02 | Phase 22 | Complete |
+| SETT-03 | Phase 22 | Complete |
 | PROF-01 | Phase 23 | Pending |
 | PROF-02 | Phase 23 | Pending |

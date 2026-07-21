@@ -69,3 +69,23 @@ export async function createTrip(title, destination, startDate, endDate, baseCur
   }
   return data
 }
+
+/**
+ * Updates an existing trip's metadata in the database.
+ * @param {string} id The UUID of the trip.
+ * @param {Object} updates Object containing fields to update (title, destination, vibe, start_date, end_date, base_currency).
+ * @returns {Promise<Object>} A promise resolving to the updated trip object.
+ */
+export async function updateTrip(id, updates) {
+  const { data, error } = await supabase
+    .from('trips')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
+}
