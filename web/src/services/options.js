@@ -12,7 +12,7 @@ export async function fetchOptions(tripId, category) {
     .select('*')
     .eq('trip_id', tripId)
     .eq('category', category.toLowerCase())
-    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
 
   if (error) {
     throw error
@@ -23,7 +23,12 @@ export async function fetchOptions(tripId, category) {
 /**
  * Inserts a new pitched option into the database.
  */
-export async function pitchOption(tripId, category, name, estimatedCost, currency, link, description, addedByUserId) {
+export async function pitchOption(tripId, category, name, estimatedCost, currency, link, description, addedByUserId, startDate, endDate) {
+  let sanitizedLink = link ? link.trim() : null
+  if (sanitizedLink && !/^https?:\/\//i.test(sanitizedLink)) {
+    sanitizedLink = `https://${sanitizedLink}`
+  }
+
   const { data, error } = await supabase
     .from('poll_options')
     .insert({
@@ -31,9 +36,11 @@ export async function pitchOption(tripId, category, name, estimatedCost, currenc
       category: category.toLowerCase(),
       option_text: name,
       estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
-      currency: estimatedCost ? currency : null,
-      link: link || null,
+      currency: estimatedCost ? (currency || 'USD') : null,
+      link: sanitizedLink,
       description: description || null,
+      start_date: startDate || null,
+      end_date: endDate || null,
       added_by: addedByUserId
     })
     .select()
@@ -42,6 +49,14 @@ export async function pitchOption(tripId, category, name, estimatedCost, currenc
   if (error) {
     throw error
   }
+
+  // Ensure active poll record exists for this trip category
+  try {
+    await fetchActivePoll(tripId, category)
+  } catch (pollErr) {
+    console.error('Failed to initialize active poll for pitched option:', pollErr)
+  }
+
   return data
 }
 
@@ -60,6 +75,7 @@ export async function fetchActivePoll(tripId, category) {
     throw fetchError
   }
   if (existing) {
+    existing.locked_option_id = existing.voter_selections?._locked_option_id || existing.locked_option_id || null
     return existing
   }
 
@@ -79,6 +95,9 @@ export async function fetchActivePoll(tripId, category) {
 
   if (insertError) {
     throw insertError
+  }
+  if (created) {
+    created.locked_option_id = created.voter_selections?._locked_option_id || created.locked_option_id || null
   }
   return created
 }
@@ -203,4 +222,65 @@ export async function fetchAllTripOptions(tripId) {
     throw error
   }
   return data || []
+}
+
+/**
+ * Locks or unlocks a winning option choice for a category poll.
+ */
+export async function lockOption(tripId, category, optionId, userId) {
+  const poll = await fetchActivePoll(tripId, category)
+  const selections = { ...(poll?.voter_selections || {}) }
+  const isCurrentlyLocked = String(selections._locked_option_id) === String(optionId)
+
+  if (isCurrentlyLocked) {
+    delete selections._locked_option_id
+  } else {
+    selections._locked_option_id = String(optionId)
+  }
+
+  const { data, error } = await supabase
+    .from('active_polls')
+    .update({
+      voter_selections: selections
+    })
+    .eq('id', poll.id)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  if (data) {
+    data.locked_option_id = data.voter_selections?._locked_option_id || null
+  }
+
+  // Log activity
+  try {
+    let userName = 'Someone'
+    if (userId) {
+      const { data: userRec } = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('id', userId)
+        .maybeSingle()
+      if (userRec?.first_name) {
+        userName = userRec.first_name
+      }
+    }
+    const actionDesc = selections._locked_option_id
+      ? `${userName} locked an itinerary choice in ${category}`
+      : `${userName} unlocked choice in ${category}`
+
+    await supabase.from('activity_log').insert({
+      trip_id: tripId,
+      user_id: userId || null,
+      action_type: 'lock_option',
+      description: actionDesc
+    })
+  } catch (logErr) {
+    console.error('Failed to log lock activity:', logErr)
+  }
+
+  return data
 }

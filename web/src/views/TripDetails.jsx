@@ -5,7 +5,7 @@ import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
 import { formatDateRange, formatRelativeTime } from '../utils/format'
 import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
-import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions } from '../services/options'
+import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
 import { updateTrip } from '../services/trips'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
@@ -244,8 +244,25 @@ function TripDetails() {
   const [pitchCurrency, setPitchCurrency] = useState('USD')
   const [pitchLink, setPitchLink] = useState('')
   const [pitchDesc, setPitchDesc] = useState('')
+  const [pitchStartDate, setPitchStartDate] = useState('')
+  const [pitchEndDate, setPitchEndDate] = useState('')
   const [pitchError, setPitchError] = useState('')
   const [pitchLoading, setPitchLoading] = useState(false)
+
+  const openPitchModal = (catToPitch = activeTab) => {
+    const validCats = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
+    const initCat = validCats.includes(catToPitch) ? catToPitch : 'Accommodation'
+    setPitchCategory(initCat)
+    setPitchName('')
+    setPitchCost('')
+    setPitchCurrency(trip?.base_currency || 'USD')
+    setPitchLink('')
+    setPitchDesc('')
+    setPitchStartDate('')
+    setPitchEndDate('')
+    setPitchError('')
+    setShowPitchModal(true)
+  }
 
   const loadOptionsAndPoll = React.useCallback(async () => {
     setOptionsLoading(true)
@@ -278,6 +295,10 @@ function TripDetails() {
       setPitchError('Estimated cost must be a positive number.')
       return
     }
+    if (pitchStartDate && pitchEndDate && new Date(pitchStartDate) > new Date(pitchEndDate)) {
+      setPitchError('Start date must be before or equal to end date.')
+      return
+    }
 
     const validCats = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
     const targetCat = validCats.includes(pitchCategory) ? pitchCategory : (validCats.includes(activeTab) ? activeTab : 'Accommodation')
@@ -289,18 +310,27 @@ function TripDetails() {
         targetCat,
         pitchName.trim(),
         pitchCost ? parseFloat(pitchCost) : null,
-        pitchCost ? pitchCurrency : null,
+        pitchCost ? (pitchCurrency || trip?.base_currency || 'USD') : null,
         pitchLink.trim() || null,
         pitchDesc.trim() || null,
-        activeUser.id
+        activeUser.id,
+        pitchStartDate || null,
+        pitchEndDate || null
       )
       setPitchName('')
       setPitchCost('')
-      setPitchCurrency('USD')
+      setPitchCurrency(trip?.base_currency || 'USD')
       setPitchLink('')
       setPitchDesc('')
+      setPitchStartDate('')
+      setPitchEndDate('')
       setShowPitchModal(false)
-      loadOptionsAndPoll()
+      
+      if (activeTab !== targetCat) {
+        setActiveTab(targetCat)
+      } else {
+        await loadOptionsAndPoll()
+      }
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to pitch option:', err)
@@ -310,6 +340,8 @@ function TripDetails() {
     }
   }
 
+  const [showPollRecapModal, setShowPollRecapModal] = useState(false)
+
   const handleVoteToggle = async (optionId, hasVoted) => {
     if (!activeUser) return
     try {
@@ -318,6 +350,18 @@ function TripDetails() {
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to toggle vote:', err)
+    }
+  }
+
+  const handleLockToggle = async (optionId) => {
+    if (!activeUser) return
+    try {
+      const updatedPoll = await lockOption(id, activeTab, optionId, activeUser.id)
+      setActivePoll(updatedPoll)
+      loadOptionsAndPoll()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to lock option:', err)
     }
   }
 
@@ -893,17 +937,35 @@ function TripDetails() {
               <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>🗳️ Pitched Options</span>
               </h2>
-              <button 
-                onClick={() => {
-                  setPitchError('')
-                  const defaultCat = CATEGORIES.includes(activeTab) ? activeTab : 'Accommodation'
-                  setPitchCategory(defaultCat)
-                  setShowPitchModal(true)
-                }} 
-                className="btn"
-              >
-                Pitch Option
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={loadOptionsAndPoll}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  title="Refresh Votes from Telegram & Web"
+                >
+                  🔄 Refresh Votes
+                </button>
+                <button
+                  onClick={() => setShowPollRecapModal(true)}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  title="View Poll Breakdown & Voter Recap"
+                >
+                  📊 Poll Recap
+                </button>
+                <button 
+                  onClick={() => {
+                    setPitchError('')
+                    const defaultCat = CATEGORIES.includes(activeTab) ? activeTab : 'Accommodation'
+                    setPitchCategory(defaultCat)
+                    setShowPitchModal(true)
+                  }} 
+                  className="btn"
+                >
+                  Pitch Option
+                </button>
+              </div>
             </div>
 
             {/* Horizontal Tabs */}
@@ -948,6 +1010,14 @@ function TripDetails() {
                   const userVotes = activePoll?.voter_selections?.[activeUser.id] || []
                   const hasVoted = userVotes.map(String).includes(optIdStr)
                   const isDateConflicting = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
+                  const isLockedChoice = String(activePoll?.locked_option_id) === optIdStr || Boolean(opt.is_locked)
+
+                  const votersForOpt = Object.entries(activePoll?.voter_selections || {})
+                    .filter(([uId, opts]) => Array.isArray(opts) && opts.map(String).includes(optIdStr))
+                    .map(([uId]) => {
+                      const member = roster.find(m => String(m.user_id) === String(uId) || String(m.users?.id) === String(uId))
+                      return member?.users?.first_name || member?.username || 'Traveler'
+                    })
                   
                   return (
                     <div 
@@ -956,7 +1026,7 @@ function TripDetails() {
                       style={{
                         padding: '1.25rem',
                         background: 'rgba(255, 255, 255, 0.02)',
-                        border: hasVoted ? '2px solid var(--accent)' : '1px solid var(--border-light)',
+                        border: isLockedChoice ? '2px solid #eab308' : (hasVoted ? '2px solid var(--accent)' : '1px solid var(--border-light)'),
                         borderRadius: 'var(--border-radius-md)',
                         display: 'flex',
                         flexDirection: 'column',
@@ -982,6 +1052,27 @@ function TripDetails() {
                             {votesCount} vote{votesCount !== 1 ? 's' : ''}
                           </span>
                         </div>
+
+                        {isLockedChoice && (
+                          <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+                            <span 
+                              style={{ 
+                                background: 'rgba(234, 179, 8, 0.15)', 
+                                color: '#eab308', 
+                                border: '1px solid rgba(234, 179, 8, 0.4)', 
+                                padding: '2px 8px', 
+                                borderRadius: '12px', 
+                                fontSize: '0.75rem', 
+                                fontWeight: '700',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              🏆 Locked Choice
+                            </span>
+                          </div>
+                        )}
 
                         {isDateConflicting && (
                           <div style={{ marginTop: '4px', marginBottom: '8px' }}>
@@ -1035,15 +1126,75 @@ function TripDetails() {
                             <span>🔗</span> Link
                           </a>
                         )}
+
+                        {/* Stacked Voter Badges */}
+                        {votersForOpt.length > 0 && (
+                          <div 
+                            onClick={() => setShowPollRecapModal(true)}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px', 
+                              marginTop: '10px', 
+                              cursor: 'pointer',
+                              flexWrap: 'wrap'
+                            }}
+                            title="Click to view full poll breakdown"
+                          >
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>Voted by:</span>
+                            {votersForOpt.map((name, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  background: 'rgba(59, 130, 246, 0.15)',
+                                  color: 'var(--primary-light)',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  padding: '1px 7px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                👤 {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      <button
-                        onClick={() => handleVoteToggle(opt.id, hasVoted)}
-                        className={`btn ${hasVoted ? 'btn-secondary' : ''}`}
-                        style={{ 
-                          width: '100%', 
-                          marginTop: '8px',
-                          borderColor: hasVoted ? 'var(--accent)' : 'var(--border-light)',
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <button
+                          onClick={() => handleVoteToggle(opt.id, hasVoted)}
+                          className={`btn ${hasVoted ? 'btn-secondary' : ''}`}
+                          style={{ 
+                            flex: 1, 
+                            borderColor: hasVoted ? 'var(--accent)' : 'var(--border-light)',
+                            color: hasVoted ? 'var(--accent-light)' : 'var(--text-main)',
+                            background: hasVoted ? 'rgba(16, 185, 129, 0.05)' : ''
+                          }}
+                        >
+                          {hasVoted ? '✓ Voted' : 'Vote'}
+                        </button>
+                        <button
+                          onClick={() => handleLockToggle(opt.id)}
+                          className="btn btn-secondary"
+                          style={{ 
+                            padding: '6px 10px', 
+                            fontSize: '0.8rem',
+                            borderColor: isLockedChoice ? '#eab308' : 'var(--border-light)',
+                            color: isLockedChoice ? '#eab308' : 'var(--text-muted)'
+                          }}
+                          title={isLockedChoice ? 'Unlock this choice' : 'Lock as winning choice'}
+                        >
+                          {isLockedChoice ? '🔓 Unlock' : '🔒 Lock'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
                           color: hasVoted ? 'var(--accent-light)' : 'var(--text-main)',
                           background: hasVoted ? 'rgba(16, 185, 129, 0.05)' : ''
                         }}
@@ -1539,6 +1690,27 @@ function TripDetails() {
                   </div>
                 </div>
 
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Start Date (Optional)</label>
+                    <input
+                      type="date"
+                      value={pitchStartDate}
+                      onChange={(e) => setPitchStartDate(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>End Date (Optional)</label>
+                    <input
+                      type="date"
+                      value={pitchEndDate}
+                      onChange={(e) => setPitchEndDate(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>URL Link (Optional)</label>
                   <input
@@ -1577,9 +1749,11 @@ function TripDetails() {
                     onClick={() => {
                       setPitchName('')
                       setPitchCost('')
-                      setPitchCurrency('USD')
+                      setPitchCurrency(trip?.base_currency || 'USD')
                       setPitchLink('')
                       setPitchDesc('')
+                      setPitchStartDate('')
+                      setPitchEndDate('')
                       setShowPitchModal(false)
                     }}
                     className="btn btn-secondary"
@@ -1588,6 +1762,72 @@ function TripDetails() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Poll Breakdown & Voter Recap Modal Overlay */}
+      {showPollRecapModal && (
+        <div className="modal-overlay" onClick={() => setShowPollRecapModal(false)}>
+          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.75rem' }}>
+              <h2 style={{ margin: 0, color: 'var(--primary-light)', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📊 Poll Recap</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>({activeTab})</span>
+              </h2>
+              <button onClick={() => setShowPollRecapModal(false)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.8rem' }}>
+                ✕ Close
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }}>
+              {options.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem 0' }}>No options pitched in this category yet.</p>
+              ) : (
+                options.map(opt => {
+                  const optIdStr = String(opt.id)
+                  const count = activePoll?.votes_by_option?.[optIdStr] || 0
+                  const voters = Object.entries(activePoll?.voter_selections || {})
+                    .filter(([uId, opts]) => Array.isArray(opts) && opts.map(String).includes(optIdStr))
+                    .map(([uId]) => {
+                      const member = roster.find(m => String(m.user_id) === String(uId) || String(m.users?.id) === String(uId))
+                      return member?.users?.first_name || member?.username || 'Traveler'
+                    })
+                  const isLocked = String(activePoll?.locked_option_id) === optIdStr || Boolean(opt.is_locked)
+
+                  return (
+                    <div key={opt.id} style={{ background: 'rgba(255, 255, 255, 0.03)', border: isLocked ? '1px solid #eab308' : '1px solid var(--border-light)', padding: '1rem', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <div style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {opt.option_text}
+                          {isLocked && <span style={{ color: '#eab308', fontSize: '0.8rem', fontWeight: 'bold' }}>🏆 Locked Choice</span>}
+                        </div>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary-light)', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
+                          {count} vote{count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+
+                      {voters.length > 0 ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '4px' }}>Voters:</div>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {voters.map((name, i) => (
+                              <span key={i} style={{ background: 'rgba(255, 255, 255, 0.06)', border: '1px solid var(--border-light)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                👤 {name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
+                          No votes cast yet
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         </div>
