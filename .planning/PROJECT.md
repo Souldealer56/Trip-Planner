@@ -8,15 +8,9 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.6 Full Platform Feature Audit & System Hardening
+## Current Milestone: v1.8 (Ready for Planning)
 
-**Goal:** Perform an end-to-end audit and hardening across all web and Telegram bot capabilities to ensure 100% bug-free operation and feature stability.
-
-**Target features:**
-- E2E audit of Option Pitching, Voting & Poll Tallies (`AUD-01`)
-- E2E audit of Trip Settings, Date Reconciliation Warnings & Base Currency FX Conversions (`AUD-02`)
-- E2E audit of Expense Logging, Split Checklists & Debt Settlement Solvers (`AUD-03`)
-- E2E audit of User Profiles, Passwordless Magic Link Login & Telegram Link/Unlink Flows (`AUD-04`)
+**Goal:** Next milestone specification — use `/gsd-new-milestone` to initialize goals.
 
 ---
 
@@ -52,13 +46,9 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Option pitching & database RLS audit (open RLS policies on `active_polls`) — v1.5 (Phase 21)
 - ✓ Editable trip settings (title, destination, description, dates, base currency) with date conflict warnings — v1.5 (Phase 22)
 - ✓ Dedicated User Profile page (`/profile`) allowing users to edit profile parameters & manage Telegram link status — v1.5 (Phase 23)
-
-### Active
-
-- [ ] **AUD-01**: Option Pitching, Voting & Poll Tallies E2E audit & fix.
-- [ ] **AUD-02**: Trip Settings, Date Reconciliation & FX Base Currency E2E audit & fix.
-- [ ] **AUD-03**: Expense Logging, Split Checklists & Debt Settlement E2E audit & fix.
-- [ ] **AUD-04**: User Profiles, Magic Link Login & Telegram Link/Unlink E2E audit & fix.
+- ✓ Full platform feature audit & hardening — v1.6 (Phase 24)
+- ✓ Webapp option pitching audit & database query parity (`PITCH-01`, `PITCH-02`, `SYNC-01`) — v1.7 (Phase 25)
+- ✓ Webapp option voting integration, voter badges, Poll Recap modal & lock choice controls (`VOTE-01`, `VOTE-02`, `VOTE-03`, `SYNC-02`) — v1.7 (Phase 26)
 
 ### Deferred to Future Milestones
 

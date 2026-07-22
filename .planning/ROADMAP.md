@@ -9,6 +9,7 @@
 - ✅ **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (shipped 2026-07-20)
 - ✅ **v1.5 Trip Settings, User Profiles & Pitching Audit** — Phases 21-23 (shipped 2026-07-21)
 - ✅ **v1.6 Full Platform Feature Audit & System Hardening** — Phase 24 (shipped 2026-07-21)
+- 🚧 **v1.7 Webapp Option Pitching & Voting Integration** — Phases 25-26 (In progress)
 
 ## Phases
 
@@ -78,6 +79,15 @@
 
 </details>
 
+<details>
+<summary>✅ v1.7 Webapp Option Pitching & Voting Integration (Phases 25-26) — SHIPPED 2026-07-22</summary>
+
+- [x] Phase 25: Webapp Option Pitching Audit & Database Parity (1/1 plan) — completed 2026-07-22
+- [x] Phase 26: Webapp Option Voting Integration & Real-time Sync (1/1 plan) — completed 2026-07-22
+
+See: [.planning/milestones/v1.7-ROADMAP.md](file:///c:/Users/alex_/Documents/Trip%20Planner/.planning/milestones/v1.7-ROADMAP.md)
+</details>
+
 ## Progress
 
 **Execution Order:**
@@ -108,4 +118,25 @@ Phases execute in numeric order.
 | 21. Option Pitching & Database RLS Audit | v1.5 | 1/1 | Complete | 2026-07-20 |
 | 22. Editable Trip Settings & Date/Currency Reconciliation | v1.5 | 1/1 | Complete | 2026-07-21 |
 | 23. User Profile Management Page | v1.5 | 1/1 | Complete | 2026-07-21 |
-| 24. Full Platform Feature & Flow Audit | v1.6 | 1/1 | Complete   | 2026-07-21 |
+| 24. Full Platform Feature & Flow Audit | v1.6 | 1/1 | Complete | 2026-07-21 |
+| 25. Webapp Option Pitching Audit & Database Parity | v1.7 | 1/1 | Complete | 2026-07-22 |
+| 26. Webapp Option Voting Integration & Real-time Sync | v1.7 | 1/1 | Complete | 2026-07-22 |
+
+## Phase Details
+
+### Phase 25: Webapp Option Pitching Audit & Database Parity
+**Goal:** Audit and fix the webapp option pitching pipeline so options pitched via the web modal persist correctly to Supabase and immediately render in the web UI, ensuring RLS policies and table structures match bot expectations.  
+**Requirements:** PITCH-01, PITCH-02, SYNC-01  
+**Success Criteria:**
+1. Pitching an option in the web UI creates valid records in `poll_options` / `active_polls` without database errors.
+2. Options list in the web UI automatically re-fetches and displays pitched options without requiring hard browser refreshes.
+3. Options pitched in Telegram bot appear in the web app UI seamlessly.
+
+### Phase 26: Webapp Option Voting Integration & Real-time Sync
+**Goal:** Integrate option voting into the web app UI, enabling users to cast/retract votes, view real-time vote tallies per category, and sync vote data across Telegram bot and web application.  
+**Requirements:** VOTE-01, VOTE-02, VOTE-03, SYNC-02  
+**Success Criteria:**
+1. Web UI displays pitched option cards per category with vote buttons, vote counts, and voter avatars/names.
+2. Users can cast and toggle/retract votes directly from the web app, correctly mutating `active_polls` / `poll_votes`.
+3. Votes cast in Telegram reflect in the web UI and vice versa in real time.
+
