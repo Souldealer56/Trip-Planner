@@ -1195,18 +1195,6 @@ function TripDetails() {
               </div>
             )}
           </div>
-                          color: hasVoted ? 'var(--accent-light)' : 'var(--text-main)',
-                          background: hasVoted ? 'rgba(16, 185, 129, 0.05)' : ''
-                        }}
-                      >
-                        {hasVoted ? '✓ Voted' : 'Vote'}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
 
           {/* Roster & Participants Card */}
           <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
