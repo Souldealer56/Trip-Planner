@@ -1067,8 +1067,11 @@ function TripDetails() {
                 roster={roster}
                 onPitchForSlot={(dayDate) => {
                   const dStr = dayDate.toISOString().slice(0, 10)
-                  setPitchStartDate(`${dStr}T09:00`)
-                  setPitchEndDate(`${dStr}T18:00`)
+                  const nextDay = new Date(dayDate)
+                  nextDay.setDate(nextDay.getDate() + 1)
+                  const nextDStr = nextDay.toISOString().slice(0, 10)
+                  setPitchStartDate(`${dStr}T16:00`)
+                  setPitchEndDate(`${nextDStr}T11:00`)
                   setShowPitchModal(true)
                 }}
               />
@@ -1799,7 +1802,14 @@ function TripDetails() {
                     <input
                       type="datetime-local"
                       value={pitchStartDate}
-                      onChange={(e) => setPitchStartDate(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val && val.length === 10) {
+                          setPitchStartDate(`${val}T16:00`)
+                        } else {
+                          setPitchStartDate(val)
+                        }
+                      }}
                       className="input-field"
                     />
                   </div>
@@ -1808,7 +1818,14 @@ function TripDetails() {
                     <input
                       type="datetime-local"
                       value={pitchEndDate}
-                      onChange={(e) => setPitchEndDate(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val && val.length === 10) {
+                          setPitchEndDate(`${val}T11:00`)
+                        } else {
+                          setPitchEndDate(val)
+                        }
+                      }}
                       className="input-field"
                     />
                   </div>
