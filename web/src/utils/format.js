@@ -56,3 +56,69 @@ export function formatRelativeTime(isoString) {
   return `${days}d ago`
 }
 
+/**
+ * Formats start and end date/time strings into a localized human-friendly range.
+ * E.g., "2026-07-24T14:00" -> "Jul 24, 2:00 PM"
+ * E.g., "2026-07-24T14:00", "2026-07-24T17:00" -> "Jul 24, 2:00 PM – 5:00 PM"
+ * E.g., "2026-07-24T14:00", "2026-07-26T11:00" -> "Jul 24, 2:00 PM – Jul 26, 11:00 AM"
+ */
+export function formatDateTimeRange(startStr, endStr) {
+  if (!startStr && !endStr) return ''
+
+  const hasTime = (str) => Boolean(str && (str.includes('T') || str.includes(':')))
+  
+  const parse = (str) => {
+    if (!str) return null
+    const d = new Date(str)
+    return isNaN(d.getTime()) ? null : d
+  }
+
+  const startDate = parse(startStr)
+  const endDate = parse(endStr)
+
+  if (!startDate && !endDate) return ''
+
+  const dateFmt = { month: 'short', day: 'numeric' }
+  const timeFmt = { hour: 'numeric', minute: '2-digit' }
+
+  const startHasTime = hasTime(startStr)
+  const endHasTime = hasTime(endStr)
+
+  if (startDate && endDate) {
+    const sameDay = startDate.toDateString() === endDate.toDateString()
+    
+    if (sameDay) {
+      const dPart = startDate.toLocaleDateString('en-US', dateFmt)
+      if (startHasTime && endHasTime) {
+        const tStart = startDate.toLocaleTimeString('en-US', timeFmt)
+        const tEnd = endDate.toLocaleTimeString('en-US', timeFmt)
+        return `${dPart}, ${tStart} – ${tEnd}`
+      }
+      if (startHasTime) {
+        return `${dPart}, ${startDate.toLocaleTimeString('en-US', timeFmt)}`
+      }
+      return `${dPart}`
+    } else {
+      const sDatePart = startDate.toLocaleDateString('en-US', dateFmt)
+      const eDatePart = endDate.toLocaleDateString('en-US', dateFmt)
+      const sTimePart = startHasTime ? `, ${startDate.toLocaleTimeString('en-US', timeFmt)}` : ''
+      const eTimePart = endHasTime ? `, ${endDate.toLocaleTimeString('en-US', timeFmt)}` : ''
+      return `${sDatePart}${sTimePart} – ${eDatePart}${eTimePart}`
+    }
+  }
+
+  if (startDate) {
+    const dPart = startDate.toLocaleDateString('en-US', dateFmt)
+    const tPart = startHasTime ? `, ${startDate.toLocaleTimeString('en-US', timeFmt)}` : ''
+    return `${dPart}${tPart}`
+  }
+
+  if (endDate) {
+    const dPart = endDate.toLocaleDateString('en-US', dateFmt)
+    const tPart = endHasTime ? `, ${endDate.toLocaleTimeString('en-US', timeFmt)}` : ''
+    return `Until ${dPart}${tPart}`
+  }
+
+  return ''
+}
+

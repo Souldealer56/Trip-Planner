@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
-import { formatDateRange, formatRelativeTime } from '../utils/format'
+import { formatDateRange, formatRelativeTime, formatDateTimeRange } from '../utils/format'
 import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
 import { updateTrip } from '../services/trips'
@@ -12,6 +12,8 @@ import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../ut
 import { useUserSession } from '../hooks/useUserSession'
 import { generateTelegramLinkCode, disconnectTelegram } from '../services/users'
 import { fetchActivityLogs } from '../services/activity'
+import { GanttTimeline } from '../components/GanttTimeline'
+import { generateICalContent, downloadICalFile } from '../utils/ical'
 
 function TripDetails() {
   const { id } = useParams()
@@ -236,6 +238,39 @@ function TripDetails() {
   const [options, setOptions] = useState([])
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [activePoll, setActivePoll] = useState(null)
+
+  const [viewMode, setViewMode] = useState('grid')
+  const [allTripOptions, setAllTripOptions] = useState([])
+  const [allActivePollsMap, setAllActivePollsMap] = useState({})
+  const [showPrintableItineraryModal, setShowPrintableItineraryModal] = useState(false)
+
+  const handleExportICal = () => {
+    const optsToExport = allTripOptions.length > 0 ? allTripOptions : options
+    const icalStr = generateICalContent(trip, optsToExport)
+    const filename = `${(trip?.title || 'Trip').replace(/\s+/g, '_')}_itinerary.ics`
+    downloadICalFile(filename, icalStr)
+  }
+
+  const loadGanttData = React.useCallback(async () => {
+    try {
+      const allOpts = await fetchAllTripOptions(id)
+      setAllTripOptions(allOpts)
+      const map = {}
+      for (const cat of CATEGORIES) {
+        const poll = await fetchActivePoll(id, cat)
+        if (poll) map[cat.toLowerCase()] = poll
+      }
+      setAllActivePollsMap(map)
+    } catch (err) {
+      console.error('Failed to load Gantt timeline data:', err)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (viewMode === 'gantt') {
+      loadGanttData()
+    }
+  }, [viewMode, loadGanttData])
 
   const [showPitchModal, setShowPitchModal] = useState(false)
   const [pitchCategory, setPitchCategory] = useState('Accommodation')
@@ -916,13 +951,31 @@ function TripDetails() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={handleOpenEditModal}
-                className="btn btn-secondary"
-                style={{ padding: '6px 14px', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                ✏️ Edit Trip
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleExportICal}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  title="Download .ics calendar file for Google/Apple Calendar"
+                >
+                  📅 Export iCal
+                </button>
+                <button
+                  onClick={() => setShowPrintableItineraryModal(true)}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  title="View clean printable itinerary summary"
+                >
+                  🖨️ Print Itinerary
+                </button>
+                <button
+                  onClick={handleOpenEditModal}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 14px', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  ✏️ Edit Trip
+                </button>
+              </div>
             </div>
             {trip.vibe && (
               <p style={{ marginTop: '1.5rem', fontStyle: 'italic', color: 'var(--text-muted)', borderLeft: '3px solid var(--primary)', paddingLeft: '1rem' }}>
@@ -934,17 +987,55 @@ function TripDetails() {
           {/* Options & Pitching Section */}
           <div className="glass-card animate-fade-in" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🗳️ Pitched Options</span>
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🗳️ Pitched Options</span>
+                </h2>
+
+                <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '20px', padding: '3px', border: '1px solid var(--border-light)' }}>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    type="button"
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '0.8rem',
+                      borderRadius: '16px',
+                      background: viewMode === 'grid' ? 'var(--primary-light)' : 'transparent',
+                      color: viewMode === 'grid' ? 'black' : 'var(--text-muted)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '600'
+                    }}
+                  >
+                    📋 Grid
+                  </button>
+                  <button
+                    onClick={() => setViewMode('gantt')}
+                    type="button"
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '0.8rem',
+                      borderRadius: '16px',
+                      background: viewMode === 'gantt' ? 'var(--primary-light)' : 'transparent',
+                      color: viewMode === 'gantt' ? 'black' : 'var(--text-muted)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '600'
+                    }}
+                  >
+                    📊 Gantt Timeline
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
-                  onClick={loadOptionsAndPoll}
+                  onClick={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}
                   className="btn btn-secondary"
                   style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  title="Refresh Votes from Telegram & Web"
+                  title="Refresh Votes & Options"
                 >
-                  🔄 Refresh Votes
+                  🔄 Refresh
                 </button>
                 <button
                   onClick={() => setShowPollRecapModal(true)}
@@ -968,18 +1059,33 @@ function TripDetails() {
               </div>
             </div>
 
-            {/* Horizontal Tabs */}
-            <div className="tabs-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '1.5rem', paddingBottom: '4px' }}>
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveTab(cat)}
-                  className={`tab-btn ${activeTab === cat ? 'active' : ''}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {viewMode === 'gantt' ? (
+              <GanttTimeline
+                trip={trip}
+                options={allTripOptions}
+                activePolls={allActivePollsMap}
+                roster={roster}
+                onPitchForSlot={(dayDate) => {
+                  const dStr = dayDate.toISOString().slice(0, 10)
+                  setPitchStartDate(`${dStr}T09:00`)
+                  setPitchEndDate(`${dStr}T18:00`)
+                  setShowPitchModal(true)
+                }}
+              />
+            ) : (
+              <>
+                {/* Horizontal Tabs */}
+                <div className="tabs-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '1.5rem', paddingBottom: '4px' }}>
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveTab(cat)}
+                      className={`tab-btn ${activeTab === cat ? 'active' : ''}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
 
             {/* Options List */}
             {optionsLoading ? (
@@ -1096,6 +1202,13 @@ function TripDetails() {
                           </div>
                         )}
 
+                        {(opt.start_date || opt.end_date) && (
+                          <div style={{ fontSize: '0.85rem', color: '#60a5fa', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>📅</span>
+                            <span>{formatDateTimeRange(opt.start_date, opt.end_date)}</span>
+                          </div>
+                        )}
+
                         {opt.estimated_cost && (
                           <div style={{ fontSize: '0.9rem', color: 'var(--primary-light)', fontWeight: '600', marginBottom: '8px' }}>
                             Cost: {opt.estimated_cost} {opt.currency || 'USD'}
@@ -1193,6 +1306,8 @@ function TripDetails() {
                   )
                 })}
               </div>
+            )}
+            </>
             )}
           </div>
 
@@ -1678,20 +1793,20 @@ function TripDetails() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Start Date (Optional)</label>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '180px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Start Date & Time (Optional)</label>
                     <input
-                      type="date"
+                      type="datetime-local"
                       value={pitchStartDate}
                       onChange={(e) => setPitchStartDate(e.target.value)}
                       className="input-field"
                     />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>End Date (Optional)</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '180px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>End Date & Time (Optional)</label>
                     <input
-                      type="date"
+                      type="datetime-local"
                       value={pitchEndDate}
                       onChange={(e) => setPitchEndDate(e.target.value)}
                       className="input-field"
@@ -2245,6 +2360,68 @@ function TripDetails() {
                   Understood & Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Itinerary Modal */}
+      {showPrintableItineraryModal && (
+        <div className="modal-overlay animate-fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="glass-card" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', border: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid var(--border-light)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '1.8rem', color: 'var(--text-main)' }}>✈️ {trip.title}</h1>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                  📍 {trip.destination} • 📅 {formatDateRange(trip.start_date, trip.end_date)}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={() => window.print()} className="btn" style={{ padding: '6px 14px', fontSize: '0.85rem' }}>
+                  🖨️ Print
+                </button>
+                <button onClick={() => setShowPrintableItineraryModal(false)} className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.85rem' }}>
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--primary-light)', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                📋 Day-by-Day Itinerary Schedule
+              </h3>
+
+              {allTripOptions.length === 0 && options.length === 0 ? (
+                <p style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No pitched or locked choices yet for this trip.</p>
+              ) : (
+                (allTripOptions.length > 0 ? allTripOptions : options).map(opt => (
+                  <div key={opt.id} style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{opt.option_text}</span>
+                        <span style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                          {opt.category}
+                        </span>
+                      </div>
+                      {(opt.start_date || opt.end_date) && (
+                        <div style={{ fontSize: '0.85rem', color: '#60a5fa', marginTop: '4px' }}>
+                          📅 {formatDateTimeRange(opt.start_date, opt.end_date)}
+                        </div>
+                      )}
+                      {opt.description && (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          {opt.description}
+                        </p>
+                      )}
+                    </div>
+                    {opt.estimated_cost && (
+                      <div style={{ fontWeight: 'bold', color: 'var(--primary-light)', fontSize: '0.95rem' }}>
+                        {opt.estimated_cost} {opt.currency || 'USD'}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
