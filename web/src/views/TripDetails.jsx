@@ -7,7 +7,7 @@ import { formatDateRange, formatRelativeTime, formatDateTimeRange } from '../uti
 import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
 import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
-import { fetchExpenses, logExpense } from '../services/expenses'
+import { fetchExpenses, logExpense, parseOptionCost } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
 import { useUserSession } from '../hooks/useUserSession'
 import { generateTelegramLinkCode, disconnectTelegram } from '../services/users'
@@ -508,11 +508,29 @@ function TripDetails() {
     }
   }, [activeUser, loadExpenses])
 
-  const openExpenseModal = () => {
-    setExpenseDesc('')
-    setExpenseAmount('')
-    setExpenseCurrency(trip?.base_currency || 'USD')
-    setExpensePaidBy(activeUser.id)
+  const isOptionLogged = (option) => {
+    if (!expenses || !option) return false
+    const optionTitle = (option.option_text || option.text || '').toLowerCase().trim()
+    return expenses.some(e => {
+      const desc = (e.description || '').toLowerCase()
+      return desc.includes('[locked option]') && desc.includes(optionTitle)
+    })
+  }
+
+  const openExpenseModal = (optionToPreFill = null) => {
+    if (optionToPreFill) {
+      const optionTitle = optionToPreFill.option_text || optionToPreFill.text || 'Locked Option'
+      setExpenseDesc(`[Locked Option] ${optionTitle}`.trim())
+      const { amount, currency } = parseOptionCost(optionToPreFill, trip?.base_currency || 'USD')
+      setExpenseAmount(amount > 0 ? String(amount) : '')
+      setExpenseCurrency(currency || trip?.base_currency || 'USD')
+      setExpensePaidBy(optionToPreFill.added_by || activeUser.id)
+    } else {
+      setExpenseDesc('')
+      setExpenseAmount('')
+      setExpenseCurrency(trip?.base_currency || 'USD')
+      setExpensePaidBy(activeUser.id)
+    }
     setExpenseSplitEqually(true)
     
     // Get all committed members
@@ -1256,7 +1274,7 @@ function TripDetails() {
                         </div>
 
                         {isLockedChoice && (
-                          <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+                          <div style={{ marginTop: '4px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span 
                               style={{ 
                                 background: 'rgba(234, 179, 8, 0.15)', 
@@ -1273,6 +1291,40 @@ function TripDetails() {
                             >
                               🏆 Locked Choice
                             </span>
+                            {isOptionLogged(opt) ? (
+                              <span 
+                                style={{ 
+                                  background: 'rgba(52, 211, 153, 0.15)', 
+                                  color: '#34d399', 
+                                  border: '1px solid rgba(52, 211, 153, 0.4)', 
+                                  padding: '2px 8px', 
+                                  borderRadius: '12px', 
+                                  fontSize: '0.75rem', 
+                                  fontWeight: '700',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                ✓ Logged in Ledger
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => openExpenseModal(opt)}
+                                className="btn btn-secondary"
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '0.75rem',
+                                  color: '#38bdf8',
+                                  borderColor: 'rgba(56, 189, 248, 0.4)',
+                                  background: 'rgba(56, 189, 248, 0.1)',
+                                  fontWeight: '600'
+                                }}
+                                title="Convert locked option to a logged expense"
+                              >
+                                💸 Log as Expense
+                              </button>
+                            )}
                           </div>
                         )}
 
