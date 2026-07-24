@@ -14,6 +14,17 @@ Shipped **v1.9 Webapp Trip Archiving & Co-Organizer Administration** on 2026-07-
 
 ---
 
+## Current Milestone: v2.0 Locked Option Expense Sync & Advanced Cost Partitioning
+
+**Goal:** Seamlessly integrate locked-in itinerary options into the expense ledger with flexible cost partitioning across participants.
+
+**Target features:**
+- Locked Option Expense Integration (`EXPENSE-01`)
+- Custom Expense Partitioning & Repartitioning (`EXPENSE-02`)
+- Budget Breakdown & Traveler Cost Summaries (`EXPENSE-03`)
+
+---
+
 ## Requirements
 
 ### Validated

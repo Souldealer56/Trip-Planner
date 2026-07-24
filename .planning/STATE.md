@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: Webapp Trip Archiving & Co-Organizer Administration
-current_phase: 32
-current_phase_name: Trip Co-Organizer Promotion & Admin Access Controls
-status: executing
-stopped_at: Phase 29 context gathered
-last_updated: "2026-07-24T15:18:50.868Z"
+milestone: v2.0
+milestone_name: Locked Option Expense Sync & Advanced Cost Partitioning
+status: planning
+last_updated: "2026-07-24T15:42:29.770Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 32 execution started
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 1
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 
 ## Current Position
 
-Phase: 32 (Trip Co-Organizer Promotion & Admin Access Controls) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 32
-Last activity: 2026-07-24 — Phase 32 execution started
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-24 — Milestone v2.0 started
 
 ## Performance Metrics
 
