@@ -8,9 +8,14 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.8 (Ready for Planning)
+## Current Milestone: v1.9 Webapp Trip Archiving & Co-Organizer Administration
 
-**Goal:** Next milestone specification — use `/gsd-new-milestone` to initialize goals.
+**Goal:** Provide comprehensive trip administration, archiving, and co-organizer permission delegation directly in the web application.
+
+**Target features:**
+- Trip Archiving & Status Tracking (`ADMIN-01`)
+- Trip Deletion & Permanent Cleanup (`ADMIN-02`)
+- Trip Organizer & Co-Admin Delegation (`ADMIN-03`)
 
 ---
 
@@ -49,6 +54,10 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Full platform feature audit & hardening — v1.6 (Phase 24)
 - ✓ Webapp option pitching audit & database query parity (`PITCH-01`, `PITCH-02`, `SYNC-01`) — v1.7 (Phase 25)
 - ✓ Webapp option voting integration, voter badges, Poll Recap modal & lock choice controls (`VOTE-01`, `VOTE-02`, `VOTE-03`, `SYNC-02`) — v1.7 (Phase 26)
+- ✓ Option date & start/end time scheduling across web modal, Telegram bot pitching wizard, and card badges (`TIME-01`) — v1.8 (Phase 27)
+- ✓ Interactive Trip Gantt Chart & Visual Timeline view tab with category-colored time bars (`GANTT-01`) — v1.8 (Phase 28)
+- ✓ Schedule gap ("hole in plan") & overlap conflict detection engine with direct slot pitching (`GANTT-02`, `PLAN-01`) — v1.8 (Phase 29)
+- ✓ iCal calendar export (`.ics` generation) & printable trip itinerary report modal (`CAL-01`) — v1.8 (Phase 30)
 
 ### Deferred to Future Milestones
 

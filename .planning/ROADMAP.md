@@ -9,7 +9,9 @@
 - ✅ **v1.4 Standalone Webapp & Hybrid Onboarding** — Phases 17-20 (shipped 2026-07-20)
 - ✅ **v1.5 Trip Settings, User Profiles & Pitching Audit** — Phases 21-23 (shipped 2026-07-21)
 - ✅ **v1.6 Full Platform Feature Audit & System Hardening** — Phase 24 (shipped 2026-07-21)
-- 🚧 **v1.7 Webapp Option Pitching & Voting Integration** — Phases 25-26 (In progress)
+- ✅ **v1.7 Webapp Option Pitching & Voting Integration** — Phases 25-26 (shipped 2026-07-22)
+- ✅ **v1.8 Visual Trip Timeline & Interactive Gantt Planning** — Phases 27-30 (shipped 2026-07-23)
+- 🚧 **v1.9 Webapp Trip Archiving & Co-Organizer Administration** — Phases 31-32 (In progress)
 
 ## Phases
 
@@ -88,6 +90,25 @@
 See: [.planning/milestones/v1.7-ROADMAP.md](file:///c:/Users/alex_/Documents/Trip%20Planner/.planning/milestones/v1.7-ROADMAP.md)
 </details>
 
+<details>
+<summary>✅ v1.8 Visual Trip Timeline & Interactive Gantt Planning (Phases 27-30) — SHIPPED 2026-07-23</summary>
+
+- [x] Phase 27: Date & Time Scheduling for Pitched Options (1/1 plan) — completed 2026-07-23
+- [x] Phase 28: Interactive Trip Gantt Chart & Visual Timeline View (1/1 plan) — completed 2026-07-23
+- [x] Phase 29: Schedule Gap & Conflict Detection Engine with Direct Slot Pitching (1/1 plan) — completed 2026-07-23
+- [x] Phase 30: iCal Calendar Export & Printable Itinerary Sync (1/1 plan) — completed 2026-07-23
+
+See: [.planning/milestones/v1.8-ROADMAP.md](file:///c:/Users/alex_/Documents/Trip%20Planner/.planning/milestones/v1.8-ROADMAP.md)
+</details>
+
+<details open>
+<summary>🚧 v1.9 Webapp Trip Archiving & Co-Organizer Administration (Phases 31-32) — IN PROGRESS</summary>
+
+- [ ] Phase 31: Trip Archiving, Dashboard Filtering & Permanent Deletion (0/1 plan)
+- [ ] Phase 32: Trip Co-Organizer Promotion & Admin Access Controls (0/1 plan)
+
+</details>
+
 ## Progress
 
 **Execution Order:**
@@ -121,22 +142,61 @@ Phases execute in numeric order.
 | 24. Full Platform Feature & Flow Audit | v1.6 | 1/1 | Complete | 2026-07-21 |
 | 25. Webapp Option Pitching Audit & Database Parity | v1.7 | 1/1 | Complete | 2026-07-22 |
 | 26. Webapp Option Voting Integration & Real-time Sync | v1.7 | 1/1 | Complete | 2026-07-22 |
+| 27. Date & Time Scheduling for Pitched Options | v1.8 | 1/1 | Complete | 2026-07-23 |
+| 28. Interactive Trip Gantt Chart & Visual Timeline View | v1.8 | 1/1 | Complete | 2026-07-23 |
+| 29. Schedule Gap & Conflict Detection Engine with Direct Slot Pitching | v1.8 | 1/1 | Complete | 2026-07-23 |
+| 30. iCal Calendar Export & Printable Itinerary Sync | v1.8 | 1/1 | Complete | 2026-07-23 |
+| 31. Trip Archiving, Dashboard Filtering & Permanent Deletion | v1.9 | 0/1 | In Progress | — |
+| 32. Trip Co-Organizer Promotion & Admin Access Controls | v1.9 | 0/1 | Pending | — |
 
 ## Phase Details
 
-### Phase 25: Webapp Option Pitching Audit & Database Parity
-**Goal:** Audit and fix the webapp option pitching pipeline so options pitched via the web modal persist correctly to Supabase and immediately render in the web UI, ensuring RLS policies and table structures match bot expectations.  
-**Requirements:** PITCH-01, PITCH-02, SYNC-01  
+### Phase 27: Date & Time Scheduling for Pitched Options
+**Goal:** Extend pitched options with explicit start/end time fields (`start_time`, `end_time`) across database schema, Pitch Option web modal, and Telegram bot pitching wizard, displaying clean schedule badges on option cards.  
+**Requirements:** TIME-01  
 **Success Criteria:**
-1. Pitching an option in the web UI creates valid records in `poll_options` / `active_polls` without database errors.
-2. Options list in the web UI automatically re-fetches and displays pitched options without requiring hard browser refreshes.
-3. Options pitched in Telegram bot appear in the web app UI seamlessly.
+1. Pitch Option form supports optional start time and end time alongside start date and end date.
+2. Option cards display formatted schedule badges (e.g. `📅 Jul 24, 2:00 PM – Jul 26, 11:00 AM`).
+3. Database schema stores and returns full date/time schedule objects.
 
-### Phase 26: Webapp Option Voting Integration & Real-time Sync
-**Goal:** Integrate option voting into the web app UI, enabling users to cast/retract votes, view real-time vote tallies per category, and sync vote data across Telegram bot and web application.  
-**Requirements:** VOTE-01, VOTE-02, VOTE-03, SYNC-02  
+### Phase 28: Interactive Trip Gantt Chart & Visual Timeline View
+**Goal:** Build a visual Gantt chart timeline tab on the Trip Details page rendering pitched and locked options as horizontal, category-colored time bars across trip days.  
+**Requirements:** GANTT-01  
 **Success Criteria:**
-1. Web UI displays pitched option cards per category with vote buttons, vote counts, and voter avatars/names.
-2. Users can cast and toggle/retract votes directly from the web app, correctly mutating `active_polls` / `poll_votes`.
+1. Dedicated "Gantt Timeline" view tab renders all trip days horizontally.
+2. Pitched and locked options display as time bars spanning their scheduled dates/times, color-coded by category.
+3. Locked winning itinerary choices feature prominent visual indicators (e.g. `🏆 Locked`).
+
+### Phase 29: Schedule Gap & Conflict Detection Engine with Direct Slot Pitching
+**Goal:** Analyze trip schedules to automatically highlight unbooked gaps ("holes in the plan") and overlapping schedule conflicts, enabling direct slot pitching directly from Gantt timeline gaps.  
+**Requirements:** GANTT-02, PLAN-01  
+**Success Criteria:**
+1. System identifies unbooked days or major gaps in the schedule and displays "Hole in Plan" indicators.
+2. System flags overlapping schedule conflicts (e.g. 2 activities at the same time).
+3. Clicking an unbooked gap on the Gantt timeline opens the Pitch Option modal pre-filled with that time window.
+
+### Phase 30: iCal Calendar Export & Printable Itinerary Sync
+**Goal:** Enable participants to export locked itinerary items as `.ics` calendar files for Google/Apple Calendar import and render a clean, printable itinerary report.  
+**Requirements:** CAL-01  
+**Success Criteria:**
+1. "Export to Calendar" button generates a valid `.ics` file containing all locked trip choices.
+2. "Print Itinerary" view renders a clean, printable day-by-day itinerary summary.
 3. Votes cast in Telegram reflect in the web UI and vice versa in real time.
+
+### Phase 31: Trip Archiving, Dashboard Filtering & Permanent Deletion
+**Goal:** Implement trip archiving (soft-delete), unarchiving, dashboard filtering toggles, and permanent trip deletion with safe cascade database cleanup.  
+**Requirements:** ADMIN-01, ADMIN-02  
+**Success Criteria:**
+1. Trip Settings / actions modal includes "Archive Trip" and "Delete Trip" controls.
+2. Main dashboard includes an "Archived Trips" filter toggle, hiding archived trips by default.
+3. Permanent trip deletion prompts for confirmation and cleans up associated database records without orphan rows.
+
+### Phase 32: Trip Co-Organizer Promotion & Admin Access Controls
+**Goal:** Enable trip creators to promote/demote participants to co-organizer role, enforcing admin access control on trip settings, archiving, deletion, and role management with visual UI badges.  
+**Requirements:** ADMIN-03  
+**Success Criteria:**
+1. Roster and member management UI allows organizers to toggle co-organizer / admin status for participants.
+2. Administrative actions (settings edits, archiving, deletion, role promotion) are restricted to organizers and co-organizers.
+3. Roster cards display clear "Organizer" and "Co-Admin" badges.
+
 

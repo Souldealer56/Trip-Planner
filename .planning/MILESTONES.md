@@ -1,5 +1,29 @@
 # Milestones
 
+## v1.8 Visual Trip Timeline & Interactive Gantt Planning (Shipped: 2026-07-23)
+
+**Phases completed:** 4 phases, 4 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Explicit Option Date & Time Scheduling across database, React pitch modals, Telegram bot, and card badges (`TIME-01`).
+- Interactive Trip Gantt Chart & Visual Timeline displaying pitched and locked options as category-colored time bars (`GANTT-01`).
+- Schedule Gap & Conflict Detection Engine automatically flagging unbooked gaps ("holes in plan") and schedule overlaps with direct slot pitching (`GANTT-02`, `PLAN-01`).
+- iCal Calendar Export & Printable Itinerary sync supporting `.ics` downloads and day-by-day print reports (`CAL-01`).
+
+---
+
+## v1.7 Webapp Option Pitching & Voting Integration (Shipped: 2026-07-22)
+
+**Phases completed:** 2 phases, 2 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Webapp option pitching audit & database query parity (`PITCH-01`, `PITCH-02`, `SYNC-01`).
+- Webapp option voting integration, voter badges, Poll Recap modal, & lock choice controls (`VOTE-01`, `VOTE-02`, `VOTE-03`, `SYNC-02`).
+
+---
+
 ## v1.6 Full Platform Feature Audit & System Hardening (Shipped: 2026-07-21)
 
 **Phases completed:** 1 phases, 1 plans, 0 tasks
