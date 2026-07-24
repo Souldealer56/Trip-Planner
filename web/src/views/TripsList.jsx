@@ -221,6 +221,8 @@ function TripsList() {
   const { data: trips, loading, error, refresh } = useTrips(activeUser?.id)
   const navigate = useNavigate()
 
+  const [tripFilter, setTripFilter] = useState('active') // 'active' | 'archived' | 'all'
+
   // Trips Form Modal States
   const [showModal, setShowModal] = useState(false)
   const [title, setTitle] = useState('')
@@ -510,27 +512,75 @@ function TripsList() {
       )}
 
       {!loading && !error && trips.length > 0 && (
-        <div className="grid-layout">
-          {trips.map((trip) => (
-            <Link key={trip.id} to={`/trips/${trip.id}`} style={{ color: 'inherit' }}>
-              <div className="trip-card">
-                <h3>{trip.title}</h3>
-                <div className="destination" style={{ color: 'var(--text-muted)' }}>
-                  📍 {trip.destination}
-                </div>
-                <div className="dates">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  {formatDateRange(trip.start_date, trip.end_date)}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <>
+          {/* Trip Filter Toggle Buttons */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setTripFilter('active')}
+              className={`btn ${tripFilter === 'active' ? '' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px' }}
+            >
+              Active Trips ({trips.filter(t => !t.is_archived).length})
+            </button>
+            <button
+              onClick={() => setTripFilter('archived')}
+              className={`btn ${tripFilter === 'archived' ? '' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px' }}
+            >
+              📦 Archived ({trips.filter(t => t.is_archived).length})
+            </button>
+            <button
+              onClick={() => setTripFilter('all')}
+              className={`btn ${tripFilter === 'all' ? '' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px' }}
+            >
+              All ({trips.length})
+            </button>
+          </div>
+
+          {trips.filter(t => {
+            if (tripFilter === 'archived') return t.is_archived
+            if (tripFilter === 'all') return true
+            return !t.is_archived
+          }).length === 0 ? (
+            <div className="glass-card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              No {tripFilter} trips found.
+            </div>
+          ) : (
+            <div className="grid-layout">
+              {trips.filter(t => {
+                if (tripFilter === 'archived') return t.is_archived
+                if (tripFilter === 'all') return true
+                return !t.is_archived
+              }).map((trip) => (
+                <Link key={trip.id} to={`/trips/${trip.id}`} style={{ color: 'inherit' }}>
+                  <div className="trip-card" style={{ position: 'relative', border: trip.is_archived ? '1px dashed var(--border-light)' : undefined, opacity: trip.is_archived ? 0.85 : 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <h3>{trip.title}</h3>
+                      {trip.is_archived && (
+                        <span style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          📦 Archived
+                        </span>
+                      )}
+                    </div>
+                    <div className="destination" style={{ color: 'var(--text-muted)' }}>
+                      📍 {trip.destination}
+                    </div>
+                    <div className="dates">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      {formatDateRange(trip.start_date, trip.end_date)}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* New Trip Creation Modal Overlay */}

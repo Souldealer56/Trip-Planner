@@ -6,7 +6,7 @@ import { useAddParticipant } from '../hooks/useAddParticipant'
 import { formatDateRange, formatRelativeTime, formatDateTimeRange } from '../utils/format'
 import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
-import { updateTrip } from '../services/trips'
+import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
 import { useUserSession } from '../hooks/useUserSession'
@@ -160,6 +160,44 @@ function TripDetails() {
   // Date reconciliation modal states
   const [showReconcileModal, setShowReconcileModal] = useState(false)
   const [conflictingOptions, setConflictingOptions] = useState([])
+
+  // Archiving and Deletion states
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  const handleToggleArchive = async () => {
+    if (!trip) return
+    try {
+      if (trip.is_archived) {
+        await unarchiveTrip(id)
+      } else {
+        await archiveTrip(id)
+      }
+      refreshTrip()
+      setShowEditTripModal(false)
+    } catch (err) {
+      console.error('Failed to toggle trip archive state:', err)
+      alert('Failed to update trip archive status: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!id) return
+    setDeleteLoading(true)
+    setDeleteError('')
+    try {
+      await deleteTrip(id)
+      setShowDeleteConfirmModal(false)
+      setShowEditTripModal(false)
+      navigate('/')
+    } catch (err) {
+      console.error('Failed to delete trip:', err)
+      setDeleteError(err.message || 'Failed to delete trip. Please try again.')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   const handleOpenEditModal = () => {
     if (!trip) return
@@ -931,6 +969,36 @@ function TripDetails() {
       {/* Main Detail view content */}
       {!loading && !error && trip && activeUser && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {trip.is_archived && (
+            <div style={{
+              background: 'rgba(234, 179, 8, 0.15)',
+              border: '1px solid rgba(234, 179, 8, 0.3)',
+              color: '#eab308',
+              padding: '0.85rem 1.25rem',
+              borderRadius: 'var(--border-radius-md)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.25rem' }}>📦</span>
+                <div>
+                  <strong>This trip is archived.</strong>
+                  <span style={{ fontSize: '0.85rem', marginLeft: '6px', color: 'var(--text-muted)' }}>It is hidden from the default active dashboard view.</span>
+                </div>
+              </div>
+              <button
+                onClick={handleToggleArchive}
+                className="btn btn-secondary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderColor: '#eab308', color: '#eab308' }}
+              >
+                Unarchive Trip
+              </button>
+            </div>
+          )}
+
           {/* Trip Info Header Card */}
           <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
@@ -2320,7 +2388,70 @@ function TripDetails() {
                     {editLoading ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
+
+                <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-light)' }}>
+                  <h4 style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    ⚠️ Danger Zone & Archiving
+                  </h4>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0.85rem' }}>
+                    Archive this trip to hide it from your main dashboard view, or permanently delete it and its data.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleToggleArchive}
+                      className="btn btn-secondary"
+                      style={{ flex: 1, border: '1px solid #eab308', color: '#eab308', background: 'rgba(234, 179, 8, 0.1)', fontSize: '0.8rem' }}
+                    >
+                      {trip?.is_archived ? '📂 Unarchive Trip' : '📦 Archive Trip'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirmModal(true)}
+                      className="btn"
+                      style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', fontSize: '0.8rem' }}
+                    >
+                      🗑️ Delete Trip
+                    </button>
+                  </div>
+                </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirmModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', width: '90%', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🚨</div>
+            <h3 style={{ color: '#ef4444', marginBottom: '0.5rem' }}>Permanently Delete Trip?</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: '1.4' }}>
+              This action <strong>cannot be undone</strong>. All pitched options, active polls, RSVPs, logged expenses, and activity logs for <strong>"{trip?.title}"</strong> will be permanently deleted.
+            </p>
+            {deleteError && (
+              <div style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                ⚠️ {deleteError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="btn"
+                style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff' }}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? 'Deleting...' : 'Yes, Delete Trip'}
+              </button>
             </div>
           </div>
         </div>
