@@ -11,7 +11,7 @@
 - ✅ **v1.6 Full Platform Feature Audit & System Hardening** — Phase 24 (shipped 2026-07-21)
 - ✅ **v1.7 Webapp Option Pitching & Voting Integration** — Phases 25-26 (shipped 2026-07-22)
 - ✅ **v1.8 Visual Trip Timeline & Interactive Gantt Planning** — Phases 27-30 (shipped 2026-07-23)
-- 🚧 **v1.9 Webapp Trip Archiving & Co-Organizer Administration** — Phases 31-32 (In progress)
+- ✅ **v1.9 Webapp Trip Archiving & Co-Organizer Administration** — Phases 31-32 (shipped 2026-07-24)
 
 ## Phases
 
@@ -101,12 +101,13 @@ See: [.planning/milestones/v1.7-ROADMAP.md](file:///c:/Users/alex_/Documents/Tri
 See: [.planning/milestones/v1.8-ROADMAP.md](file:///c:/Users/alex_/Documents/Trip%20Planner/.planning/milestones/v1.8-ROADMAP.md)
 </details>
 
-<details open>
-<summary>🚧 v1.9 Webapp Trip Archiving & Co-Organizer Administration (Phases 31-32) — IN PROGRESS</summary>
+<details>
+<summary>✅ v1.9 Webapp Trip Archiving & Co-Organizer Administration (Phases 31-32) — SHIPPED 2026-07-24</summary>
 
-- [ ] Phase 31: Trip Archiving, Dashboard Filtering & Permanent Deletion (0/1 plan)
-- [ ] Phase 32: Trip Co-Organizer Promotion & Admin Access Controls (0/1 plan)
+- [x] Phase 31: Trip Archiving, Dashboard Filtering & Permanent Deletion (1/1 plan) — completed 2026-07-24
+- [x] Phase 32: Trip Co-Organizer Promotion & Admin Access Controls (1/1 plan) — completed 2026-07-24
 
+See: [.planning/milestones/v1.9-ROADMAP.md](file:///c:/Users/alex_/Documents/Trip%20Planner/.planning/milestones/v1.9-ROADMAP.md)
 </details>
 
 ## Progress
@@ -146,8 +147,8 @@ Phases execute in numeric order.
 | 28. Interactive Trip Gantt Chart & Visual Timeline View | v1.8 | 1/1 | Complete | 2026-07-23 |
 | 29. Schedule Gap & Conflict Detection Engine with Direct Slot Pitching | v1.8 | 1/1 | Complete | 2026-07-23 |
 | 30. iCal Calendar Export & Printable Itinerary Sync | v1.8 | 1/1 | Complete | 2026-07-23 |
-| 31. Trip Archiving, Dashboard Filtering & Permanent Deletion | v1.9 | 0/1 | In Progress | — |
-| 32. Trip Co-Organizer Promotion & Admin Access Controls | v1.9 | 0/1 | Pending | — |
+| 31. Trip Archiving, Dashboard Filtering & Permanent Deletion | v1.9 | 1/1 | Complete | 2026-07-24 |
+| 32. Trip Co-Organizer Promotion & Admin Access Controls | v1.9 | 1/1 | Complete | 2026-07-24 |
 
 ## Phase Details
 

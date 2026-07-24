@@ -8,14 +8,9 @@ A collaborative trip planning platform consisting of a Telegram bot (TripSync Bo
 
 Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
 
-## Current Milestone: v1.9 Webapp Trip Archiving & Co-Organizer Administration
+## Current State
 
-**Goal:** Provide comprehensive trip administration, archiving, and co-organizer permission delegation directly in the web application.
-
-**Target features:**
-- Trip Archiving & Status Tracking (`ADMIN-01`)
-- Trip Deletion & Permanent Cleanup (`ADMIN-02`)
-- Trip Organizer & Co-Admin Delegation (`ADMIN-03`)
+Shipped **v1.9 Webapp Trip Archiving & Co-Organizer Administration** on 2026-07-24.
 
 ---
 
@@ -58,6 +53,9 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 - ✓ Interactive Trip Gantt Chart & Visual Timeline view tab with category-colored time bars (`GANTT-01`) — v1.8 (Phase 28)
 - ✓ Schedule gap ("hole in plan") & overlap conflict detection engine with direct slot pitching (`GANTT-02`, `PLAN-01`) — v1.8 (Phase 29)
 - ✓ iCal calendar export (`.ics` generation) & printable trip itinerary report modal (`CAL-01`) — v1.8 (Phase 30)
+- ✓ Trip archiving (soft-delete), unarchiving, and dashboard filter pills (`ADMIN-01`) — v1.9 (Phase 31)
+- ✓ Permanent trip deletion with clean cascading database cleanup (`ADMIN-02`) — v1.9 (Phase 31)
+- ✓ Co-Organizer role promotion/demotion, roster role badges, and admin permission gates (`ADMIN-03`) — v1.9 (Phase 32)
 
 ### Deferred to Future Milestones
 

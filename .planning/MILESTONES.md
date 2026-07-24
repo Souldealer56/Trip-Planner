@@ -1,5 +1,17 @@
 # Milestones
 
+## v1.9 Webapp Trip Archiving & Co-Organizer Administration (Shipped: 2026-07-24)
+
+**Phases completed:** 2 phases, 2 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Schema-resilient Trip Archiving (soft-delete), unarchiving, and dashboard filter pills (`Active`, `📦 Archived`, `All`) (`ADMIN-01`).
+- Permanent trip deletion with clean cascading database cleanup across all dependent tables (`ADMIN-02`).
+- Co-Organizer role promotion/demotion, `👑 Organizer` & `⭐ Co-Organizer` roster role badges, and admin permission gates for trip settings, archiving, and deletion (`ADMIN-03`).
+
+---
+
 ## v1.8 Visual Trip Timeline & Interactive Gantt Planning (Shipped: 2026-07-23)
 
 **Phases completed:** 4 phases, 4 plans, 0 tasks
