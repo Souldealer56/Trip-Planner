@@ -8,7 +8,7 @@ import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteT
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
 import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
 import { fetchExpenses, logExpense, parseOptionCost } from '../services/expenses'
-import { fetchExchangeRates, convertCurrency, calculateSettlements } from '../utils/currency'
+import { fetchExchangeRates, convertCurrency, calculateSettlements, calculateExpenseParticipantShares } from '../utils/currency'
 import { useUserSession } from '../hooks/useUserSession'
 import { generateTelegramLinkCode, disconnectTelegram } from '../services/users'
 import { fetchActivityLogs } from '../services/activity'
@@ -487,6 +487,9 @@ function TripDetails() {
   const [expensePaidBy, setExpensePaidBy] = useState('')
   const [expenseSplitEqually, setExpenseSplitEqually] = useState(true)
   const [expenseSplitUsers, setExpenseSplitUsers] = useState({})
+  const [expenseSplitMode, setExpenseSplitMode] = useState('equal') // 'equal' | 'custom_amount' | 'custom_percent'
+  const [customSplitAmounts, setCustomSplitAmounts] = useState({})
+  const [customSplitPercents, setCustomSplitPercents] = useState({})
   const [expenseError, setExpenseError] = useState('')
   const [expenseLoading, setExpenseLoading] = useState(false)
 
@@ -532,6 +535,9 @@ function TripDetails() {
       setExpensePaidBy(activeUser.id)
     }
     setExpenseSplitEqually(true)
+    setExpenseSplitMode('equal')
+    setCustomSplitAmounts({})
+    setCustomSplitPercents({})
     
     // Get all committed members
     const committedRoster = roster.filter(m => m.status === 'Committed')
@@ -552,7 +558,8 @@ function TripDetails() {
       setExpenseError('Description is required.')
       return
     }
-    if (!expenseAmount || isNaN(expenseAmount) || parseFloat(expenseAmount) <= 0) {
+    const totalCost = parseFloat(expenseAmount)
+    if (!expenseAmount || isNaN(expenseAmount) || totalCost <= 0) {
       setExpenseError('Amount must be greater than 0.')
       return
     }
@@ -563,16 +570,51 @@ function TripDetails() {
 
     let splitsList = []
     const committedRoster = roster.filter(m => m.status === 'Committed')
-    
-    if (expenseSplitEqually) {
-      splitsList = committedRoster.map(m => m.user_id)
-    } else {
-      splitsList = Object.keys(expenseSplitUsers).filter(uid => expenseSplitUsers[uid])
-    }
 
-    if (splitsList.length === 0) {
-      setExpenseError('Please select at least one split participant.')
-      return
+    if (expenseSplitMode === 'equal') {
+      if (expenseSplitEqually) {
+        splitsList = committedRoster.map(m => m.user_id)
+      } else {
+        splitsList = Object.keys(expenseSplitUsers).filter(uid => expenseSplitUsers[uid])
+      }
+      if (splitsList.length === 0) {
+        setExpenseError('Please select at least one split participant.')
+        return
+      }
+    } else if (expenseSplitMode === 'custom_amount') {
+      const activeIds = Object.keys(expenseSplitUsers).filter(uid => expenseSplitUsers[uid])
+      if (activeIds.length === 0) {
+        setExpenseError('Please select at least one split participant.')
+        return
+      }
+      let currentSum = 0
+      splitsList = activeIds.map(uid => {
+        const val = parseFloat(customSplitAmounts[uid] || 0)
+        currentSum += val
+        return { user_id: uid, amount: val }
+      })
+
+      if (Math.abs(currentSum - totalCost) > 0.05) {
+        setExpenseError(`Custom split amounts ($${currentSum.toFixed(2)}) must equal total expense ($${totalCost.toFixed(2)}).`)
+        return
+      }
+    } else if (expenseSplitMode === 'custom_percent') {
+      const activeIds = Object.keys(expenseSplitUsers).filter(uid => expenseSplitUsers[uid])
+      if (activeIds.length === 0) {
+        setExpenseError('Please select at least one split participant.')
+        return
+      }
+      let currentSum = 0
+      splitsList = activeIds.map(uid => {
+        const val = parseFloat(customSplitPercents[uid] || 0)
+        currentSum += val
+        return { user_id: uid, percent: val }
+      })
+
+      if (Math.abs(currentSum - 100) > 0.1) {
+        setExpenseError(`Custom split percentages (${currentSum.toFixed(1)}%) must equal 100%.`)
+        return
+      }
     }
 
     setExpenseLoading(true)
@@ -580,7 +622,7 @@ function TripDetails() {
       await logExpense(
         id,
         expensePaidBy,
-        parseFloat(expenseAmount),
+        totalCost,
         expenseCurrency,
         expenseDesc.trim(),
         splitsList
@@ -619,27 +661,20 @@ function TripDetails() {
       
       const convertedAmount = convertCurrency(originalAmount, expCurrency, baseCurrency, rates)
       
-      let splitParticipantIds = []
-      if (exp.split_users && exp.split_users.length > 0) {
-        splitParticipantIds = exp.split_users.filter(uid => memberBalances[uid])
-      }
-      
-      if (splitParticipantIds.length === 0) {
-        splitParticipantIds = committedMembers.map(m => m.user_id)
-      }
+      const fallbackUserIds = committedMembers.map(m => m.user_id)
+      const userShares = calculateExpenseParticipantShares(convertedAmount, exp.split_users, fallbackUserIds)
 
-      if (splitParticipantIds.length > 0) {
-        const share = convertedAmount / splitParticipantIds.length
-        splitParticipantIds.forEach(uid => {
-          if (memberBalances[uid]) {
-            memberBalances[uid].owed += share
-          }
-        })
-        
-        if (memberBalances[payerId]) {
-          memberBalances[payerId].paid += convertedAmount
-          totalGroupSpend += convertedAmount
+      userShares.forEach((owedShare, uIdStr) => {
+        const targetKey = Object.keys(memberBalances).find(k => String(k) === uIdStr)
+        if (targetKey && memberBalances[targetKey]) {
+          memberBalances[targetKey].owed += owedShare
         }
+      })
+
+      const payerKey = Object.keys(memberBalances).find(k => String(k) === String(payerId))
+      if (payerKey && memberBalances[payerKey]) {
+        memberBalances[payerKey].paid += convertedAmount
+        totalGroupSpend += convertedAmount
       }
     })
   }
@@ -2201,39 +2236,200 @@ function TripDetails() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  <div className="toggle-container" onClick={() => setExpenseSplitEqually(!expenseSplitEqually)}>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={expenseSplitEqually}
-                        onChange={() => {}} // Controlled by container onClick
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                    <span style={{ fontSize: '0.95rem', fontWeight: '600' }}>Split Equally among all members</span>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Cost Partitioning Mode</label>
+                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setExpenseSplitMode('equal'); setExpenseSplitEqually(true) }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: expenseSplitMode === 'equal' ? 'var(--primary)' : 'transparent',
+                        color: expenseSplitMode === 'equal' ? '#fff' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Equal Split
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpenseSplitMode('custom_amount')}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: expenseSplitMode === 'custom_amount' ? 'var(--primary)' : 'transparent',
+                        color: expenseSplitMode === 'custom_amount' ? '#fff' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Custom ($)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpenseSplitMode('custom_percent')}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: expenseSplitMode === 'custom_percent' ? 'var(--primary)' : 'transparent',
+                        color: expenseSplitMode === 'custom_percent' ? '#fff' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Percentages (%)
+                    </button>
                   </div>
                 </div>
 
-                {!expenseSplitEqually && (
+                {expenseSplitMode === 'equal' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <div className="toggle-container" onClick={() => setExpenseSplitEqually(!expenseSplitEqually)}>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={expenseSplitEqually}
+                          onChange={() => {}}
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                      <span style={{ fontSize: '0.95rem', fontWeight: '600' }}>Split equally among all members</span>
+                    </div>
+                    {!expenseSplitEqually && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="animate-fade-in">
+                        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Select Split Participants</label>
+                        <div className="checkbox-list">
+                          {roster.filter(m => m.status === 'Committed').map(m => {
+                            const isChecked = !!expenseSplitUsers[m.user_id]
+                            return (
+                              <label key={m.user_id} className="checkbox-item">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    setExpenseSplitUsers({
+                                      ...expenseSplitUsers,
+                                      [m.user_id]: e.target.checked
+                                    })
+                                  }}
+                                />
+                                <span>{m.users?.first_name || m.username}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {expenseSplitMode === 'custom_amount' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="animate-fade-in">
-                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Select Split Participants</label>
-                    <div className="checkbox-list">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Custom Amount ($) per Participant</label>
+                      {(() => {
+                        const total = parseFloat(expenseAmount || 0)
+                        const currentSum = Object.keys(expenseSplitUsers)
+                          .filter(uid => expenseSplitUsers[uid])
+                          .reduce((sum, uid) => sum + parseFloat(customSplitAmounts[uid] || 0), 0)
+                        const isValid = Math.abs(currentSum - total) <= 0.05
+                        return (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isValid ? '#34d399' : '#f87171' }}>
+                            Allocated: ${currentSum.toFixed(2)} / ${total.toFixed(2)}
+                          </span>
+                        )
+                      })()}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {roster.filter(m => m.status === 'Committed').map(m => {
                         const isChecked = !!expenseSplitUsers[m.user_id]
                         return (
-                          <label key={m.user_id} className="checkbox-item">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                setExpenseSplitUsers({
-                                  ...expenseSplitUsers,
-                                  [m.user_id]: e.target.checked
-                                })
-                              }}
-                            />
-                            <span>{m.users?.first_name || m.username}</span>
-                          </label>
+                          <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '4px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px' }}>
+                            <label className="checkbox-item" style={{ margin: 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  setExpenseSplitUsers({ ...expenseSplitUsers, [m.user_id]: e.target.checked })
+                                }}
+                              />
+                              <span>{m.users?.first_name || m.username}</span>
+                            </label>
+                            {isChecked && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>$</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={customSplitAmounts[m.user_id] || ''}
+                                  onChange={(e) => setCustomSplitAmounts({ ...customSplitAmounts, [m.user_id]: e.target.value })}
+                                  style={{ width: '80px', padding: '2px 6px', fontSize: '0.85rem', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'rgba(0,0,0,0.2)', color: 'var(--text-main)' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {expenseSplitMode === 'custom_percent' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="animate-fade-in">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Custom Percentage (%) per Participant</label>
+                      {(() => {
+                        const currentSum = Object.keys(expenseSplitUsers)
+                          .filter(uid => expenseSplitUsers[uid])
+                          .reduce((sum, uid) => sum + parseFloat(customSplitPercents[uid] || 0), 0)
+                        const isValid = Math.abs(currentSum - 100) <= 0.1
+                        return (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isValid ? '#34d399' : '#f87171' }}>
+                            Allocated: {currentSum.toFixed(1)}% / 100%
+                          </span>
+                        )
+                      })()}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {roster.filter(m => m.status === 'Committed').map(m => {
+                        const isChecked = !!expenseSplitUsers[m.user_id]
+                        return (
+                          <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '4px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px' }}>
+                            <label className="checkbox-item" style={{ margin: 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  setExpenseSplitUsers({ ...expenseSplitUsers, [m.user_id]: e.target.checked })
+                                }}
+                              />
+                              <span>{m.users?.first_name || m.username}</span>
+                            </label>
+                            {isChecked && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  placeholder="0"
+                                  value={customSplitPercents[m.user_id] || ''}
+                                  onChange={(e) => setCustomSplitPercents({ ...customSplitPercents, [m.user_id]: e.target.value })}
+                                  style={{ width: '70px', padding: '2px 6px', fontSize: '0.85rem', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'rgba(0,0,0,0.2)', color: 'var(--text-main)' }}
+                                />
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
+                              </div>
+                            )}
+                          </div>
                         )
                       })}
                     </div>

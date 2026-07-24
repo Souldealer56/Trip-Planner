@@ -107,3 +107,44 @@ export function calculateSettlements(balances) {
 
   return transactions
 }
+
+/**
+ * Computes individual traveler shares for an expense considering equal, custom amount, or percentage split allocations.
+ * @param {number} expenseAmount The total converted expense amount.
+ * @param {Array} splitUsers List of user IDs or custom split objects [{ user_id, amount, percent }].
+ * @param {Array} fallbackUserIds Fallback list of committed user IDs if splitUsers is empty.
+ * @returns {Map<string, number>} Map of userId to owed share amount.
+ */
+export function calculateExpenseParticipantShares(expenseAmount, splitUsers, fallbackUserIds = []) {
+  const shares = new Map()
+  if (!splitUsers || splitUsers.length === 0) {
+    if (fallbackUserIds.length > 0) {
+      const equalShare = expenseAmount / fallbackUserIds.length
+      fallbackUserIds.forEach(uid => shares.set(String(uid), equalShare))
+    }
+    return shares
+  }
+
+  // Check if splitUsers contains custom objects
+  const firstItem = splitUsers[0]
+  if (typeof firstItem === 'object' && firstItem !== null && (firstItem.amount !== undefined || firstItem.percent !== undefined)) {
+    splitUsers.forEach(item => {
+      const uId = String(item.user_id || item.userId)
+      if (item.amount !== undefined && item.amount !== null && !isNaN(parseFloat(item.amount))) {
+        shares.set(uId, parseFloat(item.amount))
+      } else if (item.percent !== undefined && item.percent !== null && !isNaN(parseFloat(item.percent))) {
+        const share = (parseFloat(item.percent) / 100) * expenseAmount
+        shares.set(uId, share)
+      } else {
+        shares.set(uId, 0)
+      }
+    })
+  } else {
+    // Standard equal split across list of user IDs
+    const userIds = splitUsers.map(String)
+    const equalShare = userIds.length > 0 ? expenseAmount / userIds.length : 0
+    userIds.forEach(uId => shares.set(uId, equalShare))
+  }
+
+  return shares
+}
