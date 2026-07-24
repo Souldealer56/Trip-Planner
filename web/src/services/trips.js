@@ -8,21 +8,18 @@ import { supabase } from './supabase'
 export async function fetchTrips(userId) {
   if (!userId) return []
 
-  let data, error
-  try {
-    const res = await supabase
-      .from('rsvps')
-      .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe, is_archived)')
-      .eq('user_id', userId)
-    data = res.data
-    error = res.error
-  } catch (e) {
-    const res = await supabase
+  let { data, error } = await supabase
+    .from('rsvps')
+    .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe, is_archived)')
+    .eq('user_id', userId)
+
+  if (error) {
+    const fallback = await supabase
       .from('rsvps')
       .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe)')
       .eq('user_id', userId)
-    data = res.data
-    error = res.error
+    data = fallback.data
+    error = fallback.error
   }
 
   if (error) {
@@ -64,23 +61,32 @@ export async function fetchTripById(id) {
  * @returns {Promise<Object>} A promise resolving to the created trip object.
  */
 export async function createTrip(title, destination, startDate, endDate, baseCurrency) {
+  const payload = {
+    title,
+    destination,
+    start_date: startDate,
+    end_date: endDate,
+    base_currency: baseCurrency
+  }
+
   const { data, error } = await supabase
     .from('trips')
-    .insert({
-      title,
-      destination,
-      start_date: startDate,
-      end_date: endDate,
-      base_currency: baseCurrency,
-      is_archived: false
-    })
+    .insert({ ...payload, is_archived: false })
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (!error) return { ...data, is_archived: false }
+
+  const fallback = await supabase
+    .from('trips')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (fallback.error) {
+    throw fallback.error
   }
-  return data
+  return { ...fallback.data, is_archived: false }
 }
 
 /**
