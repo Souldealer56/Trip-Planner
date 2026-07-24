@@ -10,18 +10,13 @@ Provide a seamless, multi-interface collaborative trip planning experience that 
 
 ## Current State
 
-Shipped **v1.9 Webapp Trip Archiving & Co-Organizer Administration** on 2026-07-24.
+Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** on 2026-07-24.
 
 ---
 
-## Current Milestone: v2.0 Locked Option Expense Sync & Advanced Cost Partitioning
+## Current Milestone: Milestone v2.0 Complete (Awaiting Next Milestone Setup)
 
 **Goal:** Seamlessly integrate locked-in itinerary options into the expense ledger with flexible cost partitioning across participants.
-
-**Target features:**
-- Locked Option Expense Integration (`EXPENSE-01`)
-- Custom Expense Partitioning & Repartitioning (`EXPENSE-02`)
-- Budget Breakdown & Traveler Cost Summaries (`EXPENSE-03`)
 
 ---
 
@@ -67,6 +62,9 @@ Shipped **v1.9 Webapp Trip Archiving & Co-Organizer Administration** on 2026-07-
 - ✓ Trip archiving (soft-delete), unarchiving, and dashboard filter pills (`ADMIN-01`) — v1.9 (Phase 31)
 - ✓ Permanent trip deletion with clean cascading database cleanup (`ADMIN-02`) — v1.9 (Phase 31)
 - ✓ Co-Organizer role promotion/demotion, roster role badges, and admin permission gates (`ADMIN-03`) — v1.9 (Phase 32)
+- ✓ Locked option to expense conversion ("💸 Log as Expense") with pre-filled title, amount, currency, and payer — v2.0 (Phase 33)
+- ✓ Flexible expense cost partitioning (equal split, custom dollar amount/percentage, or participant exclusion) — v2.0 (Phase 34)
+- ✓ Budget breakdown & traveler cost distribution analytics report with variance tracking & category progress bars — v2.0 (Phase 35)
 
 ### Deferred to Future Milestones
 
@@ -84,6 +82,7 @@ Shipped **v1.9 Webapp Trip Archiving & Co-Organizer Administration** on 2026-07-
 - Shipped **v1.3 Traveler Profiles & Access Control** which implemented global user session caching across views, Slack/Netflix-style traveler selection grids, debounced async username pre-checks, user-scoped filtered trips dashboard queries, auto-RSVP on web trip creation, and Telegram deep linking auto-login with instant URL parameters sanitization and roster reconciliation overlay modals.
 - Shipped **v1.4 Standalone Webapp & Hybrid Onboarding** which detached the application from requiring Telegram: including passwordless email login magic links, `/join/:tripId` invite URLs with guest onboarding, hybrid user profile merging (Telegram + web), and a real-time Postgres trigger-backed Activity Feed drawer on the web app.
 - Shipped **v1.5 Trip Settings, User Profiles & Pitching Audit** which added editable trip settings with date conflict reconciliation warnings & dynamic FX matrix recalculation, audited database RLS policies to fix option pitching/voting, and built a dedicated `/profile` page with avatar customization and Telegram account link/unlink management.
+- Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** which integrated locked-in itinerary options into the expense ledger ("💸 Log as Expense"), built flexible cost partitioning supporting equal, custom dollar amount, and percentage participant splits, and created a visual Budget & Cost Analytics report.
 
 ## Constraints
 
@@ -119,10 +118,13 @@ Shipped **v1.9 Webapp Trip Archiving & Co-Organizer Administration** on 2026-07-
 | Date reconciliation modal & warning badges | Surfaces out-of-bounds options after trip date updates | ✓ Good (Phase 22 setup successful) |
 | Dynamic FX settlement matrix recalculation | Preserves expense amounts while recalculating settlements in base currency | ✓ Good (Phase 22 setup successful) |
 | Dedicated `/profile` view & avatar color picker | Personalizes traveler identity & simplifies Telegram account linking/unlinking | ✓ Good (Phase 23 setup successful) |
+| `[Locked Option]` description tag convention | Pre-fills expense details while avoiding duplicate database schema fields | ✓ Good (Phase 33 setup successful) |
+| Flexible `split_users` JSONB schema | Stores both string ID arrays and custom `{ user_id, amount, percent }` objects | ✓ Good (Phase 34 setup successful) |
+| Unified budget analytics calculation engine | Computes estimated budget, actual spend, variance, and individual shares | ✓ Good (Phase 35 setup successful) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-21 for v1.6 milestone setup*
+*Last updated: 2026-07-24 after v2.0 milestone*

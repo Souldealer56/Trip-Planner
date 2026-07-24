@@ -1,5 +1,15 @@
 # Milestones
 
+## v2.0 Locked Option Expense Sync & Advanced Cost Partitioning (Shipped: 2026-07-24)
+
+**Phases completed:** 3 phases, 3 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v1.9 Webapp Trip Archiving & Co-Organizer Administration (Shipped: 2026-07-24)
 
 **Phases completed:** 2 phases, 2 plans, 0 tasks
