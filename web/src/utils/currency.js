@@ -148,3 +148,99 @@ export function calculateExpenseParticipantShares(expenseAmount, splitUsers, fal
 
   return shares
 }
+
+/**
+ * Calculates budget analytics including total estimated locked option costs,
+ * actual spend by category, and per-traveler balance/share breakdown.
+ * @param {Array} expenses List of expense records.
+ * @param {Array} options List of locked options.
+ * @param {Array} roster List of committed roster members.
+ * @param {Object} rates Currency rates map relative to USD.
+ * @param {string} baseCurrency Base currency code.
+ * @returns {Object} Analytics summary.
+ */
+export function calculateTripBudgetAnalytics(expenses = [], options = [], roster = [], rates = null, baseCurrency = 'USD') {
+  // 1. Calculate Estimated Budget from locked options
+  let totalEstimatedBudget = 0
+  const categoryEstimates = {}
+
+  options.forEach(opt => {
+    if (opt.estimated_cost && typeof opt.estimated_cost === 'number' && opt.estimated_cost > 0) {
+      const optCurrency = opt.currency || baseCurrency
+      const convertedCost = rates ? convertCurrency(opt.estimated_cost, optCurrency, baseCurrency, rates) : opt.estimated_cost
+      totalEstimatedBudget += convertedCost
+
+      const cat = (opt.category || 'Other').trim()
+      categoryEstimates[cat] = (categoryEstimates[cat] || 0) + convertedCost
+    }
+  })
+
+  // 2. Calculate Actual Logged Spend by Category & Per Traveler
+  let totalActualSpend = 0
+  const categoryActuals = {}
+  const committedIds = roster.map(m => String(m.user_id))
+
+  const travelerStats = {}
+  roster.forEach(m => {
+    travelerStats[String(m.user_id)] = {
+      userId: String(m.user_id),
+      name: m.users?.first_name || m.username || 'Member',
+      paid: 0,
+      owed: 0,
+      netBalance: 0,
+      sharePercent: 0
+    }
+  })
+
+  if (rates && expenses.length > 0) {
+    expenses.forEach(exp => {
+      const amount = parseFloat(exp.amount || 0)
+      const converted = convertCurrency(amount, exp.currency || 'USD', baseCurrency, rates)
+      totalActualSpend += converted
+
+      // Categorize description if prefixed or default to Other
+      let cat = 'Other'
+      const descLower = (exp.description || '').toLowerCase()
+      if (descLower.includes('hotel') || descLower.includes('stay') || descLower.includes('airbnb') || descLower.includes('lodging')) cat = 'Accommodation'
+      else if (descLower.includes('flight') || descLower.includes('airline') || descLower.includes('airfare')) cat = 'Flights'
+      else if (descLower.includes('dinner') || descLower.includes('food') || descLower.includes('lunch') || descLower.includes('meal')) cat = 'Food'
+      else if (descLower.includes('car') || descLower.includes('uber') || descLower.includes('taxi') || descLower.includes('train')) cat = 'Transport'
+      else if (descLower.includes('tour') || descLower.includes('ticket') || descLower.includes('activity')) cat = 'Activities'
+
+      categoryActuals[cat] = (categoryActuals[cat] || 0) + converted
+
+      // Update Payer Paid Amount
+      const payerKey = String(exp.paid_by)
+      if (travelerStats[payerKey]) {
+        travelerStats[payerKey].paid += converted
+      }
+
+      // Update Owed Shares
+      const userShares = calculateExpenseParticipantShares(converted, exp.split_users, committedIds)
+      userShares.forEach((owedShare, uId) => {
+        if (travelerStats[uId]) {
+          travelerStats[uId].owed += owedShare
+        }
+      })
+    })
+  }
+
+  // 3. Compute Net Balances & Percent Shares
+  Object.values(travelerStats).forEach(t => {
+    t.netBalance = t.paid - t.owed
+    t.sharePercent = totalActualSpend > 0 ? (t.owed / totalActualSpend) * 100 : 0
+  })
+
+  const variance = totalEstimatedBudget > 0 ? totalActualSpend - totalEstimatedBudget : 0
+  const variancePercent = totalEstimatedBudget > 0 ? (variance / totalEstimatedBudget) * 100 : 0
+
+  return {
+    totalEstimatedBudget,
+    totalActualSpend,
+    variance,
+    variancePercent,
+    categoryEstimates,
+    categoryActuals,
+    travelerStats: Object.values(travelerStats)
+  }
+}

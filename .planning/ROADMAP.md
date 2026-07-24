@@ -19,9 +19,9 @@
 <details open>
 <summary>🚧 v2.0 Locked Option Expense Sync & Advanced Cost Partitioning (Phases 33-35) — IN PROGRESS</summary>
 
-- [ ] Phase 33: Locked Option Expense Integration & Direct Ledger Logging (0/1 plan)
-- [ ] Phase 34: Flexible Cost Repartitioning & Custom Participant Splits (0/1 plan)
-- [ ] Phase 35: Budget Breakdown & Traveler Cost Distribution Analytics (0/1 plan)
+- [x] Phase 33: Locked Option Expense Integration & Direct Ledger Logging (1/1 plan) — completed 2026-07-24
+- [x] Phase 34: Flexible Cost Repartitioning & Custom Participant Splits (1/1 plan) — completed 2026-07-24
+- [x] Phase 35: Budget Breakdown & Traveler Cost Distribution Analytics (1/1 plan) — completed 2026-07-24
 
 </details>
 
@@ -29,9 +29,9 @@
 
 | Phase | Milestone | Plans | Status | Completed |
 |-------|-----------|-------|--------|-----------|
-| 33. Locked Option Expense Integration & Direct Ledger Logging | v2.0 | 0/1 | Pending | — |
-| 34. Flexible Cost Repartitioning & Custom Participant Splits | v2.0 | 0/1 | Pending | — |
-| 35. Budget Breakdown & Traveler Cost Distribution Analytics | v2.0 | 0/1 | Pending | — |
+| 33. Locked Option Expense Integration & Direct Ledger Logging | v2.0 | 1/1 | Complete | 2026-07-24 |
+| 34. Flexible Cost Repartitioning & Custom Participant Splits | v2.0 | 1/1 | Complete | 2026-07-24 |
+| 35. Budget Breakdown & Traveler Cost Distribution Analytics | v2.0 | 1/1 | Complete | 2026-07-24 |
 
 ## Phase Details
 
