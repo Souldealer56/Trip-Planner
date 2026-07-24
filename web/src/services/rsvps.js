@@ -85,3 +85,96 @@ export async function updateRsvpStatus(tripId, userId, status) {
   }
   return data
 }
+
+/**
+ * Helper to determine if a user has admin/organizer permissions for a trip.
+ * @param {Object|number|string} user The active user object or user ID.
+ * @param {Object} trip The trip object.
+ * @param {Object} [rsvp] Optional RSVP record for the user on this trip.
+ * @returns {boolean} True if user is the primary organizer or a co-organizer.
+ */
+export function isUserTripAdmin(user, trip, rsvp) {
+  if (!user || !trip) return false
+  const userId = typeof user === 'object' ? user.id : user
+
+  // 1. Primary organizer check
+  if (trip.organizer_id && String(trip.organizer_id) === String(userId)) {
+    return true
+  }
+
+  // 2. Co-organizer check from RSVP
+  if (rsvp) {
+    if (rsvp.is_admin === true) return true
+    if (rsvp.notes && typeof rsvp.notes === 'string' && (rsvp.notes.includes('[CO_ORGANIZER]') || rsvp.notes.includes('[ADMIN]'))) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Promotes a participant to Co-Organizer admin status.
+ * @param {string} tripId The UUID of the trip.
+ * @param {string|number} userId The ID of the participant.
+ * @returns {Promise<Object>} Updated RSVP record.
+ */
+export async function promoteToCoOrganizer(tripId, userId) {
+  const { data: rsvp } = await supabase
+    .from('rsvps')
+    .select('*')
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .single()
+
+  const currentNotes = rsvp?.notes || ''
+  const newNotes = currentNotes.includes('[CO_ORGANIZER]') ? currentNotes : `[CO_ORGANIZER] ${currentNotes}`.trim()
+
+  try {
+    const { data, error } = await supabase
+      .from('rsvps')
+      .update({ notes: newNotes, is_admin: true })
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+    if (!error) return data
+  } catch (e) {
+    // Fallback if is_admin column absent
+  }
+
+  return updateRsvpNote(tripId, userId, newNotes)
+}
+
+/**
+ * Demotes a Co-Organizer back to regular participant status.
+ * @param {string} tripId The UUID of the trip.
+ * @param {string|number} userId The ID of the participant.
+ * @returns {Promise<Object>} Updated RSVP record.
+ */
+export async function demoteCoOrganizer(tripId, userId) {
+  const { data: rsvp } = await supabase
+    .from('rsvps')
+    .select('*')
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .single()
+
+  const currentNotes = rsvp?.notes || ''
+  const newNotes = currentNotes.replace(/\[(CO_ORGANIZER|ADMIN)\]\s*/g, '').trim() || null
+
+  try {
+    const { data, error } = await supabase
+      .from('rsvps')
+      .update({ notes: newNotes, is_admin: false })
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+    if (!error) return data
+  } catch (e) {
+    // Fallback if is_admin column absent
+  }
+
+  return updateRsvpNote(tripId, userId, newNotes)
+}

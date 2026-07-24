@@ -4,7 +4,7 @@ import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
 import { formatDateRange, formatRelativeTime, formatDateTimeRange } from '../utils/format'
-import { updateRsvpNote, updateRsvpStatus, createRsvp } from '../services/rsvps'
+import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
 import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
 import { fetchExpenses, logExpense } from '../services/expenses'
@@ -196,6 +196,31 @@ function TripDetails() {
       setDeleteError(err.message || 'Failed to delete trip. Please try again.')
     } finally {
       setDeleteLoading(false)
+    }
+  }
+
+  const activeUserRsvp = roster.find(m => m.user_id === activeUser?.id)
+  const isAdmin = isUserTripAdmin(activeUser, trip, activeUserRsvp)
+
+  const handlePromoteMember = async (userId) => {
+    if (!isAdmin) return
+    try {
+      await promoteToCoOrganizer(id, userId)
+      refreshRoster()
+    } catch (err) {
+      console.error('Failed to promote user:', err)
+      alert('Failed to promote participant to Co-Organizer.')
+    }
+  }
+
+  const handleDemoteMember = async (userId) => {
+    if (!isAdmin) return
+    try {
+      await demoteCoOrganizer(id, userId)
+      refreshRoster()
+    } catch (err) {
+      console.error('Failed to demote user:', err)
+      alert('Failed to demote Co-Organizer.')
     }
   }
 
@@ -1511,6 +1536,16 @@ function TripDetails() {
                             </span>
                           )}
                           {isCurrentUser && <span style={{ fontSize: '0.8rem', background: 'var(--primary)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>You</span>}
+                          {trip?.organizer_id && String(trip.organizer_id) === String(member.user_id) && (
+                            <span style={{ fontSize: '0.75rem', background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                              👑 Organizer
+                            </span>
+                          )}
+                          {String(trip?.organizer_id) !== String(member.user_id) && (member.is_admin === true || (member.notes && member.notes.includes('[CO_ORGANIZER]'))) && (
+                            <span style={{ fontSize: '0.75rem', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                              ⭐ Co-Organizer
+                            </span>
+                          )}
                         </div>
                         {user.username && (
                           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -1546,9 +1581,32 @@ function TripDetails() {
                           )
                         )}
                       </div>
-                      <span className={`badge ${isCommitted ? 'badge-committed' : 'badge-interested'}`}>
-                        {member.status || 'Interested'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {isAdmin && String(trip?.organizer_id) !== String(member.user_id) && !isCurrentUser && (
+                          (member.is_admin === true || (member.notes && member.notes.includes('[CO_ORGANIZER]'))) ? (
+                            <button
+                              onClick={() => handleDemoteMember(member.user_id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '2px 8px', fontSize: '0.75rem', color: '#f87171', borderColor: 'rgba(248, 113, 113, 0.3)' }}
+                              title="Remove Co-Organizer permissions"
+                            >
+                              Demote
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handlePromoteMember(member.user_id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '2px 8px', fontSize: '0.75rem', color: '#c084fc', borderColor: 'rgba(192, 132, 252, 0.3)' }}
+                              title="Grant Co-Organizer permissions"
+                            >
+                              + Co-Organizer
+                            </button>
+                          )
+                        )}
+                        <span className={`badge ${isCommitted ? 'badge-committed' : 'badge-interested'}`}>
+                          {member.status || 'Interested'}
+                        </span>
+                      </div>
                     </div>
                   )
                 })}
