@@ -530,6 +530,203 @@ describe('Auth Service — Schema-Resilient Magic Links & Passwordless Login', (
       const user = await verifyLoginToken(base64Token)
       expect(user).toEqual(existingUser)
     })
+
+    it('links an existing user record if email is null but username matches', async () => {
+      const email = 'alex@example.com'
+      const token = 'link-token-123'
+      const existingUnlinkedUser = {
+        id: 'u-unlinked-1',
+        email: null,
+        first_name: 'Alex',
+        username: 'alex'
+      }
+      const linkedUser = {
+        ...existingUnlinkedUser,
+        email
+      }
+
+      let updatePayload = null
+      let tokenMarkedUsed = false
+
+      supabase.from.mockImplementation((table) => {
+        if (table === 'login_tokens') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'tok-link',
+                    email,
+                    token,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                    used: false
+                  },
+                  error: null
+                })
+              })
+            }),
+            update: vi.fn((upd) => {
+              if (upd.used) tokenMarkedUsed = true
+              return { eq: vi.fn().mockResolvedValue({ error: null }) }
+            })
+          }
+        }
+        if (table === 'users') {
+          return {
+            select: vi.fn().mockReturnValue({
+              ilike: vi.fn((col, val) => {
+                if (col === 'email') {
+                  // No user found with email
+                  return { maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }
+                }
+                if (col === 'username') {
+                  // User found matching username without email
+                  return { maybeSingle: vi.fn().mockResolvedValue({ data: existingUnlinkedUser, error: null }) }
+                }
+                return { maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }
+              })
+            }),
+            update: vi.fn((upd) => {
+              updatePayload = upd
+              return {
+                eq: vi.fn().mockReturnValue({
+                  select: vi.fn().mockReturnValue({
+                    single: vi.fn().mockResolvedValue({ data: linkedUser, error: null })
+                  })
+                })
+              }
+            })
+          }
+        }
+        return {}
+      })
+
+      const user = await verifyLoginToken(token)
+
+      expect(user).toEqual(linkedUser)
+      expect(updatePayload).toEqual({ email })
+      expect(tokenMarkedUsed).toBe(true)
+    })
+
+    it('generates a suffixed username if the base username is already taken by another email', async () => {
+      const email = 'alex.traveler@example.com'
+      const token = 'suffix-token-456'
+      const existingOtherUser = {
+        id: 'u-other',
+        email: 'other@example.com',
+        first_name: 'Alex',
+        username: 'alextraveler'
+      }
+
+      let insertedPayload = null
+
+      supabase.from.mockImplementation((table) => {
+        if (table === 'login_tokens') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'tok-suffix',
+                    email,
+                    token,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                    used: false
+                  },
+                  error: null
+                })
+              })
+            }),
+            update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })
+          }
+        }
+        if (table === 'users') {
+          return {
+            select: vi.fn().mockReturnValue({
+              ilike: vi.fn((col) => {
+                if (col === 'email') {
+                  return { maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }
+                }
+                if (col === 'username') {
+                  return { maybeSingle: vi.fn().mockResolvedValue({ data: existingOtherUser, error: null }) }
+                }
+                return { maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }
+              })
+            }),
+            insert: vi.fn((payload) => {
+              insertedPayload = payload
+              return {
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 'u-new', ...payload },
+                    error: null
+                  })
+                })
+              }
+            })
+          }
+        }
+        return {}
+      })
+
+      const user = await verifyLoginToken(token)
+
+      expect(user.email).toBe(email)
+      // Check that username starts with alextraveler followed by 4 digits
+      expect(insertedPayload.username).toMatch(/^alextraveler\d{4}$/)
+    })
+
+    it('does NOT mark token as used if user profile creation fails with an error', async () => {
+      const email = 'fail@example.com'
+      const token = 'fail-token-789'
+      let updateTokenCalled = false
+
+      supabase.from.mockImplementation((table) => {
+        if (table === 'login_tokens') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'tok-fail',
+                    email,
+                    token,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                    used: false
+                  },
+                  error: null
+                })
+              })
+            }),
+            update: vi.fn(() => {
+              updateTokenCalled = true
+              return { eq: vi.fn().mockResolvedValue({ error: null }) }
+            })
+          }
+        }
+        if (table === 'users') {
+          return {
+            select: vi.fn().mockReturnValue({
+              ilike: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+              })
+            }),
+            insert: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: { message: 'Database connection timeout' }
+                })
+              })
+            })
+          }
+        }
+        return {}
+      })
+
+      await expect(verifyLoginToken(token)).rejects.toThrow('Failed to create traveler profile: Database connection timeout')
+      expect(updateTokenCalled).toBe(false)
+    })
   })
 
   describe('loginOrRegisterByEmail', () => {

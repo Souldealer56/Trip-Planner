@@ -168,8 +168,125 @@ export async function requestLoginLink(email, redirectPath = null) {
 }
 
 /**
+ * Resolves an existing traveler profile by email or creates a new one.
+ * Reconciles username collisions and links unassociated profiles.
+ * 
+ * @param {string} cleanEmail - The normalized lowercase email address
+ * @param {string|null} [overrideFirstName=null] - Optional first name override
+ * @returns {Promise<Object>} The resolved or created traveler profile
+ */
+export async function resolveOrCreateUserProfile(cleanEmail, overrideFirstName = null) {
+  // Step 2: Case-Insensitive Email Lookup
+  const { data: existingUser, error: userError } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('email', cleanEmail)
+    .maybeSingle();
+
+  if (userError) {
+    console.error('Error fetching user profile:', userError);
+    throw new Error('Verification failed while loading user profile.');
+  }
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  // Step 3: Existing Username Reconciliation
+  const emailPrefix = cleanEmail.split('@')[0];
+  const firstName = overrideFirstName?.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+  const baseUsername = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '') || 'traveler';
+  let username = baseUsername;
+
+  const { data: existingByUsername, error: usernameFetchError } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('username', baseUsername)
+    .maybeSingle();
+
+  if (!usernameFetchError && existingByUsername) {
+    if (!existingByUsername.email) {
+      // Link unassociated profile to this email
+      const { data: linkedUser, error: linkError } = await supabase
+        .from('users')
+        .update({ email: cleanEmail })
+        .eq('id', existingByUsername.id)
+        .select()
+        .single();
+
+      if (!linkError && linkedUser) {
+        return linkedUser;
+      }
+    } else {
+      // Username is already taken by another email; append random 4-digit suffix to prevent unique constraint error
+      username = `${baseUsername}${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+  }
+
+  // Step 4: Resilient Profile Insert
+  let { data: newUser, error: createError } = await supabase
+    .from('users')
+    .insert({ email: cleanEmail, first_name: firstName, username })
+    .select()
+    .single();
+
+  // Legacy schema fallback: only if PostgreSQL returns a NOT NULL error mentioning telegram_id
+  if (createError && (createError.message?.includes('telegram_id') || createError.details?.includes('telegram_id'))) {
+    const fallbackTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
+    const fallbackRes = await supabase
+      .from('users')
+      .insert({
+        email: cleanEmail,
+        first_name: firstName,
+        username,
+        telegram_id: fallbackTelegramId
+      })
+      .select()
+      .single();
+    newUser = fallbackRes.data;
+    createError = fallbackRes.error;
+  }
+
+  // Unique constraint collision retry with unique timestamp suffix
+  if (createError) {
+    const uniqueUsername = `${baseUsername}_${Date.now().toString().slice(-4)}`;
+    const retryRes = await supabase
+      .from('users')
+      .insert({ email: cleanEmail, first_name: firstName, username: uniqueUsername })
+      .select()
+      .single();
+
+    if (retryRes.error && (retryRes.error.message?.includes('telegram_id') || retryRes.error.details?.includes('telegram_id'))) {
+      const fallbackTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
+      const retryLegacy = await supabase
+        .from('users')
+        .insert({
+          email: cleanEmail,
+          first_name: firstName,
+          username: uniqueUsername,
+          telegram_id: fallbackTelegramId
+        })
+        .select()
+        .single();
+      newUser = retryLegacy.data;
+      createError = retryLegacy.error;
+    } else {
+      newUser = retryRes.data;
+      createError = retryRes.error;
+    }
+  }
+
+  if (createError || !newUser) {
+    console.error('Failed to create new user profile:', createError);
+    throw new Error(`Failed to create traveler profile: ${createError?.message || 'Database insert failed'}`);
+  }
+
+  return newUser;
+}
+
+/**
  * Verify a magic link token, mark it as used, and resolve/create the traveler profile in public.users.
- * Works cleanly without requiring telegram_id on clean web schemas.
+ * Only marks the login token as used AFTER the user profile is successfully resolved/created.
  * 
  * @param {string} token - The magic link token UUID or encoded string
  * @returns {Promise<Object>} The authenticated user profile
@@ -181,7 +298,7 @@ export async function verifyLoginToken(token) {
 
   let tokenRecord = null;
 
-  // 1. Fetch token record from supabase.from('login_tokens')
+  // Step 1: Fetch token record from supabase.from('login_tokens')
   try {
     const { data, error: fetchError } = await supabase
       .from('login_tokens')
@@ -208,7 +325,7 @@ export async function verifyLoginToken(token) {
     console.warn('Exception querying login_tokens table; falling back to local storage token:', err);
   }
 
-  // 2. Fallback to localStorage or base64url-encoded token if DB did not return record
+  // Fallback to localStorage or base64url-encoded token if DB did not return record
   if (!tokenRecord) {
     const pendingTokens = getPendingTokens();
     if (pendingTokens[token]) {
@@ -234,7 +351,13 @@ export async function verifyLoginToken(token) {
     throw new Error('This magic link has expired. Please request a new one.');
   }
 
-  // 3. Mark token as used to prevent replay attacks
+  // Step 1: Normalize email
+  const cleanEmail = tokenRecord.email.trim().toLowerCase();
+
+  // Steps 2-4: Resolve or create user profile
+  const user = await resolveOrCreateUserProfile(cleanEmail);
+
+  // Step 5: Mark token as used LAST (only after user profile is successfully resolved)
   if (tokenRecord.id) {
     try {
       await supabase
@@ -247,61 +370,7 @@ export async function verifyLoginToken(token) {
   }
   updatePendingToken(token, { used: true });
 
-  // 4. Look up user in public.users by email case-insensitively
-  const cleanEmail = tokenRecord.email.trim().toLowerCase();
-  const { data: existingUser, error: userError } = await supabase
-    .from('users')
-    .select('*')
-    .ilike('email', cleanEmail)
-    .maybeSingle();
-
-  if (userError) {
-    console.error('Error fetching user profile:', userError);
-    throw new Error('Verification failed while loading user profile.');
-  }
-
-  if (existingUser) {
-    return existingUser;
-  }
-
-  // 5. If no user exists yet, create traveler profile in public.users
-  const emailPrefix = cleanEmail.split('@')[0];
-  const firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
-  const username = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const payload = {
-    email: cleanEmail,
-    first_name: firstName,
-    username: username || null
-  };
-
-  let { data: newUser, error: createError } = await supabase
-    .from('users')
-    .insert(payload)
-    .select()
-    .single();
-
-  // Legacy fallback: only if PostgreSQL returns a NOT NULL error mentioning telegram_id
-  if (createError && (createError.message?.includes('telegram_id') || createError.details?.includes('telegram_id'))) {
-    const fallbackTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
-    const fallbackRes = await supabase
-      .from('users')
-      .insert({
-        ...payload,
-        telegram_id: fallbackTelegramId
-      })
-      .select()
-      .single();
-    newUser = fallbackRes.data;
-    createError = fallbackRes.error;
-  }
-
-  if (createError) {
-    console.error('Failed to create new user profile:', createError);
-    throw new Error('Failed to create traveler profile. Please try again.');
-  }
-
-  return newUser;
+  return user;
 }
 
 /**
@@ -318,59 +387,5 @@ export async function loginOrRegisterByEmail(email, firstName = null) {
   }
 
   const cleanEmail = email.trim().toLowerCase();
-
-  // 1. Resolve user profile by email
-  const { data: existingUser, error: userError } = await supabase
-    .from('users')
-    .select('*')
-    .ilike('email', cleanEmail)
-    .maybeSingle();
-
-  if (userError) {
-    console.error('Error fetching user profile:', userError);
-    throw new Error('Verification failed while loading user profile.');
-  }
-
-  if (existingUser) {
-    return existingUser;
-  }
-
-  // 2. Standalone Onboarding: Create traveler profile
-  const emailPrefix = cleanEmail.split('@')[0];
-  const resolvedFirstName = firstName?.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
-  const username = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const payload = {
-    email: cleanEmail,
-    first_name: resolvedFirstName,
-    username: username || null
-  };
-
-  let { data: newUser, error: createError } = await supabase
-    .from('users')
-    .insert(payload)
-    .select()
-    .single();
-
-  // Legacy fallback if telegram_id NOT NULL constraint is still present
-  if (createError && (createError.message?.includes('telegram_id') || createError.details?.includes('telegram_id'))) {
-    const fallbackTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
-    const fallbackRes = await supabase
-      .from('users')
-      .insert({
-        ...payload,
-        telegram_id: fallbackTelegramId
-      })
-      .select()
-      .single();
-    newUser = fallbackRes.data;
-    createError = fallbackRes.error;
-  }
-
-  if (createError) {
-    console.error('Failed to create new user profile:', createError);
-    throw new Error('Failed to create traveler profile. Please try again.');
-  }
-
-  return newUser;
+  return await resolveOrCreateUserProfile(cleanEmail, firstName);
 }
