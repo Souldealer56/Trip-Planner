@@ -1985,8 +1985,8 @@
     "semantic_hash": ""
   },
   "GEMINI.md": {
-    "mtime": 1792038438.3555195,
-    "ast_hash": "c0e718014d9aa347a98695f7fa09023e",
+    "mtime": 1792090646.7868364,
+    "ast_hash": "0ec69f87479f7d72a293fe11a13e0d4f",
     "semantic_hash": ""
   },
   ".agents/gsd-core/references/edge-probe.md": {
@@ -2005,8 +2005,8 @@
     "semantic_hash": ""
   },
   "supabase/migrations/20260726000000_supabase_native_auth_and_realtime.sql": {
-    "mtime": 1792037810.2640986,
-    "ast_hash": "17ab46a96501008c1a3ab58c2ad7a120",
+    "mtime": 1792090700.2478366,
+    "ast_hash": "844d1345d5c87c41d5768102598ff320",
     "semantic_hash": ""
   },
   "web/.oxlintrc.json": {
@@ -2025,8 +2025,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/components.smoke.test.jsx": {
-    "mtime": 1792038370.942571,
-    "ast_hash": "a4b6a3d2781296d1e55bb18fe384f179",
+    "mtime": 1792099376.9912548,
+    "ast_hash": "c16419ada2d2cef9bd496543bc443615",
     "semantic_hash": ""
   },
   "web/src/__tests__/currency.test.js": {
@@ -2070,8 +2070,8 @@
     "semantic_hash": ""
   },
   "web/src/components/modals/AddExpenseModal.jsx": {
-    "mtime": 1792025395.3504934,
-    "ast_hash": "31561fa356fca16cd7da786a55e651f4",
+    "mtime": 1792099872.7025592,
+    "ast_hash": "14f1b2dc92e944a6ae7a58973c9ee382",
     "semantic_hash": ""
   },
   "web/src/components/modals/EditTripModal.jsx": {
@@ -2100,13 +2100,13 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/LedgerAndSettleTab.jsx": {
-    "mtime": 1792025518.3350174,
-    "ast_hash": "daf34b14306263ee1091da58ea4966e5",
+    "mtime": 1792100465.2279255,
+    "ast_hash": "29f286f60f9a6b0d197483074eb740b0",
     "semantic_hash": ""
   },
   "web/src/components/trip/OptionsTab.jsx": {
-    "mtime": 1792025494.433249,
-    "ast_hash": "a06a980ddadc3b9c9edc4e9cb565f6b6",
+    "mtime": 1792100375.2804651,
+    "ast_hash": "6506eb4c8d75d9301c585484554d07a8",
     "semantic_hash": ""
   },
   "web/src/components/trip/RosterSection.jsx": {
@@ -2115,8 +2115,8 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/TripHeader.jsx": {
-    "mtime": 1792038095.7001822,
-    "ast_hash": "a1d3f44b16258e45609a6b4d5ffe7681",
+    "mtime": 1792099167.5166478,
+    "ast_hash": "4a58730ed747de43db416b00a55cd9b6",
     "semantic_hash": ""
   },
   "web/src/hooks/useAddParticipant.js": {
@@ -2145,8 +2145,8 @@
     "semantic_hash": ""
   },
   "web/src/hooks/useUserSession.jsx": {
-    "mtime": 1792020533.4626584,
-    "ast_hash": "cddc849b6a6bcb3b71006c41783db11f",
+    "mtime": 1792090793.2999868,
+    "ast_hash": "23876a401e3b2a34776c3bd365bd28af",
     "semantic_hash": ""
   },
   "web/src/main.jsx": {
@@ -2160,18 +2160,18 @@
     "semantic_hash": ""
   },
   "web/src/services/auth.js": {
-    "mtime": 1792020502.6777465,
-    "ast_hash": "5687ec1e1f8231328fa3adb125b8885b",
+    "mtime": 1792091349.7491875,
+    "ast_hash": "f1b09bc0ef5f238acda38a97a32017a4",
     "semantic_hash": ""
   },
   "web/src/services/expenses.js": {
-    "mtime": 1792020476.8521438,
-    "ast_hash": "2786319e8961b5b89d40cd6966eac7c2",
+    "mtime": 1792099849.4175456,
+    "ast_hash": "9b875ca4701757471f4a65bf1a36f417",
     "semantic_hash": ""
   },
   "web/src/services/options.js": {
-    "mtime": 1792025597.0316968,
-    "ast_hash": "1c19fcebee921975d10d5afd7f87c0ba",
+    "mtime": 1792099833.539421,
+    "ast_hash": "d6fff74cf73111d8ecf4c6453d777189",
     "semantic_hash": ""
   },
   "web/src/services/rsvps.js": {
@@ -2190,13 +2190,13 @@
     "semantic_hash": ""
   },
   "web/src/services/users.js": {
-    "mtime": 1792020487.2174716,
-    "ast_hash": "1d219d0b336e51cf193c1add097664be",
+    "mtime": 1792039995.8251166,
+    "ast_hash": "4940cdf96bcfb224d28bbb1b6d4fbd53",
     "semantic_hash": ""
   },
   "web/src/utils/currency.js": {
-    "mtime": 1792021150.2321699,
-    "ast_hash": "b9f938c2bde780ebfc8805e9af93f38d",
+    "mtime": 1792099897.0877352,
+    "ast_hash": "64400f1091aa23e9b9a948783bd98241",
     "semantic_hash": ""
   },
   "web/src/utils/format.js": {
@@ -2220,8 +2220,8 @@
     "semantic_hash": ""
   },
   "web/src/views/JoinTrip.jsx": {
-    "mtime": 1784330434.5719204,
-    "ast_hash": "578bee4ca1ecd481748456c5cea62609",
+    "mtime": 1792090845.9637632,
+    "ast_hash": "ea4cb0763daa64776698ff4c4c8ed75a",
     "semantic_hash": ""
   },
   "web/src/views/Profile.jsx": {
@@ -2230,18 +2230,18 @@
     "semantic_hash": ""
   },
   "web/src/views/TripDetails.jsx": {
-    "mtime": 1792038136.1741383,
-    "ast_hash": "12aa52777498c63b008d4ab192df7c3f",
+    "mtime": 1792100324.5352767,
+    "ast_hash": "98e2d54b01d4118fc8be65cfd625f8c8",
     "semantic_hash": ""
   },
   "web/src/views/TripsList.jsx": {
-    "mtime": 1784904644.0057087,
-    "ast_hash": "bdb354d133281cc718a8aa3b575b4b13",
+    "mtime": 1792090834.9359772,
+    "ast_hash": "0883e5c1d751a642373acdb8d4b7ef36",
     "semantic_hash": ""
   },
   "web/src/views/VerifyLogin.jsx": {
-    "mtime": 1784330440.1905136,
-    "ast_hash": "a2cbb1cdde6105097b8abc753e3116d7",
+    "mtime": 1792090814.3479927,
+    "ast_hash": "4bc0f6009be6c8a35c2cdbfaf8c6d0ba",
     "semantic_hash": ""
   },
   "web/vite.config.js": {
@@ -2255,8 +2255,8 @@
     "semantic_hash": ""
   },
   ".agents/GEMINI.md": {
-    "mtime": 1792038453.4990098,
-    "ast_hash": "c0e718014d9aa347a98695f7fa09023e",
+    "mtime": 1792090677.687946,
+    "ast_hash": "0ec69f87479f7d72a293fe11a13e0d4f",
     "semantic_hash": ""
   },
   ".agents/rules/github.md": {
@@ -2307,6 +2307,11 @@
   "web/src/assets/vite.svg": {
     "mtime": 1783860814.6827443,
     "ast_hash": "9960a24288958394ac50e57ff638b036",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/auth.test.js": {
+    "mtime": 1792091388.3625498,
+    "ast_hash": "1b2154491af4d7a182c8890ae3353c0c",
     "semantic_hash": ""
   }
 }
