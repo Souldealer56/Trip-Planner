@@ -103,23 +103,33 @@ function generateToken() {
 
 /**
  * Request a passwordless login link.
- * Generates a high-entropy token, stores it locally for schema-resilient verification,
- * and attempts database storage. If public.login_tokens is missing from the database,
- * it safely falls back to local token verification.
+ * Inserts the token record into public.login_tokens, which automatically fires
+ * the PostgreSQL send_magic_link_trigger() via pg_net to Resend API.
  * 
  * @param {string} email - The user's email address
+ * @param {string|null} [redirectPath=null] - Optional path to navigate to after verification
  * @returns {Promise<string>} The generated token
  */
-export async function requestLoginLink(email) {
+export async function requestLoginLink(email, redirectPath = null) {
   if (!email || !email.includes('@')) {
     throw new Error('Please enter a valid email address.');
   }
 
   const cleanEmail = email.trim().toLowerCase();
+
+  // If redirectPath is provided, save it to localStorage for post-auth routing
+  if (redirectPath) {
+    try {
+      localStorage.setItem('trip_planner_post_auth_redirect', redirectPath);
+    } catch (e) {
+      console.warn('Failed to save post-auth redirect to localStorage:', e);
+    }
+  }
+
   const token = generateToken();
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // Valid for 15 minutes
 
-  // Always store locally so verification works 100% reliably regardless of DB schema state
+  // Store locally for test suites and resilient verification
   savePendingToken(token, {
     email: cleanEmail,
     token,
@@ -158,8 +168,8 @@ export async function requestLoginLink(email) {
 }
 
 /**
- * Verify a magic link token, mark it as used, and resolve/create the traveler profile.
- * Supports both database login_tokens and local pending token fallback.
+ * Verify a magic link token, mark it as used, and resolve/create the traveler profile in public.users.
+ * Works cleanly without requiring telegram_id on clean web schemas.
  * 
  * @param {string} token - The magic link token UUID or encoded string
  * @returns {Promise<Object>} The authenticated user profile
@@ -171,7 +181,7 @@ export async function verifyLoginToken(token) {
 
   let tokenRecord = null;
 
-  // 1. Attempt to fetch from Supabase login_tokens
+  // 1. Fetch token record from supabase.from('login_tokens')
   try {
     const { data, error: fetchError } = await supabase
       .from('login_tokens')
@@ -198,7 +208,7 @@ export async function verifyLoginToken(token) {
     console.warn('Exception querying login_tokens table; falling back to local storage token:', err);
   }
 
-  // 2. Fallback to localStorage or base64url-encoded token
+  // 2. Fallback to localStorage or base64url-encoded token if DB did not return record
   if (!tokenRecord) {
     const pendingTokens = getPendingTokens();
     if (pendingTokens[token]) {
@@ -215,6 +225,7 @@ export async function verifyLoginToken(token) {
     throw new Error('Invalid magic link. The link may be broken.');
   }
 
+  // Verify the record is not used and not expired
   if (tokenRecord.used) {
     throw new Error('This magic link has already been used. Please request a new one.');
   }
@@ -223,7 +234,7 @@ export async function verifyLoginToken(token) {
     throw new Error('This magic link has expired. Please request a new one.');
   }
 
-  // 3. Mark token as used immediately to prevent replay attacks
+  // 3. Mark token as used to prevent replay attacks
   if (tokenRecord.id) {
     try {
       await supabase
@@ -236,8 +247,61 @@ export async function verifyLoginToken(token) {
   }
   updatePendingToken(token, { used: true });
 
-  // 4. Resolve or onboard user profile
-  return await loginOrRegisterByEmail(tokenRecord.email);
+  // 4. Look up user in public.users by email case-insensitively
+  const cleanEmail = tokenRecord.email.trim().toLowerCase();
+  const { data: existingUser, error: userError } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('email', cleanEmail)
+    .maybeSingle();
+
+  if (userError) {
+    console.error('Error fetching user profile:', userError);
+    throw new Error('Verification failed while loading user profile.');
+  }
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  // 5. If no user exists yet, create traveler profile in public.users
+  const emailPrefix = cleanEmail.split('@')[0];
+  const firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+  const username = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const payload = {
+    email: cleanEmail,
+    first_name: firstName,
+    username: username || null
+  };
+
+  let { data: newUser, error: createError } = await supabase
+    .from('users')
+    .insert(payload)
+    .select()
+    .single();
+
+  // Legacy fallback: only if PostgreSQL returns a NOT NULL error mentioning telegram_id
+  if (createError && (createError.message?.includes('telegram_id') || createError.details?.includes('telegram_id'))) {
+    const fallbackTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
+    const fallbackRes = await supabase
+      .from('users')
+      .insert({
+        ...payload,
+        telegram_id: fallbackTelegramId
+      })
+      .select()
+      .single();
+    newUser = fallbackRes.data;
+    createError = fallbackRes.error;
+  }
+
+  if (createError) {
+    console.error('Failed to create new user profile:', createError);
+    throw new Error('Failed to create traveler profile. Please try again.');
+  }
+
+  return newUser;
 }
 
 /**

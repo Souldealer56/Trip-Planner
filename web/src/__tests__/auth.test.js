@@ -98,12 +98,100 @@ describe('Auth Service — Schema-Resilient Magic Links & Passwordless Login', (
       const pendingTokens = JSON.parse(localStorage.getItem('trip_planner_pending_tokens'))
       expect(pendingTokens[token].email).toBe('happy@example.com')
     })
+
+    it('saves redirectPath to trip_planner_post_auth_redirect when provided', async () => {
+      const email = 'invitation@example.com'
+      const redirectPath = '/join/trip-123'
+
+      supabase.from.mockReturnValue({
+        insert: vi.fn().mockResolvedValue({ error: null })
+      })
+
+      await requestLoginLink(email, redirectPath)
+      expect(localStorage.getItem('trip_planner_post_auth_redirect')).toBe(redirectPath)
+    })
   })
 
   describe('verifyLoginToken', () => {
     it('throws if no token is provided', async () => {
       await expect(verifyLoginToken('')).rejects.toThrow('No token provided.')
       await expect(verifyLoginToken(null)).rejects.toThrow('No token provided.')
+    })
+
+    it('verifies valid token from login_tokens database table, marks it used, and creates new user without telegram_id', async () => {
+      const email = 'db.user@example.com'
+      const token = 'db-token-uuid-111'
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+
+      const tokenRecord = {
+        id: 'tok-id-1',
+        email,
+        token,
+        expires_at: expiresAt,
+        used: false
+      }
+
+      const createdUser = {
+        id: 'u-db-created',
+        email,
+        first_name: 'Db',
+        username: 'dbuser'
+      }
+
+      let updateCalled = false
+      let insertedPayload = null
+
+      supabase.from.mockImplementation((table) => {
+        if (table === 'login_tokens') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: tokenRecord,
+                  error: null
+                })
+              })
+            }),
+            update: vi.fn((updates) => {
+              if (updates.used === true) updateCalled = true
+              return {
+                eq: vi.fn().mockResolvedValue({ error: null })
+              }
+            })
+          }
+        }
+        if (table === 'users') {
+          return {
+            select: vi.fn().mockReturnValue({
+              ilike: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: null
+                })
+              })
+            }),
+            insert: vi.fn((payload) => {
+              insertedPayload = payload
+              return {
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: createdUser,
+                    error: null
+                  })
+                })
+              }
+            })
+          }
+        }
+        return {}
+      })
+
+      const user = await verifyLoginToken(token)
+
+      expect(user).toEqual(createdUser)
+      expect(updateCalled).toBe(true)
+      expect(insertedPayload.telegram_id).toBeUndefined()
+      expect(insertedPayload.email).toBe(email)
     })
 
     it('authenticates existing user using local fallback token when public.login_tokens is missing (PGRST205)', async () => {
@@ -317,6 +405,50 @@ describe('Auth Service — Schema-Resilient Magic Links & Passwordless Login', (
       expect(insertCalls).toBe(2)
       expect(user.email).toBe(email)
       expect(user.telegram_id).toBeLessThan(0)
+    })
+
+    it('rejects a database token that is marked as used', async () => {
+      const token = 'used-db-token'
+      supabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                id: 'tok-used-1',
+                email: 'used.db@example.com',
+                token,
+                expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                used: true
+              },
+              error: null
+            })
+          })
+        })
+      })
+
+      await expect(verifyLoginToken(token)).rejects.toThrow('This magic link has already been used.')
+    })
+
+    it('rejects a database token that is expired', async () => {
+      const token = 'expired-db-token'
+      supabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                id: 'tok-exp-1',
+                email: 'expired.db@example.com',
+                token,
+                expires_at: new Date(Date.now() - 60 * 1000).toISOString(),
+                used: false
+              },
+              error: null
+            })
+          })
+        })
+      })
+
+      await expect(verifyLoginToken(token)).rejects.toThrow('This magic link has expired.')
     })
 
     it('rejects a token that is marked as used', async () => {

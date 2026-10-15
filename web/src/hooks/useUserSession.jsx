@@ -14,16 +14,19 @@ export function UserSessionProvider({ children }) {
     }
   })
 
-  const login = (user) => {
+  const loginUser = (user) => {
     if (!user) return
     localStorage.setItem('trip_planner_active_user', JSON.stringify(user))
     setActiveUser(user)
   }
 
-  const logout = () => {
+  const logoutUser = () => {
     localStorage.removeItem('trip_planner_active_user')
     setActiveUser(null)
   }
+
+  const login = loginUser
+  const logout = logoutUser
 
   const updateActiveUser = (updatedFields) => {
     setActiveUser(prev => {
@@ -43,7 +46,7 @@ export function UserSessionProvider({ children }) {
         try {
           const user = await fetchUserByUsername(usernameParam)
           if (user) {
-            login(user)
+            loginUser(user)
           }
         } catch (err) {
           console.error('Failed auto-login via URL username:', err)
@@ -60,7 +63,7 @@ export function UserSessionProvider({ children }) {
   }, [])
 
   return (
-    <UserSessionContext.Provider value={{ activeUser, login, loginUser: login, logout, updateActiveUser }}>
+    <UserSessionContext.Provider value={{ activeUser, loginUser, login, logoutUser, logout, updateActiveUser }}>
       {children}
     </UserSessionContext.Provider>
   )

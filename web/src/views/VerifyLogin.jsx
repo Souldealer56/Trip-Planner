@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyLoginToken } from '../services/auth';
 import { useUserSession } from '../hooks/useUserSession';
 import { createRsvp } from '../services/rsvps';
@@ -7,23 +7,22 @@ import { createRsvp } from '../services/rsvps';
 function VerifyLogin() {
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
-  const { login, loginUser } = useUserSession();
+  const { loginUser, login } = useUserSession();
   const setUserSession = loginUser || login;
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const verifierCalled = useRef(false);
 
   useEffect(() => {
     // Prevent double verification in React StrictMode
     if (verifierCalled.current) return;
     
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
+    const token = searchParams.get('token');
 
     // Immediately sanitize the URL query parameter to protect security/privacy
     if (token) {
       verifierCalled.current = true;
-      const cleanParams = new URLSearchParams(location.search);
+      const cleanParams = new URLSearchParams(window.location.search);
       cleanParams.delete('token');
       const searchStr = cleanParams.toString();
       const newPath = window.location.pathname + (searchStr ? `?${searchStr}` : '') + window.location.hash;
@@ -35,7 +34,13 @@ function VerifyLogin() {
           setStatus('success');
           setUserSession(user);
           
-          // Check for pending invite redirect
+          // Check for post-auth redirect (e.g. /join/:tripId or /trips)
+          const postAuthRedirect = localStorage.getItem('trip_planner_post_auth_redirect');
+          if (postAuthRedirect) {
+            localStorage.removeItem('trip_planner_post_auth_redirect');
+          }
+
+          // Check for pending invite auto-RSVP
           const pendingTripId = localStorage.getItem('trip_planner_pending_invite_trip_id');
           if (pendingTripId) {
             try {
@@ -44,15 +49,13 @@ function VerifyLogin() {
               console.log('User already had an RSVP or failed creating one:', rsvpErr);
             }
             localStorage.removeItem('trip_planner_pending_invite_trip_id');
-            setTimeout(() => {
-              navigate(`/trips/${pendingTripId}`);
-            }, 1500);
-          } else {
-            // Redirect to dashboard after a short delay so the user sees the success state
-            setTimeout(() => {
-              navigate('/trips');
-            }, 1500);
           }
+
+          const targetDestination = postAuthRedirect || (pendingTripId ? `/trips/${pendingTripId}` : '/trips');
+
+          setTimeout(() => {
+            navigate(targetDestination);
+          }, 1200);
         } catch (err) {
           console.error('Verification error:', err);
           setStatus('error');
@@ -65,7 +68,7 @@ function VerifyLogin() {
       setStatus('error');
       setErrorMessage('No verification token was found in the link.');
     }
-  }, [location, login, navigate]);
+  }, [searchParams, setUserSession, navigate]);
 
   return (
     <div style={{

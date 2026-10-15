@@ -38,7 +38,7 @@ web/
 │   │   ├── expenses.js   # Expense ledger, custom splits, settlements
 │   │   ├── users.js      # User profiles, avatar management
 │   │   ├── activity.js   # Activity feed and system notifications
-│   │   └── auth.js       # Native Supabase Auth session & OTP magic links
+│   │   ├── auth.js       # Passwordless magic links via custom login_tokens & Resend
 │   ├── styles/           # CSS design system (variables.css, global.css)
 │   ├── utils/            # Pure domain logic:
 │   │   ├── currency.js   # Currency conversions & rate caching
@@ -67,9 +67,10 @@ supabase/migrations/      # Versioned SQL migrations and RLS policies
    - Never use or reference Telegram IDs (`tg_user_id`, `tg_chat_id`), bot polling, Telegram Bot APIs, or Python scripts.
    - The application is 100% web-first and interacts directly with Supabase via `@supabase/supabase-js`.
 
-2. **Native Supabase Auth & PostgreSQL Row Level Security (RLS):**
-   - Authentication is handled exclusively through Supabase Auth (`supabase.auth`) with standard UUID-based user IDs (`auth.uid()`).
-   - All tables enforce strict RLS policies referencing `auth.uid() = user_id` or membership in `rsvps`.
+2. **Custom Passwordless Auth (`login_tokens` + Resend Trigger) & PostgreSQL Row Level Security (RLS):**
+   - Authentication uses the custom `public.login_tokens` table (`requestLoginLink` -> `INSERT INTO public.login_tokens` -> PostgreSQL `send_magic_link_trigger()` via `pg_net` to Resend API -> `/verify?token=...` -> `verifyLoginToken` -> `useUserSession` cached in `localStorage`).
+   - **Never drop `public.login_tokens` or `public.send_magic_link_trigger()` in migrations.**
+   - All tables enforce strict RLS policies referencing user ID or membership in `rsvps`.
    - Never bypass RLS; all client operations execute under the public `anon` role (`VITE_SUPABASE_ANON_KEY`).
 
 3. **Real-Time Synchronization (`useTripRealtime`):**

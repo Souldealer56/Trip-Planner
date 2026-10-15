@@ -114,10 +114,10 @@ function JoinTrip() {
     setSubmitting(true)
     setActionMessage('Requesting magic link...')
     try {
-      // Generate magic link login token and queue email
-      const token = await requestLoginLink(email.trim())
+      // Generate magic link login token and queue email with post-auth redirect back to this invite
+      const token = await requestLoginLink(email.trim(), `/join/${tripId}`)
       
-      // Cache target trip ID so /verify knows where to redirect
+      // Cache target trip ID so /verify knows where to redirect and auto-RSVP
       localStorage.setItem('trip_planner_pending_invite_trip_id', tripId)
       
       setEmailSent(true)

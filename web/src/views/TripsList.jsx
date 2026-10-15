@@ -53,7 +53,7 @@ function SplashLogin() {
     setDebugToken('');
 
     try {
-      const token = await requestLoginLink(emailInput);
+      const token = await requestLoginLink(emailInput, '/trips');
       setLoginSuccess(true);
       setDebugToken(token);
     } catch (err) {
@@ -136,7 +136,7 @@ function SplashLogin() {
               ✓
             </div>
             <div>
-              <h3 style={{ color: 'var(--text-main)', fontSize: '1.2rem', marginBottom: '0.5rem', fontWeight: '600' }}>Check your email</h3>
+              <h3 style={{ color: 'var(--text-main)', fontSize: '1.2rem', marginBottom: '0.5rem', fontWeight: '600' }}>Check your email for your magic login link!</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5' }}>
                 We've sent a magic login link to <strong>{emailInput}</strong>. Click it to log in instantly.
               </p>
