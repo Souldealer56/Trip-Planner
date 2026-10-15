@@ -32,17 +32,16 @@ export function AddExpenseModal({
       setValidationError('')
       if (optionToPreFill) {
         const optionTitle = optionToPreFill.option_text || optionToPreFill.text || 'Locked Option'
-        setExpenseDesc(`[Locked Option] ${optionTitle}`.trim())
+        const optCat = optionToPreFill.category
+          ? optionToPreFill.category.charAt(0).toUpperCase() + optionToPreFill.category.slice(1).toLowerCase()
+          : 'Other'
+        const validCat = CATEGORIES.includes(optCat) ? optCat : 'Other'
+        setExpenseCategory(validCat)
+        setExpenseDesc(`[${validCat.toUpperCase()}] ${optionTitle}`.trim())
         const optCost = optionToPreFill.estimated_cost ? String(optionToPreFill.estimated_cost) : ''
         setExpenseAmount(optCost)
         setExpenseCurrency(optionToPreFill.currency || baseCurrency || 'USD')
         setExpensePaidBy(optionToPreFill.added_by || activeUserId || (committedRoster[0]?.user_id || ''))
-        
-        // Match option category if present
-        const optCat = optionToPreFill.category
-          ? optionToPreFill.category.charAt(0).toUpperCase() + optionToPreFill.category.slice(1).toLowerCase()
-          : 'Other'
-        setExpenseCategory(CATEGORIES.includes(optCat) ? optCat : 'Other')
       } else {
         setExpenseDesc('')
         setExpenseAmount('')

@@ -372,4 +372,101 @@ export async function lockOption(tripId, category, optionId, userId) {
   }
 }
 
+/**
+ * Deletes a pitched option from the database and logs activity.
+ * @param {string|number} optionId The option ID to delete.
+ * @param {string} [tripId] Optional trip UUID for activity logging.
+ * @param {string} [userId] Optional active user ID for activity logging.
+ * @returns {Promise<boolean>} Resolves true on deletion.
+ */
+export async function deleteOption(optionId, tripId = null, userId = null) {
+  const { error } = await supabase
+    .from('poll_options')
+    .delete()
+    .eq('id', optionId)
+
+  if (error) {
+    throw error
+  }
+
+  if (tripId) {
+    try {
+      let userName = 'Someone'
+      if (userId) {
+        const { data: userRec } = await supabase
+          .from('users')
+          .select('first_name')
+          .eq('id', userId)
+          .maybeSingle()
+        if (userRec?.first_name) {
+          userName = userRec.first_name
+        }
+      }
+
+      await supabase.from('activity_log').insert({
+        trip_id: tripId,
+        user_id: userId || null,
+        action_type: 'delete_option',
+        description: `${userName} deleted a pitched option`
+      })
+    } catch (logErr) {
+      console.warn('Failed to log delete option activity:', logErr)
+    }
+  }
+
+  return true
+}
+
+/**
+ * Updates start and end dates for a pitched option.
+ * @param {string|number} optionId The option ID.
+ * @param {string|null} startDate ISO datetime string or YYYY-MM-DD.
+ * @param {string|null} endDate ISO datetime string or YYYY-MM-DD.
+ * @param {string} [tripId] Optional trip UUID for activity logging.
+ * @param {string} [userId] Optional active user ID.
+ * @returns {Promise<Object>} Updated option record.
+ */
+export async function updateOptionDates(optionId, startDate, endDate, tripId = null, userId = null) {
+  const { data, error } = await supabase
+    .from('poll_options')
+    .update({
+      start_date: startDate || null,
+      end_date: endDate || null
+    })
+    .eq('id', optionId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  if (tripId) {
+    try {
+      let userName = 'Someone'
+      if (userId) {
+        const { data: userRec } = await supabase
+          .from('users')
+          .select('first_name')
+          .eq('id', userId)
+          .maybeSingle()
+        if (userRec?.first_name) {
+          userName = userRec.first_name
+        }
+      }
+
+      await supabase.from('activity_log').insert({
+        trip_id: tripId,
+        user_id: userId || null,
+        action_type: 'update_option_dates',
+        description: `${userName} updated dates for an option`
+      })
+    } catch (logErr) {
+      console.warn('Failed to log update dates activity:', logErr)
+    }
+  }
+
+  return data
+}
+
 

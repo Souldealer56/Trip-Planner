@@ -1,6 +1,17 @@
 import React from 'react'
 import { BudgetAnalyticsTab } from './BudgetAnalyticsTab'
 
+function getResolvedCategory(exp) {
+  if (exp.category && exp.category.toLowerCase() !== 'other') {
+    return exp.category.charAt(0).toUpperCase() + exp.category.slice(1).toLowerCase()
+  }
+  const match = (exp.description || '').match(/^\[(accommodation|flights|activities|food|transport|other)\]/i)
+  if (match) {
+    return match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase()
+  }
+  return 'Other'
+}
+
 export function LedgerAndSettleTab({
   ledgerTab = 'ledger',
   onLedgerTabChange,
@@ -150,9 +161,7 @@ export function LedgerAndSettleTab({
                       splitsText = splitNames.length > 0 ? splitNames.join(', ') : 'Custom'
                     }
 
-                    const catLabel = exp.category
-                      ? exp.category.charAt(0).toUpperCase() + exp.category.slice(1)
-                      : 'Other'
+                    const catLabel = getResolvedCategory(exp)
 
                     return (
                       <tr key={exp.id}>
@@ -213,9 +222,7 @@ export function LedgerAndSettleTab({
                   splitsText = splitNames.length > 0 ? splitNames.join(', ') : 'Custom'
                 }
 
-                const catLabel = exp.category
-                  ? exp.category.charAt(0).toUpperCase() + exp.category.slice(1)
-                  : 'Other'
+                const catLabel = getResolvedCategory(exp)
 
                 return (
                   <div key={exp.id} className="ledger-card">

@@ -124,9 +124,9 @@ export function parseOptionCost(option, baseCurrency = 'USD') {
  */
 export async function convertOptionToExpense(tripId, option, paidByUserId, splitUserIds, baseCurrency = 'USD', exchangeRate = null) {
   const optionTitle = option.option_text || option.text || 'Locked Option'
-  const description = optionTitle.trim()
+  const category = (option.category || 'other').toLowerCase()
+  const description = `[${category.toUpperCase()}] ${optionTitle}`.trim()
   const { amount, currency } = parseOptionCost(option, baseCurrency)
-  const category = option.category || 'other'
   const optionId = option.id || null
 
   return logExpense(

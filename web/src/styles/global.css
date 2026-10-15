@@ -958,3 +958,326 @@ input:checked + .toggle-slider:before {
     box-shadow: 0 0 6px rgba(56, 122, 255, 0.5);
   }
 }
+
+/* ==========================================================================
+   Pitched Options Redesign & Intelligent Grouping
+   ========================================================================== */
+
+/* Quick Filter & Sort Toolbar */
+.options-filter-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius-md);
+}
+
+.filter-pills-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.filter-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+}
+
+.filter-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(56, 122, 255, 0.3);
+}
+
+.sort-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.sort-select {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--bg-surface-elevated, #161c2d);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
+  cursor: pointer;
+  min-width: 180px;
+}
+
+/* Sections and Grouping */
+.options-workspace-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.option-section-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.option-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.option-section-title.text-emerald {
+  color: #10b981;
+  border-bottom-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Pinned Locked Section */
+.locked-section {
+  padding: 1.25rem;
+  background: rgba(16, 185, 129, 0.03);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
+}
+
+/* Date Window Group Header */
+.date-window-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.date-window-header {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.date-window-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+}
+
+/* Outside Dates Collapsible */
+.outside-dates-section {
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--border-radius-md);
+  background: rgba(245, 158, 11, 0.03);
+  padding: 1rem;
+}
+
+.outside-dates-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Option Card Enhancements */
+.option-card.locked-card {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+}
+
+.option-cost-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.option-total-cost {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cost-main {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary-light);
+}
+
+.cost-converted {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.option-per-person {
+  font-size: 0.8rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* Visual Vote Progress Section */
+.option-voting-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.option-vote-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vote-count-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.vote-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.vote-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Voter Avatars */
+.voter-avatars-row {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.voter-avatar-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border: 1.5px solid var(--bg-surface, #161c2d);
+  margin-left: -5px;
+  user-select: none;
+}
+
+.voter-avatar-chip:first-child {
+  margin-left: 0;
+}
+
+.voter-more-chip {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* Buttons and Badges */
+.btn-vote {
+  background: rgba(56, 122, 255, 0.15);
+  border: 1px solid rgba(56, 122, 255, 0.3);
+  color: var(--primary-light);
+  font-weight: 600;
+}
+
+.btn-vote:hover {
+  background: rgba(56, 122, 255, 0.25);
+  border-color: var(--primary-light);
+}
+
+.btn-voted {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
+  font-weight: 600;
+}
+
+.badge-logged-expense {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.log-expense-btn {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.1);
+  font-weight: 600;
+}
+
+.log-expense-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+}
+
+.btn-danger-soft {
+  color: hsl(0, 85%, 65%);
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.btn-danger-soft:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: hsl(0, 85%, 65%);
+}

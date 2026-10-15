@@ -299,7 +299,7 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
 
       totalActualSpend += converted
 
-      // Resolve category: first-class category column, then bilingual keyword fallback
+      // Resolve category: first-class category column, then description prefix, then bilingual keyword fallback
       let cat = 'Other'
       const rawCat = (exp.category || '').trim().toLowerCase()
       if (rawCat && rawCat !== 'other') {
@@ -310,13 +310,22 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
         else if (rawCat === 'activities') cat = 'Activities'
         else cat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1)
       } else {
-        // Bilingual (English + French) keyword matching on description
         const descLower = (exp.description || '').toLowerCase()
-        if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge/i.test(descLower)) cat = 'Accommodation'
-        else if (/flight|vol|avion|airline|airfare|billet d'avion/i.test(descLower)) cat = 'Flights'
-        else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast|petit[ -]d[eé]jeuner/i.test(descLower)) cat = 'Food'
-        else if (/transport|car|voiture|uber|taxi|train|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) cat = 'Transport'
-        else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) cat = 'Activities'
+        const bracketMatch = descLower.match(/^\[(accommodation|flights|activities|food|transport|other)\]/i)
+        if (bracketMatch) {
+          const matched = bracketMatch[1].toLowerCase()
+          cat = matched.charAt(0).toUpperCase() + matched.slice(1)
+        } else if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan/i.test(descLower)) {
+          cat = 'Accommodation'
+        } else if (/flight|vol|avion|airline|airfare|billet d'avion/i.test(descLower)) {
+          cat = 'Flights'
+        } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast|petit[ -]d[eé]jeuner/i.test(descLower)) {
+          cat = 'Food'
+        } else if (/transport|car|voiture|uber|taxi|train|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) {
+          cat = 'Transport'
+        } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) {
+          cat = 'Activities'
+        }
       }
 
       categoryActuals[cat] = (categoryActuals[cat] || 0) + converted

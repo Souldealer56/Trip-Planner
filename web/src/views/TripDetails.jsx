@@ -6,7 +6,7 @@ import { useAddParticipant } from '../hooks/useAddParticipant'
 import { useUserSession } from '../hooks/useUserSession'
 import { useTripRealtime } from '../hooks/useTripRealtime'
 import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer } from '../services/rsvps'
-import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption } from '../services/options'
+import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption, deleteOption, updateOptionDates } from '../services/options'
 import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements, calculateExpenseParticipantShares } from '../utils/currency'
@@ -336,6 +336,30 @@ function TripDetails() {
     }
   }
 
+  const handleDeleteOption = async (optionId) => {
+    try {
+      await deleteOption(optionId, id, activeUser?.id)
+      await loadOptionsAndPoll()
+      await loadGanttData()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to delete option:', err)
+      alert('Failed to delete option: ' + (err.message || err))
+    }
+  }
+
+  const handleUpdateOptionDates = async (optionId, startDate, endDate) => {
+    try {
+      await updateOptionDates(optionId, startDate, endDate, id, activeUser?.id)
+      await loadOptionsAndPoll()
+      await loadGanttData()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to update option dates:', err)
+      alert('Failed to update option dates: ' + (err.message || err))
+    }
+  }
+
   const handlePitchSubmit = async ({ category, name, cost, currency, link, description, startDate, endDate }) => {
     setPitchLoading(true)
     setPitchError('')
@@ -660,8 +684,11 @@ function TripDetails() {
               roster={roster}
               activeUser={activeUser}
               expenses={expenses}
+              rates={rates}
               onVoteToggle={handleVoteToggle}
               onLockToggle={handleLockToggle}
+              onDeleteOption={handleDeleteOption}
+              onUpdateOptionDates={handleUpdateOptionDates}
               onOpenPitchModal={(cat, start = '', end = '') => {
                 setPitchInitialCategory(cat || activeTab)
                 setPitchInitialDates({ start, end })
