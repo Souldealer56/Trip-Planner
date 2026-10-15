@@ -7,7 +7,8 @@ import { createRsvp } from '../services/rsvps';
 function VerifyLogin() {
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
-  const { login } = useUserSession();
+  const { login, loginUser } = useUserSession();
+  const setUserSession = loginUser || login;
   const navigate = useNavigate();
   const location = useLocation();
   const verifierCalled = useRef(false);
@@ -32,7 +33,7 @@ function VerifyLogin() {
         try {
           const user = await verifyLoginToken(token);
           setStatus('success');
-          login(user);
+          setUserSession(user);
           
           // Check for pending invite redirect
           const pendingTripId = localStorage.getItem('trip_planner_pending_invite_trip_id');

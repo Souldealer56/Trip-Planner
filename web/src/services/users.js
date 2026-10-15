@@ -9,10 +9,11 @@ import { supabase } from './supabase'
  * @returns {Promise<Object>} A promise resolving to the created user record.
  */
 export async function createUser(username, firstName, email = null) {
+  const cleanEmail = email ? email.trim().toLowerCase() : null
   const payload = {
-    first_name: firstName,
     username: username || null,
-    email: email || null
+    first_name: firstName,
+    ...(cleanEmail ? { email: cleanEmail } : {})
   }
 
   const { data, error } = await supabase
@@ -27,7 +28,7 @@ export async function createUser(username, firstName, email = null) {
 
   // Graceful fallback if legacy unmigrated schema enforces telegram_id NOT NULL
   if (error && (error.message?.includes('telegram_id') || error.details?.includes('telegram_id'))) {
-    const fallbackTelegramId = -1000000 - Math.floor(Math.random() * 1000000)
+    const fallbackTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000))
     const fallback = await supabase
       .from('users')
       .insert({

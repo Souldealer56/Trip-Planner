@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import { createUser } from '../services/users'
 import { createRsvp } from '../services/rsvps'
-import { requestLoginLink } from '../services/auth'
+import { requestLoginLink, loginOrRegisterByEmail } from '../services/auth'
 import { useUserSession } from '../hooks/useUserSession'
 
 function JoinTrip() {
   const { tripId } = useParams()
   const navigate = useNavigate()
-  const { activeUser, login } = useUserSession()
+  const { activeUser, login, loginUser } = useUserSession()
+  const setUserSession = loginUser || login
 
   const [trip, setTrip] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -22,7 +23,7 @@ function JoinTrip() {
   // Secure path inputs
   const [email, setEmail] = useState('')
   const [emailSent, setEmailSent] = useState(false)
-  const [sentToken, setSentToken] = useState('') // For DEV mode testing
+  const [sentToken, setSentToken] = useState('') // Verification token fallback
 
   const [submitting, setSubmitting] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
@@ -120,11 +121,36 @@ function JoinTrip() {
       localStorage.setItem('trip_planner_pending_invite_trip_id', tripId)
       
       setEmailSent(true)
-      setSentToken(token) // Cache for dev helper display
+      setSentToken(token) // Cache for verification helper display
     } catch (err) {
       console.error('Email request failed:', err)
       alert(err.message || 'Failed to request email login.')
     } finally {
+      setSubmitting(false)
+      setActionMessage('')
+    }
+  }
+
+  const handleInstantEmailJoin = async (e) => {
+    e.preventDefault()
+    if (!email.trim() || !email.includes('@')) {
+      alert('Please enter a valid email address.')
+      return
+    }
+
+    setSubmitting(true)
+    setActionMessage('Signing in...')
+    try {
+      const user = await loginOrRegisterByEmail(email.trim())
+      setUserSession(user)
+      setActionMessage('Joining the trip roster...')
+      await createRsvp(tripId, user.id, 'Tentative').catch(err => {
+        console.log('User already had an RSVP record or failed creating one:', err)
+      })
+      navigate(`/trips/${tripId}`)
+    } catch (err) {
+      console.error('Instant email join failed:', err)
+      alert(err.message || 'Failed to sign in with email.')
       setSubmitting(false)
       setActionMessage('')
     }
@@ -221,17 +247,17 @@ function JoinTrip() {
               Click the link inside the email to complete your registration and join this trip!
             </p>
 
-            {/* Dev Mode Helper Banner (D-01/D-02 from Context) */}
-            {import.meta.env.DEV && (
+            {/* Direct Verification Link (Fallback & Instant Join) */}
+            {sentToken && (
               <div style={styles.devBanner}>
-                <h4 style={styles.devTitle}>🛠️ Local Dev Helper (Resend Mock)</h4>
-                <p style={styles.devDesc}>Click the button below to simulate verifying the email token:</p>
+                <h4 style={styles.devTitle}>⚡ Direct Verification Link</h4>
+                <p style={styles.devDesc}>Click the button below to verify your email and join this trip immediately:</p>
                 <a
                   href={`/verify?token=${sentToken}`}
                   style={styles.devLink}
                   className="join-btn"
                 >
-                  Simulate Email Link Click
+                  🚀 Complete Verification & Join
                 </a>
               </div>
             )}
@@ -321,14 +347,25 @@ function JoinTrip() {
                     />
                   </div>
                   
-                  <button
-                    type="submit"
-                    className="join-btn"
-                    disabled={submitting}
-                    style={{ ...styles.primaryButton, backgroundColor: '#4f46e5' }}
-                  >
-                    {submitting && actionMessage ? actionMessage : 'Send Magic Link'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleInstantEmailJoin}
+                      className="join-btn"
+                      disabled={submitting}
+                      style={{ ...styles.primaryButton, backgroundColor: '#0284c7' }}
+                    >
+                      {submitting && actionMessage ? actionMessage : '⚡ Instant Join via Email'}
+                    </button>
+                    <button
+                      type="submit"
+                      className="join-btn"
+                      disabled={submitting}
+                      style={{ ...styles.secondaryButton, marginTop: '0', textAlign: 'center' }}
+                    >
+                      Send Magic Link
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>

@@ -6,7 +6,7 @@ import { formatDateRange } from '../utils/format'
 import { createTrip } from '../services/trips'
 import { createRsvp } from '../services/rsvps'
 import { fetchAllUsers, checkUsernameAvailable, createUser } from '../services/users'
-import { requestLoginLink } from '../services/auth'
+import { requestLoginLink, loginOrRegisterByEmail } from '../services/auth'
 
 // Helper to extract initials from name
 const getInitials = (name) => {
@@ -35,6 +35,8 @@ const getAvatarColor = (id) => {
 }
 
 function SplashLogin() {
+  const { login, loginUser } = useUserSession();
+  const setUserSession = loginUser || login;
   const [emailInput, setEmailInput] = React.useState('');
   const [loginLoading, setLoginLoading] = React.useState(false);
   const [loginSuccess, setLoginSuccess] = React.useState(false);
@@ -57,6 +59,27 @@ function SplashLogin() {
     } catch (err) {
       console.error(err);
       setLoginError(err.message || 'Failed to send login link. Please try again.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleInstantLogin = async (e) => {
+    e.preventDefault();
+    if (!emailInput.trim() || !emailInput.includes('@')) {
+      setLoginError('Please enter a valid email address.');
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      const user = await loginOrRegisterByEmail(emailInput);
+      setUserSession(user);
+    } catch (err) {
+      console.error('Instant login failed:', err);
+      setLoginError(err.message || 'Failed to sign in. Please try again.');
     } finally {
       setLoginLoading(false);
     }
@@ -194,21 +217,39 @@ function SplashLogin() {
               />
             </div>
 
-            <button
-              type="submit"
-              className="btn"
-              disabled={loginLoading}
-              style={{
-                height: '42px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '600',
-                fontSize: '0.95rem'
-              }}
-            >
-              {loginLoading ? 'Sending link...' : 'Send Magic Link'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={handleInstantLogin}
+                className="btn"
+                disabled={loginLoading}
+                style={{
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '600',
+                  fontSize: '0.95rem'
+                }}
+              >
+                {loginLoading ? 'Signing in...' : '🚀 Instant Sign In'}
+              </button>
+              <button
+                type="submit"
+                className="btn btn-secondary"
+                disabled={loginLoading}
+                style={{
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '600',
+                  fontSize: '0.95rem'
+                }}
+              >
+                {loginLoading ? 'Sending link...' : 'Send Magic Link'}
+              </button>
+            </div>
           </form>
         )}
       </div>

@@ -60,7 +60,7 @@ export function UserSessionProvider({ children }) {
   }, [])
 
   return (
-    <UserSessionContext.Provider value={{ activeUser, login, logout, updateActiveUser }}>
+    <UserSessionContext.Provider value={{ activeUser, login, loginUser: login, logout, updateActiveUser }}>
       {children}
     </UserSessionContext.Provider>
   )
