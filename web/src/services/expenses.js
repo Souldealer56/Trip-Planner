@@ -98,8 +98,8 @@ export async function logExpense(
  */
 export function parseOptionCost(option, baseCurrency = 'USD') {
   if (!option) return { amount: 0, currency: baseCurrency }
-  if (option.estimated_cost && typeof option.estimated_cost === 'number' && option.estimated_cost > 0) {
-    return { amount: option.estimated_cost, currency: option.currency || baseCurrency }
+  if (option.estimated_cost && !isNaN(Number(option.estimated_cost)) && Number(option.estimated_cost) > 0) {
+    return { amount: Number(option.estimated_cost), currency: option.currency || baseCurrency }
   }
   const text = option.option_text || option.text || ''
   const match = text.match(/([$€£¥A-Za-z]{1,3})\s*([\d,]+(?:\.\d+)?)/) || text.match(/([\d,]+(?:\.\d+)?)\s*([$€£¥A-Za-z]{1,3})?/)
@@ -124,7 +124,26 @@ export function parseOptionCost(option, baseCurrency = 'USD') {
  */
 export async function convertOptionToExpense(tripId, option, paidByUserId, splitUserIds, baseCurrency = 'USD', exchangeRate = null) {
   const optionTitle = option.option_text || option.text || 'Locked Option'
-  const category = (option.category || 'other').toLowerCase()
+  let rawCategory = (option.category || option.poll_category || '').toLowerCase().trim()
+  
+  if (!rawCategory || rawCategory === 'other') {
+    const titleLower = optionTitle.toLowerCase()
+    if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(titleLower)) {
+      rawCategory = 'accommodation'
+    } else if (/flight|vol|avion|airline|airfare|plane/i.test(titleLower)) {
+      rawCategory = 'flights'
+    } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(titleLower)) {
+      rawCategory = 'activities'
+    } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast/i.test(titleLower)) {
+      rawCategory = 'food'
+    } else if (/transport|car|voiture|uber|taxi|train|toll|gas|fuel|bus/i.test(titleLower)) {
+      rawCategory = 'transport'
+    } else {
+      rawCategory = 'accommodation'
+    }
+  }
+
+  const category = rawCategory
   const description = `[${category.toUpperCase()}] ${optionTitle}`.trim()
   const { amount, currency } = parseOptionCost(option, baseCurrency)
   const optionId = option.id || null

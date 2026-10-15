@@ -304,9 +304,24 @@ a:hover {
   box-shadow: 0 0 12px rgba(56, 122, 255, 0.3);
 }
 
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 1.25rem;
+}
+
 .option-card {
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-radius: var(--border-radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-light);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .option-card:hover {
@@ -1067,7 +1082,7 @@ input:checked + .toggle-slider:before {
 .locked-section {
   padding: 1.25rem;
   background: rgba(16, 185, 129, 0.03);
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  border: 1px solid rgba(16, 185, 129, 0.5);
   border-radius: var(--border-radius-md);
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
 }
@@ -1116,9 +1131,10 @@ input:checked + .toggle-slider:before {
   user-select: none;
 }
 
-/* Option Card Enhancements */
 .option-card.locked-card {
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.5) !important;
+  background: rgba(16, 185, 129, 0.04) !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.15);
 }
 
 .option-cost-container {
@@ -1131,7 +1147,7 @@ input:checked + .toggle-slider:before {
 .option-total-cost {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -1151,6 +1167,9 @@ input:checked + .toggle-slider:before {
   font-size: 0.8rem;
   color: #10b981;
   font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 1px 6px;
+  border-radius: 6px;
 }
 
 /* Visual Vote Progress Section */
@@ -1281,3 +1300,52 @@ input:checked + .toggle-slider:before {
   background: rgba(239, 68, 68, 0.18);
   border-color: hsl(0, 85%, 65%);
 }
+
+/* ==========================================================================
+   Gantt Timeline & Multi-Lane Sub-Tracks
+   ========================================================================== */
+
+:root {
+  --gantt-cat-width: 140px;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gantt-cat-width: 110px;
+  }
+}
+
+.gantt-scroll-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  border-radius: var(--radius-lg, 12px);
+}
+
+.gantt-category-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.5rem 0.75rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.25);
+  border-radius: 6px 0 0 6px;
+  width: var(--gantt-cat-width, 140px);
+  box-sizing: border-box;
+}
+
+.gantt-header-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 11;
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.gantt-empty-category-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  transform: translateY(-1px);
+}
+

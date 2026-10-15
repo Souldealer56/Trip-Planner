@@ -191,13 +191,14 @@ export function OptionsTab({
 
   // Cost and currency conversion calculations
   const getCostDetails = (opt) => {
-    if (!opt.estimated_cost) return null
+    if (!opt || !opt.estimated_cost || isNaN(Number(opt.estimated_cost)) || Number(opt.estimated_cost) <= 0) return null
     const rawCost = Number(opt.estimated_cost)
     const optCurr = (opt.currency || baseCurrency).toUpperCase()
-    const isDiff = optCurr !== baseCurrency.toUpperCase()
+    const tripBaseCurr = (baseCurrency || 'USD').toUpperCase()
+    const isDiff = optCurr !== tripBaseCurr
     let converted = rawCost
     if (isDiff && rates) {
-      converted = convertCurrency(rawCost, optCurr, baseCurrency, rates)
+      converted = convertCurrency(rawCost, optCurr, tripBaseCurr, rates)
     }
     const perPerson = converted / committedCount
     return {
@@ -205,14 +206,14 @@ export function OptionsTab({
       currency: optCurr,
       isDiff,
       converted,
-      baseCurrency,
+      baseCurrency: tripBaseCurr,
       perPerson
     }
   }
 
   const formatMoney = (val, curr) => {
     if (val === undefined || val === null || isNaN(val)) return `0 ${curr}`
-    return `${Math.round(val).toLocaleString()} ${curr}`
+    return `${Math.round(val).toLocaleString('en-US')} ${curr}`
   }
 
   // Voter mapping and tallies
@@ -395,7 +396,7 @@ export function OptionsTab({
           </div>
 
           {/* Badges Bar: Logged in Ledger vs Log as Expense */}
-          {isLockedChoice && (
+          {(isLockedChoice || isLogged) && (
             <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {isLogged ? (
                 <span className="badge-logged-expense">
@@ -403,7 +404,7 @@ export function OptionsTab({
                 </span>
               ) : (
                 <button
-                  onClick={() => onOpenExpenseModal(opt)}
+                  onClick={() => onOpenExpenseModal({ ...opt, category: opt.category || activeTab || 'Accommodation' })}
                   className="btn btn-secondary log-expense-btn"
                   title="Convert locked option directly into a shared expense"
                   type="button"
@@ -495,9 +496,9 @@ export function OptionsTab({
                     (≈ {formatMoney(costDetails.converted, costDetails.baseCurrency)})
                   </span>
                 )}
-              </div>
-              <div className="option-per-person">
-                ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person
+                <span className="option-per-person">
+                  ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person
+                </span>
               </div>
             </div>
           )}
@@ -724,12 +725,14 @@ export function OptionsTab({
           options={allTripOptions.length > 0 ? allTripOptions : options}
           activePolls={allActivePollsMap}
           roster={roster}
-          onPitchForSlot={(dayDate) => {
-            const dStr = dayDate.toISOString().slice(0, 10)
-            const nextDay = new Date(dayDate)
+          onOptionClick={(opt) => setDateModalOption(opt)}
+          onPitchForSlot={(dayDate, category) => {
+            const dateToUse = dayDate || (trip?.start_date ? new Date(trip.start_date) : new Date())
+            const dStr = dateToUse instanceof Date ? dateToUse.toISOString().slice(0, 10) : String(dateToUse).slice(0, 10)
+            const nextDay = new Date(dateToUse)
             nextDay.setDate(nextDay.getDate() + 1)
             const nextDStr = nextDay.toISOString().slice(0, 10)
-            onOpenPitchModal(activeTab, `${dStr}T16:00`, `${nextDStr}T11:00`)
+            onOpenPitchModal(category || activeTab, `${dStr}T16:00`, `${nextDStr}T11:00`)
           }}
         />
       ) : (
@@ -778,7 +781,7 @@ export function OptionsTab({
                 className={`filter-pill ${filterState === 'top_voted' ? 'active' : ''}`}
                 onClick={() => setFilterState('top_voted')}
               >
-                🔥 Top Voted ({topVotedList.length})
+                🔥 Top Voted
               </button>
             </div>
 

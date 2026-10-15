@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectScheduleGaps, detectScheduleConflicts } from '../utils/schedule'
+import { detectScheduleGaps, detectScheduleConflicts, packOptionsIntoSubTracks } from '../utils/schedule'
 import { parseLocalDate, formatLocalDateStr } from '../utils/format'
 
 describe('Schedule Engine Utilities', () => {
@@ -218,4 +218,71 @@ describe('Schedule Engine Utilities', () => {
       expect(res2.conflictingOptionIds.has('optB')).toBe(true)
     })
   })
+
+  describe('packOptionsIntoSubTracks multi-lane track packing', () => {
+    it('assigns 6 overlapping options in the same category to 6 distinct vertical laneIndex values (0 through 5)', () => {
+      // 6 accommodation options spanning the exact same 15-day range (e.g. Sep 4 - Sep 18)
+      const options = [
+        { id: 1, option_text: 'Hotel Alpha', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18' },
+        { id: 2, option_text: 'Villa Beta', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18' },
+        { id: 3, option_text: 'Resort Gamma', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18' },
+        { id: 4, option_text: 'Chalet Delta', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18' },
+        { id: 5, option_text: 'Apartment Epsilon', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18' },
+        { id: 6, option_text: 'Hostel Zeta', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18' }
+      ]
+
+      const lanes = packOptionsIntoSubTracks(options)
+      expect(lanes).toHaveLength(6)
+
+      const flat = lanes.flat()
+      expect(flat).toHaveLength(6)
+      const laneIndices = flat.map(o => o.laneIndex)
+      expect(laneIndices).toEqual([0, 1, 2, 3, 4, 5])
+    })
+
+    it('packs non-overlapping options sequentially into the same lane', () => {
+      const options = [
+        { id: 1, option_text: 'Hotel Alpha (Days 1-3)', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-07' },
+        { id: 2, option_text: 'Hotel Beta (Days 4-7)', category: 'accommodation', start_date: '2026-09-07', end_date: '2026-09-11' },
+        { id: 3, option_text: 'Hotel Gamma (Days 8-15)', category: 'accommodation', start_date: '2026-09-11', end_date: '2026-09-18' }
+      ]
+
+      const lanes = packOptionsIntoSubTracks(options)
+      // Since they are sequential and do not overlap, all 3 can share laneIndex 0
+      expect(lanes).toHaveLength(1)
+      expect(lanes[0]).toHaveLength(3)
+      lanes[0].forEach(opt => {
+        expect(opt.laneIndex).toBe(0)
+      })
+    })
+
+    it('prioritizes locked options in the primary top lane (laneIndex 0)', () => {
+      const options = [
+        { id: 1, option_text: 'Unlocked Proposal', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18', is_locked: false },
+        { id: 2, option_text: 'Locked Winning Choice', category: 'accommodation', start_date: '2026-09-04', end_date: '2026-09-18', is_locked: true }
+      ]
+
+      const lanes = packOptionsIntoSubTracks(options)
+      expect(lanes).toHaveLength(2)
+      // Locked option must be in lane 0
+      expect(lanes[0][0].id).toBe(2)
+      expect(lanes[0][0].laneIndex).toBe(0)
+      // Unlocked option placed in lane 1
+      expect(lanes[1][0].id).toBe(1)
+      expect(lanes[1][0].laneIndex).toBe(1)
+    })
+
+    it('filters out dateless unscheduled options from the track lanes', () => {
+      const options = [
+        { id: 1, option_text: 'Scheduled Option', start_date: '2026-09-04', end_date: '2026-09-06' },
+        { id: 2, option_text: 'Unscheduled Idea', start_date: null, end_date: null }
+      ]
+
+      const lanes = packOptionsIntoSubTracks(options)
+      expect(lanes).toHaveLength(1)
+      expect(lanes[0]).toHaveLength(1)
+      expect(lanes[0][0].id).toBe(1)
+    })
+  })
 })
+

@@ -32,10 +32,25 @@ export function AddExpenseModal({
       setValidationError('')
       if (optionToPreFill) {
         const optionTitle = optionToPreFill.option_text || optionToPreFill.text || 'Locked Option'
-        const optCat = optionToPreFill.category
-          ? optionToPreFill.category.charAt(0).toUpperCase() + optionToPreFill.category.slice(1).toLowerCase()
-          : 'Other'
-        const validCat = CATEGORIES.includes(optCat) ? optCat : 'Other'
+        let rawCat = (optionToPreFill.category || optionToPreFill.poll_category || '').toLowerCase().trim()
+        if (!rawCat || rawCat === 'other') {
+          const titleLower = optionTitle.toLowerCase()
+          if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(titleLower)) {
+            rawCat = 'accommodation'
+          } else if (/flight|vol|avion|airline|airfare|plane/i.test(titleLower)) {
+            rawCat = 'flights'
+          } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(titleLower)) {
+            rawCat = 'activities'
+          } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast/i.test(titleLower)) {
+            rawCat = 'food'
+          } else if (/transport|car|voiture|uber|taxi|train|toll|gas|fuel|bus/i.test(titleLower)) {
+            rawCat = 'transport'
+          } else {
+            rawCat = 'accommodation'
+          }
+        }
+        const optCat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase()
+        const validCat = CATEGORIES.includes(optCat) ? optCat : 'Accommodation'
         setExpenseCategory(validCat)
         setExpenseDesc(`[${validCat.toUpperCase()}] ${optionTitle}`.trim())
         const optCost = optionToPreFill.estimated_cost ? String(optionToPreFill.estimated_cost) : ''

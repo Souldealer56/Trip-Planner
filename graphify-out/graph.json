@@ -1860,7 +1860,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_auth_test",
-      "community": 381,
+      "community": 375,
       "norm_label": "auth.test.js"
     },
     {
@@ -1960,7 +1960,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_ical_test",
-      "community": 0,
+      "community": 388,
       "norm_label": "ical.test.js"
     },
     {
@@ -1982,6 +1982,16 @@
       "id": "web_src_tests_permissions_test",
       "community": 379,
       "norm_label": "permissions.test.js"
+    },
+    {
+      "label": "pitchedOptions.test.jsx",
+      "file_type": "code",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_tests_pitchedoptions_test",
+      "community": 387,
+      "norm_label": "pitchedoptions.test.jsx"
     },
     {
       "label": "realtime.test.js",
@@ -2187,7 +2197,7 @@
       "label": "LedgerAndSettleTab()",
       "file_type": "code",
       "source_file": "web/src/components/trip/LedgerAndSettleTab.jsx",
-      "source_location": "L15",
+      "source_location": "L31",
       "_origin": "ast",
       "id": "web_src_components_trip_ledgerandsettletab_ledgerandsettletab",
       "community": 377,
@@ -2450,7 +2460,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_activity",
-      "community": 381,
+      "community": 375,
       "norm_label": "activity.js"
     },
     {
@@ -2460,7 +2470,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_services_activity_fetchactivitylogs",
-      "community": 381,
+      "community": 0,
       "norm_label": "fetchactivitylogs()"
     },
     {
@@ -2470,7 +2480,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_auth",
-      "community": 381,
+      "community": 375,
       "norm_label": "auth.js"
     },
     {
@@ -2480,7 +2490,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_services_auth_getpendingtokens",
-      "community": 381,
+      "community": 375,
       "norm_label": "getpendingtokens()"
     },
     {
@@ -2490,7 +2500,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "web_src_services_auth_savependingtoken",
-      "community": 381,
+      "community": 375,
       "norm_label": "savependingtoken()"
     },
     {
@@ -2500,7 +2510,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "web_src_services_auth_updatependingtoken",
-      "community": 381,
+      "community": 375,
       "norm_label": "updatependingtoken()"
     },
     {
@@ -2510,7 +2520,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "web_src_services_auth_trydecodebase64token",
-      "community": 381,
+      "community": 375,
       "norm_label": "trydecodebase64token()"
     },
     {
@@ -2520,7 +2530,7 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "web_src_services_auth_generatetoken",
-      "community": 381,
+      "community": 375,
       "norm_label": "generatetoken()"
     },
     {
@@ -2530,7 +2540,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "web_src_services_auth_requestloginlink",
-      "community": 381,
+      "community": 375,
       "norm_label": "requestloginlink()"
     },
     {
@@ -2540,7 +2550,7 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "web_src_services_auth_resolveorcreateuserprofile",
-      "community": 381,
+      "community": 375,
       "norm_label": "resolveorcreateuserprofile()"
     },
     {
@@ -2550,7 +2560,7 @@
       "source_location": "L294",
       "_origin": "ast",
       "id": "web_src_services_auth_verifylogintoken",
-      "community": 381,
+      "community": 375,
       "norm_label": "verifylogintoken()"
     },
     {
@@ -2560,7 +2570,7 @@
       "source_location": "L384",
       "_origin": "ast",
       "id": "web_src_services_auth_loginorregisterbyemail",
-      "community": 381,
+      "community": 375,
       "norm_label": "loginorregisterbyemail()"
     },
     {
@@ -2570,7 +2580,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_expenses",
-      "community": 0,
+      "community": 387,
       "norm_label": "expenses.js"
     },
     {
@@ -2590,7 +2600,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "web_src_services_expenses_logexpense",
-      "community": 0,
+      "community": 387,
       "norm_label": "logexpense()"
     },
     {
@@ -2600,7 +2610,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "web_src_services_expenses_parseoptioncost",
-      "community": 0,
+      "community": 387,
       "norm_label": "parseoptioncost()"
     },
     {
@@ -2610,7 +2620,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "web_src_services_expenses_convertoptiontoexpense",
-      "community": 0,
+      "community": 387,
       "norm_label": "convertoptiontoexpense()"
     },
     {
@@ -2670,7 +2680,7 @@
       "source_location": "L196",
       "_origin": "ast",
       "id": "web_src_services_options_checkoptiondateconflict",
-      "community": 374,
+      "community": 0,
       "norm_label": "checkoptiondateconflict()"
     },
     {
@@ -2810,7 +2820,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_supabase",
-      "community": 381,
+      "community": 375,
       "norm_label": "supabase.js"
     },
     {
@@ -2820,7 +2830,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "web_src_services_supabase_supabase",
-      "community": 381,
+      "community": 375,
       "norm_label": "supabase"
     },
     {
@@ -2870,7 +2880,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "web_src_services_trips_updatetrip",
-      "community": 379,
+      "community": 0,
       "norm_label": "updatetrip()"
     },
     {
@@ -2890,7 +2900,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "web_src_services_trips_archivetrip",
-      "community": 379,
+      "community": 0,
       "norm_label": "archivetrip()"
     },
     {
@@ -2900,7 +2910,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "web_src_services_trips_unarchivetrip",
-      "community": 379,
+      "community": 0,
       "norm_label": "unarchivetrip()"
     },
     {
@@ -2910,7 +2920,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "web_src_services_trips_deletetrip",
-      "community": 379,
+      "community": 0,
       "norm_label": "deletetrip()"
     },
     {
@@ -3120,7 +3130,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_utils_ical",
-      "community": 0,
+      "community": 388,
       "norm_label": "ical.js"
     },
     {
@@ -3130,7 +3140,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "web_src_utils_ical_formaticaldatetime",
-      "community": 0,
+      "community": 388,
       "norm_label": "formaticaldatetime()"
     },
     {
@@ -3140,7 +3150,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "web_src_utils_ical_generateicalcontent",
-      "community": 0,
+      "community": 388,
       "norm_label": "generateicalcontent()"
     },
     {
@@ -3160,7 +3170,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "docref_rfc_5545",
-      "community": 0,
+      "community": 388,
       "norm_label": "rfc-5545"
     },
     {
@@ -3240,7 +3250,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_views_jointrip",
-      "community": 381,
+      "community": 375,
       "norm_label": "jointrip.jsx"
     },
     {
@@ -3250,7 +3260,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_views_jointrip_jointrip",
-      "community": 381,
+      "community": 375,
       "norm_label": "jointrip()"
     },
     {
@@ -3260,7 +3270,7 @@
       "source_location": "L379",
       "_origin": "ast",
       "id": "web_src_views_jointrip_styles",
-      "community": 381,
+      "community": 375,
       "norm_label": "styles"
     },
     {
@@ -3360,7 +3370,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "web_src_views_tripslist_splashlogin",
-      "community": 381,
+      "community": 375,
       "norm_label": "splashlogin()"
     },
     {
@@ -29289,6 +29299,105 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_components_trip_optionstab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_components_trip_optionstab_optionstab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_services_expenses",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_services_expenses_convertoptiontoexpense",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_services_expenses_parseoptioncost",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_services_supabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_services_supabase_supabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_utils_currency",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/pitchedOptions.test.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "web_src_tests_pitchedoptions_test",
+      "target": "web_src_utils_currency_calculatetripbudgetanalytics",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "web/src/__tests__/realtime.test.js",
       "source_location": "L2",
       "weight": 1.0,
@@ -29950,7 +30059,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/LedgerAndSettleTab.jsx",
-      "source_location": "L15",
+      "source_location": "L31",
       "weight": 1.0,
       "source": "web_src_components_trip_ledgerandsettletab",
       "target": "web_src_components_trip_ledgerandsettletab_ledgerandsettletab",
@@ -29972,7 +30081,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/LedgerAndSettleTab.jsx",
-      "source_location": "L164",
+      "source_location": "L180",
       "weight": 1.0,
       "source": "web_src_components_trip_ledgerandsettletab_ledgerandsettletab",
       "target": "web_src_components_trip_ledgerandsettletab_getresolvedcategory",
@@ -30133,7 +30242,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L551",
+      "source_location": "L552",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_components_trip_optionstab_getinitials",
@@ -30144,7 +30253,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L548",
+      "source_location": "L549",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_components_trip_optionstab_getavatarcolor",
@@ -30156,7 +30265,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L273",
+      "source_location": "L274",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_services_options_checkoptiondateconflict"
@@ -30167,7 +30276,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L251",
+      "source_location": "L252",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_services_options_isoptionlocked"
@@ -30178,7 +30287,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L200",
+      "source_location": "L201",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_utils_currency_convertcurrency"
@@ -30189,7 +30298,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L301",
+      "source_location": "L302",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_utils_format_formatdaterange"
@@ -30200,7 +30309,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/trip/OptionsTab.jsx",
-      "source_location": "L453",
+      "source_location": "L454",
       "weight": 1.0,
       "source": "web_src_components_trip_optionstab_optionstab",
       "target": "web_src_utils_format_formatdatetimerange"
@@ -31560,7 +31669,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/expenses.js",
-      "source_location": "L132",
+      "source_location": "L151",
       "weight": 1.0,
       "source": "web_src_services_expenses_convertoptiontoexpense",
       "target": "web_src_services_expenses_logexpense",
@@ -31593,7 +31702,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/expenses.js",
-      "source_location": "L129",
+      "source_location": "L148",
       "weight": 1.0,
       "source": "web_src_services_expenses_convertoptiontoexpense",
       "target": "web_src_services_expenses_parseoptioncost",
@@ -33008,7 +33117,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/utils/currency.js",
-      "source_location": "L340",
+      "source_location": "L350",
       "weight": 1.0,
       "source": "web_src_utils_currency_calculatetripbudgetanalytics",
       "target": "web_src_utils_currency_calculateexpenseparticipantshares",
@@ -53336,5 +53445,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "cfe9fe0242311358bda17b853d513026e9de3421"
+  "built_at_commit": "8dd94fa6c4951ca60ea0bcfd9ed9c46dfd5aa589"
 }

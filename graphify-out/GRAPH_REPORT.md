@@ -1,16 +1,16 @@
 # Graph Report - Trip Planner  (2026-10-15)
 
 ## Corpus Check
-- 454 files · ~494,790 words
+- 455 files · ~496,193 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2660 nodes · 2626 edges · 388 communities (332 shown, 56 thin omitted)
+- 2661 nodes · 2635 edges · 389 communities (332 shown, 57 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `cfe9fe02`
+- Built from commit: `8dd94fa6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -278,6 +278,7 @@
 - Agent Rules & Integration Guidelines
 - github.md
 - currency.js
+- ical.js
 
 ## God Nodes (most connected - your core abstractions)
 1. `TripDetails()` - 37 edges
@@ -289,28 +290,28 @@
 7. `Complete Field Reference` - 13 edges
 8. `Phase Prompt Template` - 13 edges
 9. `useUserSession()` - 12 edges
-10. `parseLocalDate()` - 12 edges
+10. `supabase` - 12 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `SplashLogin()` --references--> `react`  [EXTRACTED]
   web/src/views/TripsList.jsx → web/package.json
 - `BudgetAnalyticsTab()` --calls--> `calculateTripBudgetAnalytics()`  [EXTRACTED]
   web/src/components/trip/BudgetAnalyticsTab.jsx → web/src/utils/currency.js
+- `OptionsTab()` --calls--> `checkOptionDateConflict()`  [EXTRACTED]
+  web/src/components/trip/OptionsTab.jsx → web/src/services/options.js
 - `OptionsTab()` --calls--> `convertCurrency()`  [EXTRACTED]
   web/src/components/trip/OptionsTab.jsx → web/src/utils/currency.js
 - `TripHeader()` --calls--> `formatDateRange()`  [EXTRACTED]
   web/src/components/trip/TripHeader.jsx → web/src/utils/format.js
-- `TripDetails()` --calls--> `useAddParticipant()`  [EXTRACTED]
-  web/src/views/TripDetails.jsx → web/src/hooks/useAddParticipant.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (388 total, 56 thin omitted)
+## Communities (389 total, 57 thin omitted)
 
 ### Community 0 - "main.py"
-Cohesion: 0.16
-Nodes (25): RFC-5545, useRsvpRoster(), convertOptionToExpense(), fetchExpenses(), logExpense(), parseOptionCost(), deleteOption(), fetchActivePoll() (+17 more)
+Cohesion: 0.18
+Nodes (25): useRsvpRoster(), fetchActivityLogs(), fetchExpenses(), checkOptionDateConflict(), deleteOption(), fetchActivePoll(), fetchAllTripOptions(), fetchOptions() (+17 more)
 
 ### Community 1 - "gsd-debugger.md"
 Cohesion: 0.03
@@ -1093,12 +1094,12 @@ Cohesion: 0.67
 Nodes (3): 8.5.1 Outline Phase (outline-only mode, ~2 min), 8.5.2 Per-Plan Tasks (single-plan mode, ~3-5 min each), 8.5. Chunked Planning Mode
 
 ### Community 374 - "format.js"
-Cohesion: 0.19
-Nodes (20): CATEGORIES, CATEGORY_COLORS, GanttTimeline(), EditTripModal(), PollRecapModal(), PrintableItineraryModal(), ActivityFeedDrawer(), getAvatarColor() (+12 more)
+Cohesion: 0.20
+Nodes (19): CATEGORIES, CATEGORY_COLORS, GanttTimeline(), EditTripModal(), PollRecapModal(), PrintableItineraryModal(), ActivityFeedDrawer(), getAvatarColor() (+11 more)
 
 ### Community 375 - "App.jsx"
-Cohesion: 0.19
-Nodes (18): App(), useAddParticipant(), UserSessionContext, UserSessionProvider(), useUserSession(), createRsvp(), createTrip(), checkUsernameAvailable() (+10 more)
+Cohesion: 0.13
+Nodes (31): App(), useAddParticipant(), UserSessionContext, UserSessionProvider(), useUserSession(), generateToken(), getPendingTokens(), loginOrRegisterByEmail() (+23 more)
 
 ### Community 376 - "devDependencies"
 Cohesion: 0.07
@@ -1113,16 +1114,12 @@ Cohesion: 0.12
 Nodes (16): 🔔 Activity Feed, Notifications & Real-Time Sync, 🤖 Automated Continuous Integration (CI), Development & CI Workflow, Environment Setup, 🚀 Getting Started, ✨ Key Features, 📄 License, 🔐 Native Supabase Auth & Security (+8 more)
 
 ### Community 379 - "TripsList.jsx"
-Cohesion: 0.24
-Nodes (12): useTripDetails(), useTrips(), archiveTrip(), deleteTrip(), fetchTripById(), fetchTrips(), isTripArchived(), unarchiveTrip() (+4 more)
+Cohesion: 0.32
+Nodes (8): useTripDetails(), useTrips(), fetchTripById(), fetchTrips(), isTripArchived(), isNetworkOffline(), loadTripOfflineSnapshot(), saveTripOfflineSnapshot()
 
 ### Community 380 - "rules"
 Cohesion: 0.25
 Nodes (7): plugins, rules, no-unused-vars, react-hooks/exhaustive-deps, react/only-export-components, react/rules-of-hooks, $schema
-
-### Community 381 - "useTripDetails.js"
-Cohesion: 0.19
-Nodes (16): createTripRealtimeController(), useTripRealtime(), fetchActivityLogs(), generateToken(), getPendingTokens(), loginOrRegisterByEmail(), requestLoginLink(), resolveOrCreateUserProfile() (+8 more)
 
 ### Community 382 - "Trip Planner — Project Context & Architectural Guidelines"
 Cohesion: 0.29
@@ -1133,20 +1130,24 @@ Cohesion: 0.50
 Nodes (3): Expanding the Oxlint configuration, React Compiler, React + Vite
 
 ### Community 387 - "currency.js"
-Cohesion: 0.50
-Nodes (6): calculateExpenseParticipantShares(), calculateSettlements(), calculateTripBudgetAnalytics(), convertCurrency(), fallbackRates, fetchExchangeRates()
+Cohesion: 0.31
+Nodes (9): convertOptionToExpense(), logExpense(), parseOptionCost(), calculateExpenseParticipantShares(), calculateSettlements(), calculateTripBudgetAnalytics(), convertCurrency(), fallbackRates (+1 more)
+
+### Community 388 - "ical.js"
+Cohesion: 0.70
+Nodes (3): RFC-5545, formatICalDateTime(), generateICalContent()
 
 ## Knowledge Gaps
 - **1839 isolated node(s):** `_runtime-launcher.snippet.sh script`, `fs`, `path`, `{ isSemverNewer }`, `{ checkLatestVersion }` (+1834 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **56 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **57 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `devDependencies` to `useTripDetails.js`?**
+- **Why does `react` connect `devDependencies` to `App.jsx`?**
   _High betweenness centrality (0.001) - this node is a cross-community bridge._
-- **Why does `useUserSession()` connect `App.jsx` to `main.py`, `useTripDetails.js`?**
+- **Why does `useUserSession()` connect `App.jsx` to `main.py`?**
   _High betweenness centrality (0.001) - this node is a cross-community bridge._
 - **What connects `_runtime-launcher.snippet.sh script`, `fs`, `path` to the rest of the system?**
   _1840 weakly-connected nodes found - possible documentation gaps or missing edges._

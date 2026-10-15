@@ -299,7 +299,7 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
 
       totalActualSpend += converted
 
-      // Resolve category: first-class category column, then description prefix, then bilingual keyword fallback
+      // Resolve category: first-class category column, then description prefix, then linked option, then keyword fallback
       let cat = 'Other'
       const rawCat = (exp.category || '').trim().toLowerCase()
       if (rawCat && rawCat !== 'other') {
@@ -312,19 +312,29 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
       } else {
         const descLower = (exp.description || '').toLowerCase()
         const bracketMatch = descLower.match(/^\[(accommodation|flights|activities|food|transport|other)\]/i)
-        if (bracketMatch) {
+        if (bracketMatch && bracketMatch[1].toLowerCase() !== 'other') {
           const matched = bracketMatch[1].toLowerCase()
           cat = matched.charAt(0).toUpperCase() + matched.slice(1)
-        } else if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan/i.test(descLower)) {
-          cat = 'Accommodation'
-        } else if (/flight|vol|avion|airline|airfare|billet d'avion/i.test(descLower)) {
-          cat = 'Flights'
-        } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast|petit[ -]d[eé]jeuner/i.test(descLower)) {
-          cat = 'Food'
-        } else if (/transport|car|voiture|uber|taxi|train|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) {
-          cat = 'Transport'
-        } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) {
-          cat = 'Activities'
+        } else if (exp.option_id && options && options.length > 0) {
+          const linkedOpt = options.find(o => String(o.id) === String(exp.option_id))
+          if (linkedOpt && linkedOpt.category && linkedOpt.category.toLowerCase() !== 'other') {
+            const lCat = linkedOpt.category.toLowerCase()
+            cat = lCat.charAt(0).toUpperCase() + lCat.slice(1)
+          }
+        }
+
+        if (cat === 'Other') {
+          if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(descLower)) {
+            cat = 'Accommodation'
+          } else if (/flight|vol|avion|airline|airfare|billet d'avion|plane/i.test(descLower)) {
+            cat = 'Flights'
+          } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast|petit[ -]d[eé]jeuner/i.test(descLower)) {
+            cat = 'Food'
+          } else if (/transport|car|voiture|uber|taxi|train|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) {
+            cat = 'Transport'
+          } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) {
+            cat = 'Activities'
+          }
         }
       }
 

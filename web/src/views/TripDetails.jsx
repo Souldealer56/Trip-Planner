@@ -696,7 +696,14 @@ function TripDetails() {
               }}
               onOpenPollRecapModal={() => setShowPollRecapModal(true)}
               onOpenExpenseModal={(opt) => {
-                setExpenseOptionToPreFill(opt)
+                if (opt) {
+                  setExpenseOptionToPreFill({
+                    ...opt,
+                    category: opt.category || activeTab || 'Accommodation'
+                  })
+                } else {
+                  setExpenseOptionToPreFill(null)
+                }
                 setShowExpenseModal(true)
               }}
               onRefresh={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}

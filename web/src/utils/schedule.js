@@ -43,8 +43,10 @@ export function detectScheduleGaps(trip, options = []) {
       const optStartObj = opt.start_date ? parseLocalDate(opt.start_date) : null
       const optEndObj = opt.end_date ? parseLocalDate(opt.end_date) : null
 
-      const optStart = optStartObj ? optStartObj.getTime() : 0
-      const optEnd = optEndObj ? optEndObj.getTime() : (optStart ? optStart + 86400000 : 0)
+      if (!optStartObj && !optEndObj) return false
+
+      const optStart = optStartObj ? optStartObj.getTime() : (optEndObj ? optEndObj.getTime() - 86400000 : 0)
+      const optEnd = optEndObj ? optEndObj.getTime() : (optStart + 86400000)
 
       // Day overlaps option if option starts before day ends AND ends after day starts
       return optStart <= dayEndTime && optEnd >= dayStartTime
@@ -61,6 +63,84 @@ export function detectScheduleGaps(trip, options = []) {
   })
 
   return unbookedDays
+}
+
+/**
+ * Packs options of a single category into horizontal non-overlapping sub-tracks (lanes).
+ * Options that overlap in date ranges are assigned to separate vertical lanes (laneIndex: 0, 1, 2, ...).
+ * Non-overlapping options can share the same lane to optimize vertical space.
+ * 
+ * @param {Array} categoryOptions Array of options within a category.
+ * @param {Date|string|number} [tripStart] Trip start boundary.
+ * @param {Date|string|number} [tripEnd] Trip end boundary.
+ * @returns {Array<Array<Object>>} Array of lanes, where each lane is an array of packed option objects with laneIndex.
+ */
+export function packOptionsIntoSubTracks(categoryOptions = [], tripStart = null, tripEnd = null) {
+  // Only process options with valid scheduled dates
+  const scheduledOpts = (categoryOptions || []).filter(o => o && (o.start_date || o.end_date))
+
+  const tripStartMs = tripStart 
+    ? (typeof tripStart === 'number' ? tripStart : parseLocalDate(tripStart)?.getTime() || new Date(tripStart).getTime()) 
+    : 0
+  const tripEndMs = tripEnd 
+    ? (typeof tripEnd === 'number' ? tripEnd : parseLocalDate(tripEnd)?.getTime() || new Date(tripEnd).getTime()) 
+    : (tripStartMs ? tripStartMs + 86400000 : 0)
+
+  // Calculate start & end ms
+  const processed = scheduledOpts.map(opt => {
+    const sObj = opt.start_date ? parseLocalDate(opt.start_date) : null
+    const eObj = opt.end_date ? parseLocalDate(opt.end_date) : null
+
+    let startMs = sObj ? sObj.getTime() : (tripStartMs || 0)
+    let endMs = eObj ? eObj.getTime() : (sObj ? startMs + 3600000 * 3 : (tripEndMs || startMs + 86400000))
+    if (endMs < startMs) {
+      endMs = startMs + 3600000 * 3
+    }
+
+    return {
+      ...opt,
+      _startMs: startMs,
+      _endMs: endMs
+    }
+  })
+
+  // Sort options: locked options first, then start date ascending, then end date ascending
+  processed.sort((a, b) => {
+    const lockA = a.is_locked ? 1 : 0
+    const lockB = b.is_locked ? 1 : 0
+    if (lockA !== lockB) return lockB - lockA
+
+    if (a._startMs !== b._startMs) {
+      return a._startMs - b._startMs
+    }
+    return a._endMs - b._endMs
+  })
+
+  const lanes = []
+
+  processed.forEach(opt => {
+    // Find the first lane where last option in lane ends before or at current option's start
+    let targetLaneIdx = -1
+    for (let i = 0; i < lanes.length; i++) {
+      const lane = lanes[i]
+      const lastOpt = lane[lane.length - 1]
+      if (lastOpt._endMs <= opt._startMs) {
+        targetLaneIdx = i
+        break
+      }
+    }
+
+    if (targetLaneIdx !== -1) {
+      const packedOpt = { ...opt, laneIndex: targetLaneIdx }
+      lanes[targetLaneIdx].push(packedOpt)
+    } else {
+      const newLaneIdx = lanes.length
+      const packedOpt = { ...opt, laneIndex: newLaneIdx }
+      lanes.push([packedOpt])
+    }
+  })
+
+  return lanes
 }
 
 /**

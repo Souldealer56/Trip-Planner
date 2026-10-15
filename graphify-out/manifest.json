@@ -2070,8 +2070,8 @@
     "semantic_hash": ""
   },
   "web/src/components/modals/AddExpenseModal.jsx": {
-    "mtime": 1792099872.7025592,
-    "ast_hash": "14f1b2dc92e944a6ae7a58973c9ee382",
+    "mtime": 1792101344.2188144,
+    "ast_hash": "e0aa821607c23ecdfdbad53fbc6b522d",
     "semantic_hash": ""
   },
   "web/src/components/modals/EditTripModal.jsx": {
@@ -2100,13 +2100,13 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/LedgerAndSettleTab.jsx": {
-    "mtime": 1792100465.2279255,
-    "ast_hash": "29f286f60f9a6b0d197483074eb740b0",
+    "mtime": 1792101377.314868,
+    "ast_hash": "e28583844175fa484b4816fbebfcd0fc",
     "semantic_hash": ""
   },
   "web/src/components/trip/OptionsTab.jsx": {
-    "mtime": 1792100375.2804651,
-    "ast_hash": "6506eb4c8d75d9301c585484554d07a8",
+    "mtime": 1792101580.6134288,
+    "ast_hash": "cb9b827f80566e3c4402368ffb3d4c6d",
     "semantic_hash": ""
   },
   "web/src/components/trip/RosterSection.jsx": {
@@ -2165,8 +2165,8 @@
     "semantic_hash": ""
   },
   "web/src/services/expenses.js": {
-    "mtime": 1792099849.4175456,
-    "ast_hash": "9b875ca4701757471f4a65bf1a36f417",
+    "mtime": 1792101309.7616515,
+    "ast_hash": "9ba8bed01a837896897ac0c0adbc99d3",
     "semantic_hash": ""
   },
   "web/src/services/options.js": {
@@ -2195,8 +2195,8 @@
     "semantic_hash": ""
   },
   "web/src/utils/currency.js": {
-    "mtime": 1792099897.0877352,
-    "ast_hash": "64400f1091aa23e9b9a948783bd98241",
+    "mtime": 1792101324.2873,
+    "ast_hash": "ef176e8d11e07ef5cc0df2e82ae55d2e",
     "semantic_hash": ""
   },
   "web/src/utils/format.js": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": ""
   },
   "web/src/views/TripDetails.jsx": {
-    "mtime": 1792100324.5352767,
-    "ast_hash": "98e2d54b01d4118fc8be65cfd625f8c8",
+    "mtime": 1792101386.6978831,
+    "ast_hash": "83cde6466c4af55ba07462607613a180",
     "semantic_hash": ""
   },
   "web/src/views/TripsList.jsx": {
@@ -2312,6 +2312,11 @@
   "web/src/__tests__/auth.test.js": {
     "mtime": 1792091388.3625498,
     "ast_hash": "1b2154491af4d7a182c8890ae3353c0c",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/pitchedOptions.test.jsx": {
+    "mtime": 1792101562.422251,
+    "ast_hash": "3627b7c430d595de1936c58f9e06499b",
     "semantic_hash": ""
   }
 }
