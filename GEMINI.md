@@ -1,186 +1,102 @@
-<!-- GSD:project-start source:PROJECT.md -->
+# Trip Planner — Project Context & Architectural Guidelines
 
 ## Project
 
-**Trip Planner**
+**Trip Planner** is a 100% standalone, web-first collaborative trip planning application. It allows groups of travelers to coordinate itineraries, pitch and vote on options (accommodations, activities, meals, transport), track participant RSVPs, schedule events on a visual Gantt timeline, and log shared expenses with automated debt minimization settlements.
 
-A collaborative trip planning platform consisting of a Telegram bot (TripSync Bot) that handles group chat interactions, RSVP tracking, option pitching, voting, and expenses logging, alongside a new React-based web application for viewing trips and managing participants.
+**Core Value:** Provide an intuitive, real-time, responsive web interface for frictionless group trip coordination without reliance on third-party messaging bots or external chat apps.
 
-**Core Value:** Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
-
-### Constraints
-
-- **Tech Stack (Bot)**: Python 3.13 / Supabase / Python-Telegram-Bot — existing codebase constraint
-- **Tech Stack (Web)**: React + Vite + Vanilla CSS — user preference
-- **Authentication**: No authentication in v1 — user request
-
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:codebase/STACK.md -->
+---
 
 ## Technology Stack
 
-## Languages
+- **Frontend Framework:** React 19 (`react`, `react-dom`)
+- **Build Tool & Dev Server:** Vite 8 (`vite`, `@vitejs/plugin-react`)
+- **Routing:** React Router v7 (`react-router-dom`)
+- **Database & Auth Client:** Supabase JS v2 (`@supabase/supabase-js`)
+- **Database Backend:** PostgreSQL (Supabase) with Row Level Security (RLS) & Triggers
+- **Styling:** Vanilla CSS with custom design tokens (`variables.css`, `global.css`) adopting a glassmorphic aesthetic
+- **Linting:** Oxlint (`oxlint`)
 
-- Python 3.13 - All application code (`main.py`)
-- None
+---
 
-## Runtime
+## Architecture & Directory Structure
 
-- Python 3.13
-- Virtual environment (`venv`) used for local package isolation
-- pip 26.0.1
-- Lockfile: None (no `requirements.txt` or `pyproject.toml` present in root)
+All frontend application code resides under the `web/` directory:
 
-## Frameworks
+```
+web/
+├── src/
+│   ├── assets/           # Static images, SVG icons, and hero art
+│   ├── components/       # Reusable UI elements, modals, and Gantt charts (e.g., GanttTimeline.jsx)
+│   ├── hooks/            # Custom React state and data-fetching hooks (useTrips, useTripDetails, useRsvpRoster, useUserSession, useAddParticipant, useTripRealtime)
+│   ├── services/         # Supabase data access layer:
+│   │   ├── supabase.js   # Supabase client initialization (anon key + RLS)
+│   │   ├── trips.js      # Trip CRUD, archiving, status management
+│   │   ├── rsvps.js      # Participant RSVP states, permissions, roles
+│   │   ├── options.js    # Pitched options, voting, locked choices
+│   │   ├── expenses.js   # Expense ledger, custom splits, settlements
+│   │   ├── users.js      # User profiles, avatar management
+│   │   ├── activity.js   # Activity feed and system notifications
+│   │   └── auth.js       # Native Supabase Auth session & OTP magic links
+│   ├── styles/           # CSS design system (variables.css, global.css)
+│   ├── utils/            # Pure domain logic:
+│   │   ├── currency.js   # Currency conversions & rate caching
+│   │   ├── schedule.js   # Event overlap detection & scheduling logic
+│   │   ├── ical.js       # iCalendar export generators (.ics)
+│   │   └── format.js     # Date, time, and currency formatting helpers
+│   ├── views/            # Route-level views:
+│   │   ├── TripsList.jsx     # Dashboard of active and past trips
+│   │   ├── TripDetails.jsx   # Core trip cockpit (Overview, Itinerary, Options, Ledger, Roster)
+│   │   ├── JoinTrip.jsx      # Shareable invite onboarding flow
+│   │   ├── Profile.jsx       # User profile & preferences
+│   │   └── VerifyLogin.jsx   # Magic link authentication handler
+│   ├── App.jsx           # Root layout and router configuration
+│   └── main.jsx          # DOM entrypoint
+├── verify-*.cjs          # Node.js integration & verification test scripts
+├── vite.config.js        # Vite configuration
+└── package.json          # Web dependencies and scripts
+supabase/migrations/      # Versioned SQL migrations and RLS policies
+```
 
-- None (Direct Telegram bot application built on `python-telegram-bot`)
-- None (No test suite or testing framework configured)
-- None
+---
 
-## Key Dependencies
+## Core Coding & Architectural Rules
 
-- `python-telegram-bot` 22.7 - Asynchronous wrapper for the Telegram Bot API (handles commands, messaging, conversation states, and polling)
-- `supabase` 2.28.3 - Python client for Supabase (handles database interactions with PostgreSQL, connection pooling, and Postgrest queries)
-- `python-dotenv` 1.2.2 - Loads environment variables from a local `.env` file
-- `urllib` (Standard Library) - Sync HTTP client used inside `asyncio.to_thread` for external API currency rate calls
-- `asyncio` (Standard Library) - Async event loop orchestration
+1. **Pure Web-First Architecture:**
+   - Never use or reference Telegram IDs (`tg_user_id`, `tg_chat_id`), bot polling, Telegram Bot APIs, or Python scripts.
+   - The application is 100% web-first and interacts directly with Supabase via `@supabase/supabase-js`.
 
-## Configuration
+2. **Native Supabase Auth & PostgreSQL Row Level Security (RLS):**
+   - Authentication is handled exclusively through Supabase Auth (`supabase.auth`) with standard UUID-based user IDs (`auth.uid()`).
+   - All tables enforce strict RLS policies referencing `auth.uid() = user_id` or membership in `rsvps`.
+   - Never bypass RLS; all client operations execute under the public `anon` role (`VITE_SUPABASE_ANON_KEY`).
 
-- `.env` file (gitignored) - Houses critical credentials
-- Required environment variables:
-- None
+3. **Real-Time Synchronization (`useTripRealtime`):**
+   - Interactive trip views leverage `useTripRealtime` to listen for Postgres CDC updates via Supabase WebSocket channels (`trip-room:<id>`).
+   - Mutations across `trips`, `rsvps`, `poll_options`, `option_votes`, `active_polls`, `expenses`, and `activity_log` are debounced to prevent duplicate network fetches while ensuring instantaneous multi-user state synchronization.
 
-## Platform Requirements
+4. **Clean Data Model & First-Class Schema Columns:**
+   - Never store system state or flags inside user-facing text columns.
+   - **No string tags:** Never encode status tags like `[ARCHIVED]` in trip `vibe` or `description`. Use dedicated columns such as `is_archived` or `status`.
+   - **No role tags in notes:** Never place `[CO_ORGANIZER]` or `[ADMIN]` in `rsvps.notes`. Use the first-class `role` column in `rsvps` table (`organizer`, `co_organizer`, `participant`).
+   - **No metadata stuffing:** Never stash internal metadata like `_locked_option_id` inside `voter_selections`. Use dedicated relational foreign keys (`locked_option_id` on polls or options).
 
-- Any platform (macOS/Windows/Linux) supporting Python 3.13
-- Internet access required for connecting to Telegram API and Supabase
-- Standard Python 3.13 execution environment (e.g., Virtual Private Server (VPS), cloud hosting with process managers like `systemd` or `supervisord`, or Docker container)
+5. **Security & Client Key Constraints:**
+   - Never expose `service_role` or secret admin keys in client code or `.env`.
+   - Client code strictly uses the public `anon` key (`VITE_SUPABASE_ANON_KEY`) constrained by Row Level Security (RLS) policies in PostgreSQL.
 
-<!-- GSD:stack-end -->
+6. **Styling & UI Aesthetics:**
+   - Maintain the bespoke Vanilla CSS Glassmorphism design system (`global.css`, `variables.css`).
+   - Avoid generic browser styles. Use modern typography, vibrant accent gradients, translucent card surfaces with backdrop filters, and subtle micro-interactions.
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
+---
 
-## Conventions
+## Development & CI Workflow
 
-## Naming Patterns
-
-- lowercase all-in-one scripts or kebab-case config files: `main.py` is the single application file.
-- **Private Helper Functions:** Prefixed with a single leading underscore (e.g., `_fmt()`, `_parse_price_and_currency()`, `_convert()`, `_get_exchange_rates()`, `_accommodation_coverage()`).
-- **Telegram Update/Command Handlers:** Lowercase with snake_case (e.g., `start()`, `roster()`, `add_option()`, `ledger()`, `settle()`).
-- **Conversation State Handlers:** Prefixed with `get_` (e.g., `get_title()`, `get_destination()`) or `wiz_` (e.g., `wiz_addopt_cat()`, `wiz_lock_cat()`, `wiz_vote_cat()`).
-- **Local Variables:** snake_case (e.g., `trip_id`, `user_data`, `now`, `app_id`).
-- **Global Constants:** UPPER_SNAKE_CASE (e.g., `STALE_POLL_HOURS`, `MAJORITY_THRESHOLD`, `TRIP_SELECT`, `ACTION_ADDOPT`).
-- **Private Global Constants:** Prefixed with a single leading underscore (e.g., `_COMMON_CURRENCIES`, `_SYMBOL_TO_ISO`, `_ISO_TO_SYMBOL`).
-- Type annotations are actively used on parameters and return signatures (e.g., `amount: float`, `currency: str`, `-> str`, `supabase: Client`, `tg_user_id: int`).
-
-## Code Style
-
-- **Tabular Assignment Alignments:** Equals signs are often vertically aligned in consecutive variable definitions to improve readability (e.g., `STALE_POLL_HOURS       = 48`, `STALE_PARTICIPATION    = 0.50`).
-- **Section Headers:** Clean visual boundaries separating logical areas using commented hyphen-lines (e.g., `# ---------------------------------------------------------------------------`).
-- **Docstrings:** Standard Python triple-quoted docstrings are expected at the top of helper functions to describe inputs, outputs, and behaviors.
-- Wrap database interactions and network API calls in `try/except` blocks.
-- Non-fatal execution errors are logged or skipped silently to guarantee bot stability (e.g., returning cached exchange rates on `URLError`, or skipping command updates in group setups if a user has not started the bot).
-- User-facing error notifications guide the user on how to retry in case of failure.
-
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-
-## Architecture
-
-## Pattern Overview
-
-- **Asynchronous Execution Model:** Fully async handlers built on `python-telegram-bot`'s asynchronous framework.
-- **Stateless Application Server:** The bot node stores no conversational or domain state locally; all persistent data is retrieved from and saved to the Supabase database.
-- **Dual-Interface Routing:** Supports both private message (PM) wizards (multi-step dialogs) and group chat commands.
-- **Dynamic Scope Setup:** Dynamically adjusts bot command menus depending on group context and user role (e.g., elevated permissions for organizers).
-
-## Layers
-
-- Purpose: Configures handlers, registers command scopes, and runs the bot polling loop.
-- Key Functions: `main()`, `setup_global_commands(app)`, and `setup_commands_for_group(bot, ...)`.
-- File: `main.py` (lines 3156-3229)
-- Purpose: Matches incoming Telegram updates (commands, text inputs, callback queries) to the correct controller function.
-- Contains: `CommandHandler`, `MessageHandler`, and `CallbackQueryHandler` definitions.
-- File: `main.py`
-- Purpose: Orchestrates multi-step interactive workflows in PM.
-- Key Abstractions:
-- File: `main.py`
-- Purpose: Encapsulates reusable calculations, external API calls, parsing, and DB reads.
-- Key Functions:
-- File: `main.py`
-- Purpose: Executes CRUD actions against Supabase database tables.
-- Client: `supabase` global instance.
-- File: `main.py`
-
-## Data Flow
-
-### Command-Line / Event Processing Flow:
-
-### State Management:
-
-- **Relational DB State:** Supabase stores all user, trip, RSVP, poll, option, and ledger records.
-- **Conversational State:** PTB `ConversationHandler` tracks conversation states in-memory during active PM wizard flows.
-- **FX Rates Cache:** Cached for 1 hour in the bot application's `bot_data` dictionary.
-
-## Key Abstractions
-
-- Purpose: Groups multiple states and handles state transitions.
-- Examples: `new_trip_handler` (for trip creation), `pm_wizard_handler` (for trip options/voting/locking/payments).
-- Purpose: Resolves user details and active trip details from user and chat IDs.
-- Examples: `get_trip_context(tg_user_id, tg_chat_id)` resolves the active trip ID and metadata.
-- Purpose: Wraps currency fetching and cross-conversion rates against a USD baseline.
-- Key Functions: `_convert()`, `_get_exchange_rates()`.
-
-## Entry Points
-
-- Location: `main.py:L3156 (main())`
-- Triggers: Running `python main.py` or executing the `main` entrypoint.
-- Responsibilities: Configures all handlers, initializes application dependencies, registers global commands, and starts the polling listener (`app.run_polling()`).
-
-## Error Handling
-
-- Try/catch blocks surrounding database queries (preventing app crashes on database errors).
-- Silent recovery inside command setup (e.g., `setup_commands_for_group` skips failures gracefully if group PM scopes cannot be set).
-
-## Cross-Cutting Concerns
-
-- RegExp parsing for currency and price matching (`_parse_price_and_currency`).
-- Date parsing validations and date range assertions in `parse_trip_dates` and `smart_parse_dates`.
-- Users must have an active record in `users` table linked to their Telegram User ID to perform actions. Command interactions verify user permissions.
-
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-
-## Project Skills
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| graphify | "Use for any question about a codebase, its architecture, file relationships, or project content — especially when graphify-out/ exists, where the question should be treated as a graphify query first. Turns any input (code, docs, papers, images, videos) into a persistent knowledge graph with god nodes, community detection, and query/path/explain tools." | `.agents/skills/graphify/SKILL.md` |
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+- **Install dependencies:** `cd web && npm install`
+- **Development server:** `npm run dev` (starts on `http://localhost:5173`)
+- **Lint code:** `npm run lint` (`oxlint`)
+- **Run tests:** `npm test` (`vitest run` with Vitest + JSDOM smoke & unit suite)
+- **Build production bundle:** `npm run build` (`vite build`)
+- **Automated CI:** GitHub Actions executes lint, unit/smoke tests, and build on all pushes and PRs (`.github/workflows/ci.yml`).

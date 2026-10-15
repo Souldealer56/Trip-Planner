@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useUserSession } from '../hooks/useUserSession'
-import { updateUserProfile, checkUsernameAvailable, generateTelegramLinkCode, disconnectTelegram } from '../services/users'
+import { updateUserProfile, checkUsernameAvailable } from '../services/users'
 
 const COLOR_PRESETS = [
   '#38bdf8', // Cyan
@@ -32,11 +32,6 @@ function Profile() {
   const [error, setError] = useState('')
   const [successToast, setSuccessToast] = useState(false)
   const [usernameError, setUsernameError] = useState('')
-
-  // Telegram link modal
-  const [linkCode, setLinkCode] = useState('')
-  const [showLinkModal, setShowLinkModal] = useState(false)
-  const [linkingLoading, setLinkingLoading] = useState(false)
 
   useEffect(() => {
     if (activeUser) {
@@ -114,37 +109,6 @@ function Profile() {
       setSaving(false)
     }
   }
-
-  const handleLinkTelegram = async () => {
-    setLinkingLoading(true)
-    try {
-      const code = await generateTelegramLinkCode(activeUser.id)
-      setLinkCode(code)
-      setShowLinkModal(true)
-    } catch (err) {
-      console.error('Failed to generate Telegram link code:', err)
-      alert('Could not generate Telegram link code. Please try again.')
-    } finally {
-      setLinkingLoading(false)
-    }
-  }
-
-  const handleDisconnectTelegram = async () => {
-    if (!window.confirm('Are you sure you want to disconnect your Telegram account?')) return
-    setLinkingLoading(true)
-    try {
-      const updated = await disconnectTelegram(activeUser.id)
-      updateActiveUser(updated)
-      alert('Telegram account disconnected.')
-    } catch (err) {
-      console.error('Failed to disconnect Telegram:', err)
-      alert('Could not disconnect Telegram account.')
-    } finally {
-      setLinkingLoading(false)
-    }
-  }
-
-  const isTelegramLinked = activeUser.telegram_id > 0
 
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem', maxWidth: '720px' }}>
@@ -284,54 +248,6 @@ function Profile() {
           </form>
         </div>
 
-        {/* Telegram Account Management Card */}
-        <div className="glass-card animate-fade-in" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
-          <h2 style={{ fontSize: '1.25rem', color: 'var(--primary-light)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>✈️ Telegram Integration</span>
-          </h2>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', background: 'rgba(255, 255, 255, 0.02)', padding: '1.25rem', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--border-light)' }}>
-            <div>
-              <div style={{ fontWeight: '600', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                Status: {isTelegramLinked ? (
-                  <span style={{ color: '#38bdf8', fontWeight: '700' }}>Linked</span>
-                ) : (
-                  <span style={{ color: 'var(--text-muted)' }}>Unlinked (Web Profile)</span>
-                )}
-              </div>
-              {isTelegramLinked ? (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Telegram User ID: <strong style={{ color: 'var(--text-main)' }}>{activeUser.telegram_id}</strong>
-                </div>
-              ) : (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Link your Telegram account to sync group chat RSVPs, option votes, and expense logs.
-                </div>
-              )}
-            </div>
-
-            {isTelegramLinked ? (
-              <button
-                onClick={handleDisconnectTelegram}
-                className="btn btn-secondary"
-                disabled={linkingLoading}
-                style={{ borderColor: 'hsl(0, 80%, 60%)', color: 'hsl(0, 80%, 60%)', fontSize: '0.85rem' }}
-              >
-                {linkingLoading ? 'Disconnecting...' : 'Disconnect Telegram'}
-              </button>
-            ) : (
-              <button
-                onClick={handleLinkTelegram}
-                className="btn"
-                disabled={linkingLoading}
-                style={{ fontSize: '0.85rem' }}
-              >
-                {linkingLoading ? 'Generating...' : 'Link Telegram Account'}
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Account Session Actions */}
         <div className="glass-card animate-fade-in" style={{ padding: '1.5rem 2rem', border: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -343,43 +259,6 @@ function Profile() {
           </button>
         </div>
       </div>
-
-      {/* Telegram Account Linking Modal */}
-      {showLinkModal && (
-        <div className="modal-overlay" onClick={() => setShowLinkModal(false)}>
-          <div className="modal-content glass-card animate-fade-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', fontSize: '1.4rem' }}>Link Telegram Account</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: '1.5' }}>
-              This will merge all RSVP history, expenses, and votes from your Telegram profile into this email account.
-            </p>
-            
-            <div style={{ 
-              background: 'rgba(255, 255, 255, 0.05)', 
-              padding: '1rem', 
-              borderRadius: '8px', 
-              border: '1px solid var(--border-light)', 
-              marginBottom: '1.5rem' 
-            }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>YOUR LINK CODE:</span>
-              <strong style={{ fontSize: '1.8rem', color: 'var(--primary-light)', letterSpacing: '2px' }}>{linkCode}</strong>
-            </div>
-
-            <a 
-              href={`https://t.me/TripSyncBot?start=link_${linkCode}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', marginBottom: '0.75rem' }}
-            >
-              Open Telegram Bot
-            </a>
-
-            <button onClick={() => setShowLinkModal(false)} className="btn btn-secondary" style={{ width: '100%' }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

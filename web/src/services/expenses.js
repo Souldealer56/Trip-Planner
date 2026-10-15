@@ -19,33 +19,78 @@ export async function fetchExpenses(tripId) {
 }
 
 /**
- * Logs a new expense in the database.
+ * Logs a new expense in the database with strongly-typed category, option link, and rate.
+ * Gracefully falls back to baseline columns if new columns have not migrated yet.
  * @param {string} tripId The UUID of the trip.
  * @param {string} paidByUserId The UUID of the payer.
  * @param {number} amount The decimal cost amount.
  * @param {string} currency The ISO code (e.g. USD, EUR).
  * @param {string} description The description of the expense.
  * @param {Array} splitUsers Array of user UUIDs participating in the split.
+ * @param {string} [category='other'] Expense category.
+ * @param {string|null} [optionId=null] Linked option UUID.
+ * @param {number|null} [exchangeRate=null] Frozen conversion exchange rate.
  * @returns {Promise<Object>} A promise resolving to the created expense record.
  */
-export async function logExpense(tripId, paidByUserId, amount, currency, description, splitUsers) {
+export async function logExpense(
+  tripId,
+  paidByUserId,
+  amount,
+  currency,
+  description,
+  splitUsers,
+  category = 'other',
+  optionId = null,
+  exchangeRate = null
+) {
+  const normalizedCategory = (category || 'other').toLowerCase()
+  const validCategory = ['accommodation', 'flights', 'activities', 'food', 'transport', 'other'].includes(normalizedCategory)
+    ? normalizedCategory
+    : 'other'
+
+  const payload = {
+    trip_id: tripId,
+    paid_by: paidByUserId,
+    amount: parseFloat(amount),
+    currency: currency || 'USD',
+    description: description || '',
+    split_users: splitUsers || [],
+    category: validCategory,
+    option_id: optionId || null,
+    exchange_rate: exchangeRate !== null && exchangeRate !== undefined ? parseFloat(exchangeRate) : null
+  }
+
+  // Attempt insert with normalized columns
   const { data, error } = await supabase
     .from('expenses')
-    .insert({
-      trip_id: tripId,
-      paid_by: paidByUserId,
-      amount: parseFloat(amount),
-      currency: currency || 'USD',
-      description: description || '',
-      split_users: splitUsers || []
-    })
+    .insert(payload)
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (!error) {
+    return data
   }
-  return data
+
+  // Fallback to baseline payload if schema has not yet migrated
+  const fallbackPayload = {
+    trip_id: tripId,
+    paid_by: paidByUserId,
+    amount: parseFloat(amount),
+    currency: currency || 'USD',
+    description: description || '',
+    split_users: splitUsers || []
+  }
+
+  const fallback = await supabase
+    .from('expenses')
+    .insert(fallbackPayload)
+    .select()
+    .single()
+
+  if (fallback.error) {
+    throw fallback.error
+  }
+  return fallback.data
 }
 
 /**
@@ -73,13 +118,26 @@ export function parseOptionCost(option, baseCurrency = 'USD') {
  * @param {Object} option The locked option object.
  * @param {string|number} paidByUserId The ID of the payer.
  * @param {Array} splitUserIds Array of user IDs participating in the expense split.
- * @param {string} [baseCurrency] Default currency fallback.
+ * @param {string} [baseCurrency='USD'] Default currency fallback.
+ * @param {number|null} [exchangeRate=null] Frozen conversion rate.
  * @returns {Promise<Object>} Created expense record.
  */
-export async function convertOptionToExpense(tripId, option, paidByUserId, splitUserIds, baseCurrency = 'USD') {
+export async function convertOptionToExpense(tripId, option, paidByUserId, splitUserIds, baseCurrency = 'USD', exchangeRate = null) {
   const optionTitle = option.option_text || option.text || 'Locked Option'
-  const description = `[Locked Option] ${optionTitle}`.trim()
+  const description = optionTitle.trim()
   const { amount, currency } = parseOptionCost(option, baseCurrency)
+  const category = option.category || 'other'
+  const optionId = option.id || null
 
-  return logExpense(tripId, paidByUserId, amount, currency, description, splitUserIds)
+  return logExpense(
+    tripId,
+    paidByUserId,
+    amount,
+    currency,
+    description,
+    splitUserIds,
+    category,
+    optionId,
+    exchangeRate
+  )
 }

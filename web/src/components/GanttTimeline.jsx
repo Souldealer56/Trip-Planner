@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { formatDateTimeRange } from '../utils/format'
+import { formatDateTimeRange, parseLocalDate, formatLocalDateStr } from '../utils/format'
 import { detectScheduleGaps, detectScheduleConflicts } from '../utils/schedule'
 
 const CATEGORY_COLORS = {
@@ -13,15 +13,16 @@ const CATEGORY_COLORS = {
 
 const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
 
-export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [], onOptionClick, onPitchForSlot }) {
+export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionClick, onPitchForSlot }) {
   const [hoveredOption, setHoveredOption] = useState(null)
 
-  // 1. Build trip days grid
+  // 1. Build trip days grid using local date calculations
   const getDaysArray = () => {
     if (!trip?.start_date || !trip?.end_date) {
       // Fallback: 7 days starting today
       const days = []
       const today = new Date()
+      today.setHours(0, 0, 0, 0)
       for (let i = 0; i < 7; i++) {
         const d = new Date(today)
         d.setDate(d.getDate() + i)
@@ -30,12 +31,17 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
       return days
     }
 
-    const start = new Date(trip.start_date)
-    const end = new Date(trip.end_date)
+    const start = parseLocalDate(trip.start_date)
+    const end = parseLocalDate(trip.end_date)
+    if (!start || !end) return []
+
     const days = []
     const cur = new Date(start)
+    cur.setHours(0, 0, 0, 0)
+    const endBoundary = new Date(end)
+    endBoundary.setHours(23, 59, 59, 999)
 
-    while (cur <= end) {
+    while (cur <= endBoundary) {
       days.push(new Date(cur))
       cur.setDate(cur.getDate() + 1)
     }
@@ -46,13 +52,25 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
 
   const tripDays = getDaysArray()
   const totalDays = tripDays.length
-  const tripStartTime = tripDays[0].getTime()
-  const tripEndTime = tripDays[tripDays.length - 1].getTime() + 86400000
+  const tripStartTime = tripDays.length > 0 ? tripDays[0].getTime() : 0
+  const tripEndTime = tripDays.length > 0 ? tripDays[tripDays.length - 1].getTime() + 86400000 : 0
+
+  // Gather all locked option IDs
+  const lockedOptionIds = new Set()
+  options.forEach(opt => {
+    if (opt.is_locked) lockedOptionIds.add(String(opt.id))
+  })
+  Object.values(activePolls || {}).forEach(poll => {
+    if (poll?.locked_option_id) lockedOptionIds.add(String(poll.locked_option_id))
+    if (Array.isArray(poll?.voter_selections?._locked_option_ids)) {
+      poll.voter_selections._locked_option_ids.forEach(id => lockedOptionIds.add(String(id)))
+    }
+  })
 
   // 2. Schedule Analysis: Gaps & Conflicts
   const unbookedDays = detectScheduleGaps(trip, options)
   const unbookedDateStrs = new Set(unbookedDays.map(d => d.dateStr))
-  const { conflictingOptionIds, conflictPairs } = detectScheduleConflicts(options)
+  const { conflictingOptionIds } = detectScheduleConflicts(options, lockedOptionIds)
 
   // Helper: Calculate left % and width % for an option
   const calculateBarPosition = (opt) => {
@@ -60,8 +78,11 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
       return { left: 0, width: 100, isUnscheduled: true }
     }
 
-    const optStart = opt.start_date ? new Date(opt.start_date).getTime() : tripStartTime
-    const optEnd = opt.end_date ? new Date(opt.end_date).getTime() : (opt.start_date ? optStart + (3600000 * 3) : tripEndTime)
+    const optStartObj = opt.start_date ? parseLocalDate(opt.start_date) : null
+    const optEndObj = opt.end_date ? parseLocalDate(opt.end_date) : null
+
+    const optStart = optStartObj ? optStartObj.getTime() : tripStartTime
+    const optEnd = optEndObj ? optEndObj.getTime() : (optStartObj ? optStart + (3600000 * 3) : tripEndTime)
     const totalDuration = Math.max(tripEndTime - tripStartTime, 86400000)
 
     const left = Math.max(0, Math.min(100, ((optStart - tripStartTime) / totalDuration) * 100))
@@ -77,7 +98,7 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '1rem',
         background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9))',
@@ -146,7 +167,7 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
               Category
             </div>
             {tripDays.map((d, idx) => {
-              const dStr = d.toISOString().slice(0, 10)
+              const dStr = formatLocalDateStr(d)
               const isUnbooked = unbookedDateStrs.has(dStr)
 
               return (
@@ -203,7 +224,7 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
                     {/* Background Day Grid Dividers */}
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${totalDays}, 1fr)`, position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, pointerEvents: 'none' }}>
                       {tripDays.map((d, i) => {
-                        const dStr = d.toISOString().slice(0, 10)
+                        const dStr = formatLocalDateStr(d)
                         const isUnbooked = unbookedDateStrs.has(dStr)
 
                         return (
@@ -226,7 +247,7 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
                     ) : (
                       catOptions.map(opt => {
                         const optIdStr = String(opt.id)
-                        const isLocked = String(activePoll.locked_option_id) === optIdStr || Boolean(opt.is_locked)
+                        const isLocked = lockedOptionIds.has(optIdStr)
                         const hasConflict = conflictingOptionIds.has(opt.id)
                         const votesCount = activePoll.votes_by_option?.[optIdStr] || 0
                         const pos = calculateBarPosition(opt)
@@ -297,7 +318,7 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
                                 </div>
                                 {hasConflict && (
                                   <div style={{ fontSize: '0.75rem', color: '#f43f5e', fontWeight: 'bold', marginBottom: '4px' }}>
-                                    ⚠️ Overlapping Time Conflict!
+                                    ⚠️ Overlapping Schedule Conflict!
                                   </div>
                                 )}
                                 {(opt.start_date || opt.end_date) && (

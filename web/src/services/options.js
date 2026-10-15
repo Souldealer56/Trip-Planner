@@ -41,7 +41,8 @@ export async function pitchOption(tripId, category, name, estimatedCost, currenc
       description: description || null,
       start_date: startDate || null,
       end_date: endDate || null,
-      added_by: addedByUserId
+      added_by: addedByUserId,
+      is_locked: false
     })
     .select()
     .single()
@@ -75,7 +76,9 @@ export async function fetchActivePoll(tripId, category) {
     throw fetchError
   }
   if (existing) {
-    existing.locked_option_id = existing.voter_selections?._locked_option_id || existing.locked_option_id || null
+    const lockedId = existing.voter_selections?._locked_option_ids?.[0] || existing.voter_selections?._locked_option_id || existing.locked_option_id || null
+    existing.locked_option_id = lockedId
+    existing.locked_option_ids = existing.voter_selections?._locked_option_ids || (lockedId ? [lockedId] : [])
     return existing
   }
 
@@ -97,7 +100,8 @@ export async function fetchActivePoll(tripId, category) {
     throw insertError
   }
   if (created) {
-    created.locked_option_id = created.voter_selections?._locked_option_id || created.locked_option_id || null
+    created.locked_option_id = null
+    created.locked_option_ids = []
   }
   return created
 }
@@ -127,7 +131,7 @@ export async function toggleVote(tripId, category, optionId, userId, cast) {
     delete voterSelections[userId]
   }
 
-  // Recalculate votes_by_option totals from updated selections to maintain perfect consistency
+  // Recalculate votes_by_option totals from updated selections to maintain consistency
   const votesByOption = {}
   Object.values(voterSelections).forEach(opts => {
     if (Array.isArray(opts)) {
@@ -225,37 +229,115 @@ export async function fetchAllTripOptions(tripId) {
 }
 
 /**
- * Locks or unlocks a winning option choice for a category poll.
+ * Determines whether a given option is locked, checking the relational is_locked column
+ * or backward-compatible active_polls voter_selections.
+ * @param {Object} option The option object.
+ * @param {Object} [activePoll] The active poll object for the category.
+ * @returns {boolean} True if the option is currently locked.
+ */
+export function isOptionLocked(option, activePoll) {
+  if (!option) return false
+  if (option.is_locked === true) return true
+
+  const optIdStr = String(option.id)
+  const selections = activePoll?.voter_selections
+
+  if (Array.isArray(selections?._locked_option_ids) && selections._locked_option_ids.map(String).includes(optIdStr)) {
+    return true
+  }
+  if (activePoll?.locked_option_id && String(activePoll.locked_option_id) === optIdStr) {
+    return true
+  }
+  if (selections?._locked_option_id && String(selections._locked_option_id) === optIdStr) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Locks or unlocks an itinerary choice. Supports multi-option locking within the same category
+ * (e.g. multiple hotels across different dates of a multi-city trip).
+ * Updates poll_options.is_locked directly and maintains _locked_option_ids in active_polls.
+ * @param {string} tripId The UUID of the trip.
+ * @param {string} category The category name.
+ * @param {string|number} optionId The ID of the option to lock/unlock.
+ * @param {string} userId The active user's ID.
+ * @returns {Promise<Object>} Updated poll record.
  */
 export async function lockOption(tripId, category, optionId, userId) {
+  const optIdStr = String(optionId)
+
+  // 1. Check existing locked state on poll_options
+  let isCurrentlyLocked = false
+  try {
+    const { data: opt } = await supabase
+      .from('poll_options')
+      .select('id, is_locked')
+      .eq('id', optionId)
+      .maybeSingle()
+    if (opt && typeof opt.is_locked === 'boolean') {
+      isCurrentlyLocked = opt.is_locked
+    }
+  } catch (_) {
+    // Column might not exist on older schemas
+  }
+
   const poll = await fetchActivePoll(tripId, category)
   const selections = { ...(poll?.voter_selections || {}) }
-  const isCurrentlyLocked = String(selections._locked_option_id) === String(optionId)
+  let lockedIds = Array.isArray(selections._locked_option_ids)
+    ? [...selections._locked_option_ids]
+    : selections._locked_option_id
+      ? [String(selections._locked_option_id)]
+      : []
 
-  if (isCurrentlyLocked) {
-    delete selections._locked_option_id
+  if (lockedIds.includes(optIdStr)) {
+    isCurrentlyLocked = true
+  }
+
+  const newLockedState = !isCurrentlyLocked
+
+  // 2. Update is_locked directly on poll_options table
+  try {
+    await supabase
+      .from('poll_options')
+      .update({ is_locked: newLockedState })
+      .eq('id', optionId)
+  } catch (_) {
+    // Ignore if column is absent on unmigrated schema
+  }
+
+  // 3. Update active_polls voter_selections with _locked_option_ids array for backward UI compatibility
+  if (newLockedState) {
+    if (!lockedIds.includes(optIdStr)) {
+      lockedIds.push(optIdStr)
+    }
   } else {
-    selections._locked_option_id = String(optionId)
+    lockedIds = lockedIds.filter(id => String(id) !== optIdStr)
   }
 
-  const { data, error } = await supabase
-    .from('active_polls')
-    .update({
-      voter_selections: selections
-    })
-    .eq('id', poll.id)
-    .select()
-    .single()
+  selections._locked_option_ids = lockedIds
+  selections._locked_option_id = lockedIds.length > 0 ? lockedIds[0] : null
 
-  if (error) {
-    throw error
+  let updatedPoll = null
+  try {
+    const { data, error } = await supabase
+      .from('active_polls')
+      .update({ voter_selections: selections })
+      .eq('id', poll.id)
+      .select()
+      .single()
+
+    if (!error) {
+      updatedPoll = data
+      updatedPoll.locked_option_id = selections._locked_option_id
+      updatedPoll.locked_option_ids = lockedIds
+    }
+  } catch (err) {
+    console.error('Failed to update active_polls locked selection:', err)
   }
 
-  if (data) {
-    data.locked_option_id = data.voter_selections?._locked_option_id || null
-  }
-
-  // Log activity
+  // 4. Log activity
   try {
     let userName = 'Someone'
     if (userId) {
@@ -268,7 +350,7 @@ export async function lockOption(tripId, category, optionId, userId) {
         userName = userRec.first_name
       }
     }
-    const actionDesc = selections._locked_option_id
+    const actionDesc = newLockedState
       ? `${userName} locked an itinerary choice in ${category}`
       : `${userName} unlocked choice in ${category}`
 
@@ -282,5 +364,12 @@ export async function lockOption(tripId, category, optionId, userId) {
     console.error('Failed to log lock activity:', logErr)
   }
 
-  return data
+  return updatedPoll || {
+    ...poll,
+    voter_selections: selections,
+    locked_option_id: selections._locked_option_id,
+    locked_option_ids: lockedIds
+  }
 }
+
+

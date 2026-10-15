@@ -7,10 +7,20 @@ import { supabase } from './supabase'
  * @returns {Promise<Array>} A promise resolving to an array of RSVPs.
  */
 export async function fetchRsvpRoster(tripId) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('rsvps')
-    .select('status, user_id, notes, users(*)')
+    .select('status, user_id, notes, role, is_admin, users(*)')
     .eq('trip_id', tripId)
+
+  if (error) {
+    // Fallback if role or is_admin column absent on unmigrated schema
+    const fallback = await supabase
+      .from('rsvps')
+      .select('status, user_id, notes, users(*)')
+      .eq('trip_id', tripId)
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     throw error
@@ -20,26 +30,44 @@ export async function fetchRsvpRoster(tripId) {
 
 /**
  * Creates / updates an RSVP record for a user joining a trip.
+ * Uses upsert with onConflict on (trip_id, user_id) to prevent duplicate RSVP rows.
  * @param {string} tripId The UUID of the trip.
  * @param {string} userId The UUID of the user.
- * @param {string} status The RSVP status (default: 'Committed').
- * @returns {Promise<Object>} A promise resolving to the created RSVP record.
+ * @param {string} [status='Committed'] The RSVP status.
+ * @param {string} [role='member'] The RSVP role ('organizer', 'co_organizer', 'member').
+ * @returns {Promise<Object>} A promise resolving to the created/updated RSVP record.
  */
-export async function createRsvp(tripId, userId, status = 'Committed') {
+export async function createRsvp(tripId, userId, status = 'Committed', role = 'member') {
+  const payload = {
+    trip_id: tripId,
+    user_id: userId,
+    status,
+    role
+  }
+
   const { data, error } = await supabase
     .from('rsvps')
-    .insert({
-      trip_id: tripId,
-      user_id: userId,
-      status: status
-    })
+    .upsert(payload, { onConflict: 'trip_id,user_id' })
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (!error) return data
+
+  // Fallback without role column if unmigrated
+  const fallback = await supabase
+    .from('rsvps')
+    .upsert({
+      trip_id: tripId,
+      user_id: userId,
+      status
+    }, { onConflict: 'trip_id,user_id' })
+    .select()
+    .single()
+
+  if (fallback.error) {
+    throw fallback.error
   }
-  return data
+  return fallback.data
 }
 
 /**
@@ -88,6 +116,8 @@ export async function updateRsvpStatus(tripId, userId, status) {
 
 /**
  * Helper to determine if a user has admin/organizer permissions for a trip.
+ * Strictly uses relational columns (trip.organizer_id, rsvp.role, rsvp.is_admin)
+ * and never grants privileges from user-editable notes.
  * @param {Object|number|string} user The active user object or user ID.
  * @param {Object} trip The trip object.
  * @param {Object} [rsvp] Optional RSVP record for the user on this trip.
@@ -102,10 +132,12 @@ export function isUserTripAdmin(user, trip, rsvp) {
     return true
   }
 
-  // 2. Co-organizer check from RSVP
+  // 2. Co-organizer or explicit admin check from RSVP role / is_admin column
   if (rsvp) {
-    if (rsvp.is_admin === true) return true
-    if (rsvp.notes && typeof rsvp.notes === 'string' && (rsvp.notes.includes('[CO_ORGANIZER]') || rsvp.notes.includes('[ADMIN]'))) {
+    if (rsvp.role === 'organizer' || rsvp.role === 'co_organizer') {
+      return true
+    }
+    if (rsvp.is_admin === true) {
       return true
     }
   }
@@ -115,66 +147,70 @@ export function isUserTripAdmin(user, trip, rsvp) {
 
 /**
  * Promotes a participant to Co-Organizer admin status.
+ * Updates role to 'co_organizer' and is_admin to true without mutating user notes.
  * @param {string} tripId The UUID of the trip.
  * @param {string|number} userId The ID of the participant.
  * @returns {Promise<Object>} Updated RSVP record.
  */
 export async function promoteToCoOrganizer(tripId, userId) {
-  const { data: rsvp } = await supabase
-    .from('rsvps')
-    .select('*')
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .single()
-
-  const currentNotes = rsvp?.notes || ''
-  const newNotes = currentNotes.includes('[CO_ORGANIZER]') ? currentNotes : `[CO_ORGANIZER] ${currentNotes}`.trim()
-
   try {
     const { data, error } = await supabase
       .from('rsvps')
-      .update({ notes: newNotes, is_admin: true })
+      .update({ role: 'co_organizer', is_admin: true })
       .eq('trip_id', tripId)
       .eq('user_id', userId)
       .select()
       .single()
     if (!error) return data
-  } catch (e) {
-    // Fallback if is_admin column absent
+  } catch (_) {
+    // Fallback if role column is absent on unmigrated schema
   }
 
-  return updateRsvpNote(tripId, userId, newNotes)
+  const { data, error } = await supabase
+    .from('rsvps')
+    .update({ is_admin: true })
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
 }
 
 /**
  * Demotes a Co-Organizer back to regular participant status.
+ * Updates role to 'member' and is_admin to false without mutating user notes.
  * @param {string} tripId The UUID of the trip.
  * @param {string|number} userId The ID of the participant.
  * @returns {Promise<Object>} Updated RSVP record.
  */
 export async function demoteCoOrganizer(tripId, userId) {
-  const { data: rsvp } = await supabase
-    .from('rsvps')
-    .select('*')
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .single()
-
-  const currentNotes = rsvp?.notes || ''
-  const newNotes = currentNotes.replace(/\[(CO_ORGANIZER|ADMIN)\]\s*/g, '').trim() || null
-
   try {
     const { data, error } = await supabase
       .from('rsvps')
-      .update({ notes: newNotes, is_admin: false })
+      .update({ role: 'member', is_admin: false })
       .eq('trip_id', tripId)
       .eq('user_id', userId)
       .select()
       .single()
     if (!error) return data
-  } catch (e) {
-    // Fallback if is_admin column absent
+  } catch (_) {
+    // Fallback if role column is absent on unmigrated schema
   }
 
-  return updateRsvpNote(tripId, userId, newNotes)
+  const { data, error } = await supabase
+    .from('rsvps')
+    .update({ is_admin: false })
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
 }

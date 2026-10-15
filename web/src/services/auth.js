@@ -87,22 +87,37 @@ export async function verifyLoginToken(token) {
   }
 
   if (!user) {
-    // 4. Standalone Onboarding: Create traveler profile with a temporary negative Telegram ID
-    const tempTelegramId = -1 * (Date.now() * 1000 + Math.floor(Math.random() * 1000));
+    // 4. Standalone Onboarding: Create clean traveler profile
     const emailPrefix = tokenRecord.email.split('@')[0];
     const firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
     const username = emailPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    const { data: newUser, error: createError } = await supabase
+    const payload = {
+      email: tokenRecord.email,
+      first_name: firstName,
+      username: username || null
+    };
+
+    let { data: newUser, error: createError } = await supabase
       .from('users')
-      .insert({
-        email: tokenRecord.email,
-        telegram_id: tempTelegramId,
-        first_name: firstName,
-        username: username || null
-      })
+      .insert(payload)
       .select()
       .single();
+
+    // Legacy fallback if telegram_id NOT NULL constraint is still present
+    if (createError && (createError.message?.includes('telegram_id') || createError.details?.includes('telegram_id'))) {
+      const fallbackTelegramId = -1000000 - Math.floor(Math.random() * 1000000);
+      const fallbackRes = await supabase
+        .from('users')
+        .insert({
+          ...payload,
+          telegram_id: fallbackTelegramId
+        })
+        .select()
+        .single();
+      newUser = fallbackRes.data;
+      createError = fallbackRes.error;
+    }
 
     if (createError) {
       console.error('Failed to create new user profile:', createError);

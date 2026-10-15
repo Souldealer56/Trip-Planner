@@ -1,8 +1,27 @@
+# Environments and secrets
 .env
-.planning/
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Production builds
+dist/
+web/dist/
+
+# Python & testing cache/artifacts
 venv/
 __pycache__/
 *.pyc
-web/node_modules/
-web/dist/
+.pytest_cache/
+
+# Logs and OpenAPI specifications
+*.log
+openapi_spec.json
+
+# Planning and OS metadata
+.planning/
 .DS_Store
+Thumbs.db

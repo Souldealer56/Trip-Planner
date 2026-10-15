@@ -1,24 +1,67 @@
+const FX_CACHE_KEY = 'trip_planner_fx_cache'
+const FX_CACHE_TTL = 6 * 60 * 60 * 1000 // 6 hours
+
+const fallbackRates = {
+  USD: 1.0,
+  EUR: 0.92,
+  GBP: 0.78,
+  CAD: 1.36,
+  AUD: 1.50,
+  JPY: 155.0,
+  CHF: 0.89,
+  MXN: 18.0,
+  ISK: 138.0,
+  NZD: 1.64,
+  SEK: 10.5,
+  NOK: 10.6
+}
+
 /**
  * Fetches current exchange rates relative to USD from the free public API.
- * If fetch fails, it falls back to standard static baseline rates.
+ * Uses 6-hour localStorage caching and an AbortSignal timeout of 4000ms.
+ * Merges fresh results over comprehensive static fallbacks.
  * @returns {Promise<Object>} A promise resolving to a mapping of ISO currency codes to rates.
  */
 export async function fetchExchangeRates() {
-  const fallbackRates = {
-    USD: 1.0,
-    EUR: 0.92,
-    GBP: 0.78,
-    CAD: 1.35,
-    AUD: 1.50
+  // 1. Check local cache
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const cached = localStorage.getItem(FX_CACHE_KEY)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (parsed && parsed.timestamp && (Date.now() - parsed.timestamp < FX_CACHE_TTL) && parsed.rates) {
+          return { ...fallbackRates, ...parsed.rates }
+        }
+      }
+    } catch (_) {
+      // Ignore cache parse failures
+    }
   }
+
+  // 2. Network fetch with 4000ms timeout
   try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD')
+    const timeoutSignal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+      ? AbortSignal.timeout(4000)
+      : undefined
+
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
+      signal: timeoutSignal
+    })
     if (!res.ok) {
       throw new Error(`Rates API returned status ${res.status}`)
     }
     const data = await res.json()
     if (data && data.rates) {
-      return data.rates
+      const mergedRates = { ...fallbackRates, ...data.rates }
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem(FX_CACHE_KEY, JSON.stringify({
+            timestamp: Date.now(),
+            rates: mergedRates
+          }))
+        } catch (_) {}
+      }
+      return mergedRates
     }
     return fallbackRates
   } catch (err) {
@@ -90,13 +133,12 @@ export function calculateSettlements(balances) {
       fromName: debtor.name,
       toId: creditor.userId,
       toName: creditor.name,
-      amount: payAmount
+      amount: Math.round(payAmount * 100) / 100
     })
 
     debtor.amount -= payAmount
     creditor.amount -= payAmount
 
-    // Check with small delta margin to avoid floating point precision issues
     if (debtor.amount < 0.01) {
       i++
     }
@@ -109,7 +151,8 @@ export function calculateSettlements(balances) {
 }
 
 /**
- * Computes individual traveler shares for an expense considering equal, custom amount, or percentage split allocations.
+ * Computes individual traveler shares for an expense considering equal, custom amount,
+ * or percentage split allocations with penny-accurate rounding remainders.
  * @param {number} expenseAmount The total converted expense amount.
  * @param {Array} splitUsers List of user IDs or custom split objects [{ user_id, amount, percent }].
  * @param {Array} fallbackUserIds Fallback list of committed user IDs if splitUsers is empty.
@@ -117,33 +160,81 @@ export function calculateSettlements(balances) {
  */
 export function calculateExpenseParticipantShares(expenseAmount, splitUsers, fallbackUserIds = []) {
   const shares = new Map()
+  const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100
+
   if (!splitUsers || splitUsers.length === 0) {
     if (fallbackUserIds.length > 0) {
-      const equalShare = expenseAmount / fallbackUserIds.length
-      fallbackUserIds.forEach(uid => shares.set(String(uid), equalShare))
+      const n = fallbackUserIds.length
+      const equalShare = round2(expenseAmount / n)
+      let sum = 0
+      fallbackUserIds.forEach(uid => {
+        shares.set(String(uid), equalShare)
+        sum += equalShare
+      })
+      const delta = round2(expenseAmount - sum)
+      if (delta !== 0) {
+        const firstUid = String(fallbackUserIds[0])
+        shares.set(firstUid, round2((shares.get(firstUid) || 0) + delta))
+      }
     }
     return shares
   }
 
-  // Check if splitUsers contains custom objects
+  // Check if splitUsers contains custom objects [{ user_id, amount, percent }]
   const firstItem = splitUsers[0]
   if (typeof firstItem === 'object' && firstItem !== null && (firstItem.amount !== undefined || firstItem.percent !== undefined)) {
+    let totalPercent = 0
+    let isAllPercent = true
+
+    splitUsers.forEach(item => {
+      if (item.percent !== undefined && item.percent !== null && !isNaN(parseFloat(item.percent))) {
+        totalPercent += parseFloat(item.percent)
+      } else {
+        isAllPercent = false
+      }
+    })
+
+    let calculatedSum = 0
     splitUsers.forEach(item => {
       const uId = String(item.user_id || item.userId)
       if (item.amount !== undefined && item.amount !== null && !isNaN(parseFloat(item.amount))) {
-        shares.set(uId, parseFloat(item.amount))
+        const amt = round2(parseFloat(item.amount))
+        shares.set(uId, amt)
+        calculatedSum += amt
       } else if (item.percent !== undefined && item.percent !== null && !isNaN(parseFloat(item.percent))) {
-        const share = (parseFloat(item.percent) / 100) * expenseAmount
-        shares.set(uId, share)
+        const pct = parseFloat(item.percent)
+        const amt = round2((pct / 100) * expenseAmount)
+        shares.set(uId, amt)
+        calculatedSum += amt
       } else {
         shares.set(uId, 0)
       }
     })
+
+    // If percentages sum to 100% (within tolerance), allocate penny remainder to the first participant
+    if (isAllPercent && Math.abs(totalPercent - 100) < 0.01 && splitUsers.length > 0) {
+      const delta = round2(expenseAmount - calculatedSum)
+      if (delta !== 0) {
+        const firstUid = String(splitUsers[0].user_id || splitUsers[0].userId)
+        shares.set(firstUid, round2((shares.get(firstUid) || 0) + delta))
+      }
+    }
   } else {
     // Standard equal split across list of user IDs
     const userIds = splitUsers.map(String)
-    const equalShare = userIds.length > 0 ? expenseAmount / userIds.length : 0
-    userIds.forEach(uId => shares.set(uId, equalShare))
+    const n = userIds.length
+    if (n > 0) {
+      const equalShare = round2(expenseAmount / n)
+      let sum = 0
+      userIds.forEach(uId => {
+        shares.set(uId, equalShare)
+        sum += equalShare
+      })
+      const delta = round2(expenseAmount - sum)
+      if (delta !== 0) {
+        shares.set(userIds[0], round2((shares.get(userIds[0]) || 0) + delta))
+      }
+    }
   }
 
   return shares
@@ -151,7 +242,8 @@ export function calculateExpenseParticipantShares(expenseAmount, splitUsers, fal
 
 /**
  * Calculates budget analytics including total estimated locked option costs,
- * actual spend by category, and per-traveler balance/share breakdown.
+ * actual spend by category (supporting explicit category column and bilingual fallbacks),
+ * and per-traveler balance/share breakdown.
  * @param {Array} expenses List of expense records.
  * @param {Array} options List of locked options.
  * @param {Array} roster List of committed roster members.
@@ -171,7 +263,8 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
       totalEstimatedBudget += convertedCost
 
       const cat = (opt.category || 'Other').trim()
-      categoryEstimates[cat] = (categoryEstimates[cat] || 0) + convertedCost
+      const formattedCat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
+      categoryEstimates[formattedCat] = (categoryEstimates[formattedCat] || 0) + convertedCost
     }
   })
 
@@ -192,20 +285,39 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
     }
   })
 
-  if (rates && expenses.length > 0) {
+  if (expenses.length > 0) {
     expenses.forEach(exp => {
       const amount = parseFloat(exp.amount || 0)
-      const converted = convertCurrency(amount, exp.currency || 'USD', baseCurrency, rates)
+      let converted = amount
+
+      const rate = exp.exchange_rate ? parseFloat(exp.exchange_rate) : null
+      if (rate && !isNaN(rate) && rate > 0) {
+        converted = amount * rate
+      } else if (rates) {
+        converted = convertCurrency(amount, exp.currency || 'USD', baseCurrency, rates)
+      }
+
       totalActualSpend += converted
 
-      // Categorize description if prefixed or default to Other
+      // Resolve category: first-class category column, then bilingual keyword fallback
       let cat = 'Other'
-      const descLower = (exp.description || '').toLowerCase()
-      if (descLower.includes('hotel') || descLower.includes('stay') || descLower.includes('airbnb') || descLower.includes('lodging')) cat = 'Accommodation'
-      else if (descLower.includes('flight') || descLower.includes('airline') || descLower.includes('airfare')) cat = 'Flights'
-      else if (descLower.includes('dinner') || descLower.includes('food') || descLower.includes('lunch') || descLower.includes('meal')) cat = 'Food'
-      else if (descLower.includes('car') || descLower.includes('uber') || descLower.includes('taxi') || descLower.includes('train')) cat = 'Transport'
-      else if (descLower.includes('tour') || descLower.includes('ticket') || descLower.includes('activity')) cat = 'Activities'
+      const rawCat = (exp.category || '').trim().toLowerCase()
+      if (rawCat && rawCat !== 'other') {
+        if (rawCat === 'accommodation') cat = 'Accommodation'
+        else if (rawCat === 'flights') cat = 'Flights'
+        else if (rawCat === 'food') cat = 'Food'
+        else if (rawCat === 'transport') cat = 'Transport'
+        else if (rawCat === 'activities') cat = 'Activities'
+        else cat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1)
+      } else {
+        // Bilingual (English + French) keyword matching on description
+        const descLower = (exp.description || '').toLowerCase()
+        if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge/i.test(descLower)) cat = 'Accommodation'
+        else if (/flight|vol|avion|airline|airfare|billet d'avion/i.test(descLower)) cat = 'Flights'
+        else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast|petit[ -]d[eé]jeuner/i.test(descLower)) cat = 'Food'
+        else if (/transport|car|voiture|uber|taxi|train|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) cat = 'Transport'
+        else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) cat = 'Activities'
+      }
 
       categoryActuals[cat] = (categoryActuals[cat] || 0) + converted
 

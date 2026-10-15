@@ -10,13 +10,13 @@ export async function fetchTrips(userId) {
 
   let { data, error } = await supabase
     .from('rsvps')
-    .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe, is_archived)')
+    .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe, is_archived, organizer_id)')
     .eq('user_id', userId)
 
   if (error) {
     const fallback = await supabase
       .from('rsvps')
-      .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe)')
+      .select('trip_id, trips(id, title, destination, start_date, end_date, base_currency, vibe, organizer_id)')
       .eq('user_id', userId)
     data = fallback.data
     error = fallback.error
@@ -26,7 +26,7 @@ export async function fetchTrips(userId) {
     throw error
   }
 
-  // Map to clean trip structures, compute is_archived, and sort by start_date ascending
+  // Map to clean trip structures and sort by start_date ascending
   return (data || [])
     .map(r => r.trips ? { ...r.trips, is_archived: isTripArchived(r.trips) } : null)
     .filter(Boolean)
@@ -66,12 +66,13 @@ export async function createTrip(title, destination, startDate, endDate, baseCur
     destination,
     start_date: startDate,
     end_date: endDate,
-    base_currency: baseCurrency
+    base_currency: baseCurrency,
+    is_archived: false
   }
 
   const { data, error } = await supabase
     .from('trips')
-    .insert({ ...payload, is_archived: false })
+    .insert(payload)
     .select()
     .single()
 
@@ -79,7 +80,13 @@ export async function createTrip(title, destination, startDate, endDate, baseCur
 
   const fallback = await supabase
     .from('trips')
-    .insert(payload)
+    .insert({
+      title,
+      destination,
+      start_date: startDate,
+      end_date: endDate,
+      base_currency: baseCurrency
+    })
     .select()
     .single()
 
@@ -92,7 +99,7 @@ export async function createTrip(title, destination, startDate, endDate, baseCur
 /**
  * Updates an existing trip's metadata in the database.
  * @param {string} id The UUID of the trip.
- * @param {Object} updates Object containing fields to update (title, destination, vibe, start_date, end_date, base_currency, is_archived).
+ * @param {Object} updates Object containing fields to update.
  * @returns {Promise<Object>} A promise resolving to the updated trip object.
  */
 export async function updateTrip(id, updates) {
@@ -106,44 +113,27 @@ export async function updateTrip(id, updates) {
   if (error) {
     throw error
   }
-  return data
+  return { ...data, is_archived: isTripArchived(data) }
 }
 
 /**
- * Helper to determine if a trip is archived from object properties.
+ * Helper to determine if a trip is archived.
+ * Strictly uses the boolean is_archived column.
+ * @param {Object} trip The trip record.
+ * @returns {boolean} True if trip is archived.
  */
 export function isTripArchived(trip) {
   if (!trip) return false
-  if (trip.is_archived === true) return true
-  if (trip.vibe && typeof trip.vibe === 'string' && trip.vibe.includes('[ARCHIVED]')) return true
-  return false
+  return Boolean(trip.is_archived)
 }
 
 /**
  * Archives a trip (soft-delete).
- * Uses is_archived column if available, with [ARCHIVED] vibe tag fallback for schema resilience.
  * @param {string} id The UUID of the trip.
  * @returns {Promise<Object>} Updated trip object.
  */
 export async function archiveTrip(id) {
-  const current = await fetchTripById(id)
-  const currentVibe = current.vibe || ''
-  const newVibe = currentVibe.includes('[ARCHIVED]') ? currentVibe : `[ARCHIVED] ${currentVibe}`.trim()
-
-  const updates = { vibe: newVibe }
-  try {
-    const { data, error } = await supabase
-      .from('trips')
-      .update({ ...updates, is_archived: true })
-      .eq('id', id)
-      .select()
-      .single()
-    if (!error) return { ...data, is_archived: true }
-  } catch (e) {
-    // Ignore schema error if is_archived column absent
-  }
-
-  return updateTrip(id, updates)
+  return updateTrip(id, { is_archived: true })
 }
 
 /**
@@ -152,24 +142,7 @@ export async function archiveTrip(id) {
  * @returns {Promise<Object>} Updated trip object.
  */
 export async function unarchiveTrip(id) {
-  const current = await fetchTripById(id)
-  const currentVibe = current.vibe || ''
-  const newVibe = currentVibe.replace(/\[ARCHIVED\]\s*/g, '').trim() || null
-
-  const updates = { vibe: newVibe }
-  try {
-    const { data, error } = await supabase
-      .from('trips')
-      .update({ ...updates, is_archived: false })
-      .eq('id', id)
-      .select()
-      .single()
-    if (!error) return { ...data, is_archived: false }
-  } catch (e) {
-    // Ignore schema error if is_archived column absent
-  }
-
-  return updateTrip(id, updates)
+  return updateTrip(id, { is_archived: false })
 }
 
 /**
@@ -180,30 +153,44 @@ export async function unarchiveTrip(id) {
 export async function deleteTrip(id) {
   if (!id) throw new Error('Trip ID is required for deletion.')
 
-  // 1. Delete activity logs
-  await supabase.from('activity_log').delete().eq('trip_id', id)
-
-  // 2. Fetch expenses and delete splits
-  const { data: expData } = await supabase.from('expenses').select('id').eq('trip_id', id)
-  const expIds = (expData || []).map(e => e.id)
-  if (expIds.length > 0) {
-    await supabase.from('expense_splits').delete().in('expense_id', expIds)
+  // Manual cleanup in defensive try/catch blocks for resilience
+  try {
+    await supabase.from('activity_log').delete().eq('trip_id', id)
+  } catch (_) {
+    // Ignore errors if table or RLS prevents manual delete; CASCADE handles it
   }
-  await supabase.from('expenses').delete().eq('trip_id', id)
 
-  // 3. Fetch active polls and delete votes + poll options
-  const { data: pollData } = await supabase.from('active_polls').select('id').eq('trip_id', id)
-  const pollIds = (pollData || []).map(p => p.id)
-  if (pollIds.length > 0) {
-    await supabase.from('poll_votes').delete().in('poll_id', pollIds)
+  try {
+    const { data: expData } = await supabase.from('expenses').select('id').eq('trip_id', id)
+    const expIds = (expData || []).map(e => e.id)
+    if (expIds.length > 0) {
+      await supabase.from('expense_splits').delete().in('expense_id', expIds)
+    }
+    await supabase.from('expenses').delete().eq('trip_id', id)
+  } catch (_) {
+    // Handled by CASCADE
   }
-  await supabase.from('poll_options').delete().eq('trip_id', id)
-  await supabase.from('active_polls').delete().eq('trip_id', id)
 
-  // 4. Delete RSVPs
-  await supabase.from('rsvps').delete().eq('trip_id', id)
+  try {
+    const { data: pollData } = await supabase.from('active_polls').select('id').eq('trip_id', id)
+    const pollIds = (pollData || []).map(p => p.id)
+    if (pollIds.length > 0) {
+      await supabase.from('poll_votes').delete().in('poll_id', pollIds)
+    }
+    await supabase.from('option_votes').delete().eq('trip_id', id)
+    await supabase.from('poll_options').delete().eq('trip_id', id)
+    await supabase.from('active_polls').delete().eq('trip_id', id)
+  } catch (_) {
+    // Handled by CASCADE
+  }
 
-  // 5. Delete trip record
+  try {
+    await supabase.from('rsvps').delete().eq('trip_id', id)
+  } catch (_) {
+    // Handled by CASCADE
+  }
+
+  // Delete root trip record
   const { error } = await supabase.from('trips').delete().eq('id', id)
   if (error) throw error
 

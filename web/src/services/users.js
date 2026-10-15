@@ -1,30 +1,47 @@
 import { supabase } from './supabase'
 
 /**
- * Creates a new user inside the database, generating a unique negative telegram_id
- * to guarantee no key collisions with real positive Telegram IDs synced by the bot.
+ * Creates a new user record inside the database.
+ * No longer generates negative telegram IDs; includes fallback if database has legacy NOT NULL constraint.
  * @param {string} username The username of the user.
  * @param {string} firstName The first name of the user.
+ * @param {string|null} [email=null] Optional email address.
  * @returns {Promise<Object>} A promise resolving to the created user record.
  */
-export async function createUser(username, firstName) {
-  // Generate a random unique negative integer for telegram_id
-  const telegramId = -1000000 - Math.floor(Math.random() * 1000000)
+export async function createUser(username, firstName, email = null) {
+  const payload = {
+    first_name: firstName,
+    username: username || null,
+    email: email || null
+  }
 
   const { data, error } = await supabase
     .from('users')
-    .insert({
-      telegram_id: telegramId,
-      username: username || null,
-      first_name: firstName
-    })
+    .insert(payload)
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (!error) {
+    return data
   }
-  return data
+
+  // Graceful fallback if legacy unmigrated schema enforces telegram_id NOT NULL
+  if (error && (error.message?.includes('telegram_id') || error.details?.includes('telegram_id'))) {
+    const fallbackTelegramId = -1000000 - Math.floor(Math.random() * 1000000)
+    const fallback = await supabase
+      .from('users')
+      .insert({
+        ...payload,
+        telegram_id: fallbackTelegramId
+      })
+      .select()
+      .single()
+
+    if (fallback.error) throw fallback.error
+    return fallback.data
+  }
+
+  throw error
 }
 
 /**
@@ -64,26 +81,7 @@ export async function checkUsernameAvailable(username) {
     throw error
   }
 
-  // If data is null, it means no user exists with this username, so it is available
   return data === null
-}
-
-/**
- * Fetches a traveler profile by their Telegram ID.
- * @param {number} telegramId The Telegram user ID.
- * @returns {Promise<Object|null>} The user object or null.
- */
-export async function fetchUserByTelegramId(telegramId) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('telegram_id', telegramId)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-  return data
 }
 
 /**
@@ -94,7 +92,7 @@ export async function fetchUserByTelegramId(telegramId) {
 export async function fetchUserByUsername(username) {
   if (!username) return null
   const cleanUsername = username.trim().replace(/^@/, '')
-  
+
   const { data, error } = await supabase
     .from('users')
     .select('*')
@@ -105,63 +103,6 @@ export async function fetchUserByUsername(username) {
     throw error
   }
   return data
-}
-
-/**
- * Generate a temporary verification code to link a Telegram account.
- * Valid for 5 minutes.
- * @param {string} userId - The user's ID
- * @returns {Promise<string>} The generated link code
- */
-export async function generateTelegramLinkCode(userId) {
-  // Generate a random 6-character uppercase alphanumeric code
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-  const { error } = await supabase
-    .from('users')
-    .update({
-      telegram_link_code: code,
-      telegram_link_expires_at: expiresAt
-    })
-    .eq('id', userId);
-
-  if (error) {
-    throw error;
-  }
-
-  return code;
-}
-
-/**
- * Disconnect a user's profile from Telegram by reverting to a negative telegram_id.
- * @param {string} userId - The user's ID
- * @returns {Promise<Object>} The updated user profile
- */
-export async function disconnectTelegram(userId) {
-  const tempTelegramId = -1000000 - Math.floor(Math.random() * 1000000);
-
-  const { data, error } = await supabase
-    .from('users')
-    .update({
-      telegram_id: tempTelegramId,
-      telegram_link_code: null,
-      telegram_link_expires_at: null
-    })
-    .eq('id', userId)
-    .select()
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
 }
 
 /**
@@ -183,6 +124,3 @@ export async function updateUserProfile(userId, updates) {
   }
   return data
 }
-
-
-

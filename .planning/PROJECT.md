@@ -2,21 +2,21 @@
 
 ## What This Is
 
-A collaborative trip planning platform consisting of a Telegram bot (TripSync Bot) that handles group chat interactions, RSVP tracking, option pitching, voting, and expenses logging, alongside a modern React-based web application for viewing trips, pitching options, logging expenses, editing trip settings, and managing traveler profiles.
+A 100% standalone, web-first collaborative trip planning application that allows groups of travelers to coordinate itineraries, pitch and vote on options (accommodations, activities, meals, transport), track participant RSVPs, schedule events on a visual Gantt timeline, log shared expenses with automated debt minimization settlements, and synchronize changes in real-time across users via Supabase WebSockets.
 
 ## Core Value
 
-Provide a seamless, multi-interface collaborative trip planning experience that bridges Telegram group chats with web views.
+Provide an intuitive, real-time, responsive web interface for frictionless group trip coordination without reliance on third-party messaging bots or external chat apps.
 
 ## Current State
 
-Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** on 2026-07-24.
+Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** and **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline** (Complete).
 
 ---
 
-## Current Milestone: Milestone v2.0 Complete (Awaiting Next Milestone Setup)
+## Current Milestone: Milestone v3.1 Complete
 
-**Goal:** Seamlessly integrate locked-in itinerary options into the expense ledger with flexible cost partitioning across participants.
+**Goal:** Provide enterprise-grade standalone web security with native Supabase Auth, bi-directional real-time multi-user synchronization, offline UI smoke testing, and continuous integration automation.
 
 ---
 
@@ -65,15 +65,19 @@ Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** on 2026
 - ✓ Locked option to expense conversion ("💸 Log as Expense") with pre-filled title, amount, currency, and payer — v2.0 (Phase 33)
 - ✓ Flexible expense cost partitioning (equal split, custom dollar amount/percentage, or participant exclusion) — v2.0 (Phase 34)
 - ✓ Budget breakdown & traveler cost distribution analytics report with variance tracking & category progress bars — v2.0 (Phase 35)
-
-### Deferred to Future Milestones
-
-- [ ] Automated settlement alerts pushed to Telegram from web hooks
+- ✓ Pure standalone web-first architecture: complete purge of Telegram bot, Python code, and legacy Telegram schema — v3.0
+- ✓ Clean, normalized PostgreSQL schema migration with strict first-class columns (`is_archived`, `role`, `locked_option_id`) — v3.0
+- ✓ Modular UI component refactor: decomposed `TripDetails.jsx` into focused sub-components (`TripHeader`, `RosterSection`, `OptionsTab`, `LedgerAndSettleTab`, `BudgetAnalyticsTab`, modals) — v3.0
+- ✓ Native Supabase Auth migration (`auth.uid()`, passwordless OTP magic links, public `anon` key isolation) — v3.1
+- ✓ PostgreSQL Row Level Security (RLS) policies scoped strictly to authenticated users and trip participants — v3.1
+- ✓ Real-time multi-user synchronization with `useTripRealtime` debounced WebSocket channel subscriptions — v3.1
+- ✓ Automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) running `npm ci`, `npm run lint`, `npm test`, `npm run build` — v3.1
+- ✓ Offline test suite with JSDOM component UI smoke tests and pure domain logic unit tests running in <3s — v3.1
 
 ### Out of Scope
 
 - [ ] Direct webapp booking or reservation integration — out of scope
-- [ ] Full OAuth authentication in v1 — deferred in favor of passwordless magic links & standalone guest registration
+- [ ] Third-party messaging platform bots (Telegram, Discord, Slack) — removed in v3.0 in favor of 100% standalone web architecture
 
 ## Context
 
@@ -83,48 +87,37 @@ Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** on 2026
 - Shipped **v1.4 Standalone Webapp & Hybrid Onboarding** which detached the application from requiring Telegram: including passwordless email login magic links, `/join/:tripId` invite URLs with guest onboarding, hybrid user profile merging (Telegram + web), and a real-time Postgres trigger-backed Activity Feed drawer on the web app.
 - Shipped **v1.5 Trip Settings, User Profiles & Pitching Audit** which added editable trip settings with date conflict reconciliation warnings & dynamic FX matrix recalculation, audited database RLS policies to fix option pitching/voting, and built a dedicated `/profile` page with avatar customization and Telegram account link/unlink management.
 - Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** which integrated locked-in itinerary options into the expense ledger ("💸 Log as Expense"), built flexible cost partitioning supporting equal, custom dollar amount, and percentage participant splits, and created a visual Budget & Cost Analytics report.
+- Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** which permanently removed all Python code and Telegram bot integrations, migrated to clean normalized PostgreSQL schemas with first-class columns (`is_archived`, `role`, `locked_option_id`), and decomposed the monolithic `TripDetails.jsx` view into maintainable modular sub-components.
+- Shipped **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline** which implemented native `supabase.auth` integration, enforced PostgreSQL RLS referencing `auth.uid()`, built the `useTripRealtime` multi-user live synchronization hook with resource debouncing, added JSDOM UI smoke tests, and established automated GitHub Actions CI.
 
 ## Constraints
 
-- **Tech Stack (Bot)**: Python 3.13 / Supabase / Python-Telegram-Bot — existing codebase constraint
-- **Tech Stack (Web)**: React + Vite + Vanilla CSS — user preference
-- **Authentication**: Passwordless Email OTP & Standalone Link Onboarding in v1.4
+- **Tech Stack (Web)**: React 19 + Vite 8 + Vanilla CSS (Glassmorphic)
+- **Database**: PostgreSQL (Supabase) with Row Level Security (RLS) & Triggers
+- **Authentication**: Native Supabase Auth (`supabase.auth`) with Email OTP & standard UUID `auth.uid()`
+- **CI/CD**: GitHub Actions running on Node.js 22 with offline test constraints (<10s runtime)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | React + Vite + Vanilla CSS for Web | User choice for modern, fast single-page app | ✓ Good (Phase 1 setup successful) |
-| Participant Selection/Addition instead of Auth | Simplicity for v1, allows quick onboarding via shared link | ✓ Good (Phase 4 setup successful) |
 | Encapsulated postgrest query services & custom hooks | Clean architectural abstraction separating logic from UI views | ✓ Good (Phase 2 setup successful) |
-| Negative `telegram_id` values for web users | Completely avoids collision risks with real Telegram User IDs | ✓ Good (Phase 2 setup successful) |
-| Combined auto-load + manual refresh buttons | Simple way to display Telegram bot updates without real-time sockets | ✓ Good (Phase 3 setup successful) |
-| Blocking profile modal selector | Restricts dynamic actions to a selected active profile session | ✓ Good (Phase 4 setup successful) |
-| Centralized DB execution wrapper (`_safe_db_call`) | Ensures bot loop doesn't crash on DB timeout/failure | ✓ Good (Phase 6 setup successful) |
-| Centralized emoji map (`_UX_EMOJIS`) | Uniform emoji styling across bot templates | ✓ Good (Phase 7 setup successful) |
-| Telegram native poll tallies command (`/polls`) | Queries real-time tallies directly from TG API | ✓ Good (Phase 8 setup successful) |
-| `asyncio` background nudge loop | Lightweight non-blocking reminders without extra pip dependencies | ✓ Good (Phase 9 setup successful) |
-| Client-side JSONB updates for vote toggle | Dynamic client-side voting count caching mapped to active user IDs | ✓ Good (Phase 11 setup successful) |
-| Equal vs. Custom Roster Split toggles | Standardized checklist checks for specific participant divisions | ✓ Good (Phase 12 setup successful) |
-| USD-intermediary FX rates converter | Converts diverse cost inputs to trip base currency using live rates | ✓ Good (Phase 13 setup successful) |
-| React Context for user sessions caching | Preserves signed in active user profile state globally | ✓ Good (Phase 14 setup successful) |
-| Debounced async username pre-check validation | Prevents database username collision errors before submission | ✓ Good (Phase 14 setup successful) |
-| Nested relational Supabase queries | Enforces client-side query isolation filtering trips by participant RSVPs | ✓ Good (Phase 15 setup successful) |
-| Case-insensitive deep link lookups | Strip leading `@` to look up users by username/telegram_id case-insensitively | ✓ Good (Phase 16 setup successful) |
-| Browser history URL state replacement | Immediately deletes credentials from address bar without reloading | ✓ Good (Phase 16 setup successful) |
-| Blocking roster reconciliation modal | Enforces access control by blocking views unless registered in roster | ✓ Good (Phase 16 setup successful) |
 | PostgreSQL Triggers for `activity_log` | Automatically logs RSVPs, pitches, and expenses at DB layer | ✓ Good (Phase 20 setup successful) |
-| Public RLS policies for `active_polls` | Enables web & bot voting parity without DB mutation errors | ✓ Good (Phase 21 setup successful) |
-| Date reconciliation modal & warning badges | Surfaces out-of-bounds options after trip date updates | ✓ Good (Phase 22 setup successful) |
-| Dynamic FX settlement matrix recalculation | Preserves expense amounts while recalculating settlements in base currency | ✓ Good (Phase 22 setup successful) |
-| Dedicated `/profile` view & avatar color picker | Personalizes traveler identity & simplifies Telegram account linking/unlinking | ✓ Good (Phase 23 setup successful) |
-| `[Locked Option]` description tag convention | Pre-fills expense details while avoiding duplicate database schema fields | ✓ Good (Phase 33 setup successful) |
 | Flexible `split_users` JSONB schema | Stores both string ID arrays and custom `{ user_id, amount, percent }` objects | ✓ Good (Phase 34 setup successful) |
 | Unified budget analytics calculation engine | Computes estimated budget, actual spend, variance, and individual shares | ✓ Good (Phase 35 setup successful) |
+| Pure Web-First Architecture Purge | Eliminate hybrid complexity and dependencies on Telegram bots and Python runtime | ✓ Good (v3.0 complete) |
+| First-Class Database Columns (`is_archived`, `role`, `locked_option_id`) | Eliminate string tag parsing and JSON metadata stuffing | ✓ Good (v3.0 complete) |
+| Modular Sub-Component Decomposition | Decomposed 1400+ line `TripDetails.jsx` into focused sub-components and modals | ✓ Good (v3.0 complete) |
+| Native Supabase Auth (`auth.uid()`) | Production-grade identity and access control without custom token endpoints | ✓ Good (v3.1 complete) |
+| Channel-Level Resource Debouncing (`useTripRealtime`) | Mitigates Supabase broadcast storming while delivering instantaneous multi-user updates | ✓ Good (v3.1 complete) |
+| GitHub Actions Automated CI Pipeline | Enforces quality gate (lint, test, build) on every commit and PR without secrets exposure | ✓ Good (v3.1 complete) |
+| Offline JSDOM Component Smoke Tests | Guarantees zero runtime state/reference crashes in core sub-components without network calls | ✓ Good (v3.1 complete) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-07-24 after v2.0 milestone*
+*Last updated: 2026-10-15 after v3.1 milestone*
+

@@ -1,19 +1,81 @@
 /**
- * Formats a start and end ISO date string into a localized human-friendly range.
+ * Parses a date or datetime string into a local Date instance without UTC shifting.
+ * Handles:
+ * - Date-only strings ("YYYY-MM-DD") -> local midnight (00:00:00.000)
+ * - Local datetime strings ("YYYY-MM-DDTHH:mm" or "YYYY-MM-DD HH:mm") -> local time
+ * - Full ISO strings with timezone offsets or trailing 'Z' -> standard Date parsing
+ * 
+ * @param {string|Date|null|undefined} dateStr Input date string or Date object.
+ * @returns {Date|null} Local Date instance or null if invalid/empty.
+ */
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return null
+  if (dateStr instanceof Date) {
+    return isNaN(dateStr.getTime()) ? null : new Date(dateStr.getTime())
+  }
+
+  if (typeof dateStr !== 'string') return null
+  const trimmed = dateStr.trim()
+  if (!trimmed) return null
+
+  // 1. Date-only format: YYYY-MM-DD
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1])
+    const month = Number(dateOnlyMatch[2]) - 1
+    const day = Number(dateOnlyMatch[3])
+    return new Date(year, month, day, 0, 0, 0, 0)
+  }
+
+  // 2. Local datetime format without explicit offset: YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm(:ss)
+  const localTimeMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d+))?$/)
+  if (localTimeMatch) {
+    const year = Number(localTimeMatch[1])
+    const month = Number(localTimeMatch[2]) - 1
+    const day = Number(localTimeMatch[3])
+    const hours = Number(localTimeMatch[4])
+    const minutes = Number(localTimeMatch[5])
+    const seconds = Number(localTimeMatch[6] || 0)
+    const ms = localTimeMatch[7] ? Number(localTimeMatch[7].slice(0, 3).padEnd(3, '0')) : 0
+    return new Date(year, month, day, hours, minutes, seconds, ms)
+  }
+
+  // 3. Fallback for ISO strings with Z or timezone offset (e.g., 2026-07-12T00:00:00.000Z, +02:00)
+  const parsed = new Date(trimmed)
+  return isNaN(parsed.getTime()) ? null : parsed
+}
+
+/**
+ * Formats a Date object to local YYYY-MM-DD string without UTC conversion.
+ * @param {Date|string} dateVal Date object or date string.
+ * @returns {string} Formatted YYYY-MM-DD string.
+ */
+export function formatLocalDateStr(dateVal) {
+  const d = dateVal instanceof Date ? dateVal : parseLocalDate(dateVal)
+  if (!d) return ''
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Formats a start and end date string into a localized human-friendly range.
  * E.g., "2026-07-12", "2026-07-18" -> "Jul 12 – Jul 18, 2026"
- * @param {string} startStr Start date ISO string.
- * @param {string} endStr End date ISO string.
+ * @param {string} startStr Start date string.
+ * @param {string} endStr End date string.
  * @returns {string} The formatted date range.
  */
 export function formatDateRange(startStr, endStr) {
   if (!startStr || !endStr) return ''
-  const start = new Date(startStr)
-  const end = new Date(endStr)
-  
-  const options = { month: 'short', day: 'numeric', timeZone: 'UTC' }
+  const start = parseLocalDate(startStr)
+  const end = parseLocalDate(endStr)
+  if (!start || !end) return ''
+
+  const options = { month: 'short', day: 'numeric' }
   const startFmt = start.toLocaleDateString('en-US', options)
   const endFmt = end.toLocaleDateString('en-US', { ...options, year: 'numeric' })
-  
+
   return `${startFmt} – ${endFmt}`
 }
 
@@ -30,7 +92,13 @@ export function formatCurrency(amount, currencyCode) {
     GBP: '£',
     JPY: '¥',
     CAD: 'CA$',
-    AUD: 'A$'
+    AUD: 'A$',
+    CHF: 'CHF ',
+    MXN: 'MX$',
+    ISK: 'kr ',
+    NZD: 'NZ$',
+    SEK: 'kr ',
+    NOK: 'kr '
   }
   const symbol = symbols[currencyCode] || currencyCode
   return `${symbol}${amount}`
@@ -43,7 +111,8 @@ export function formatCurrency(amount, currencyCode) {
  */
 export function formatRelativeTime(isoString) {
   if (!isoString) return ''
-  const date = new Date(isoString)
+  const date = parseLocalDate(isoString) || new Date(isoString)
+  if (isNaN(date.getTime())) return ''
   const now = new Date()
   const seconds = Math.floor((now - date) / 1000)
 
@@ -61,20 +130,17 @@ export function formatRelativeTime(isoString) {
  * E.g., "2026-07-24T14:00" -> "Jul 24, 2:00 PM"
  * E.g., "2026-07-24T14:00", "2026-07-24T17:00" -> "Jul 24, 2:00 PM – 5:00 PM"
  * E.g., "2026-07-24T14:00", "2026-07-26T11:00" -> "Jul 24, 2:00 PM – Jul 26, 11:00 AM"
+ * @param {string} startStr Start date/time string.
+ * @param {string} endStr End date/time string.
+ * @returns {string} Formatted range.
  */
 export function formatDateTimeRange(startStr, endStr) {
   if (!startStr && !endStr) return ''
 
   const hasTime = (str) => Boolean(str && (str.includes('T') || str.includes(':')))
-  
-  const parse = (str) => {
-    if (!str) return null
-    const d = new Date(str)
-    return isNaN(d.getTime()) ? null : d
-  }
 
-  const startDate = parse(startStr)
-  const endDate = parse(endStr)
+  const startDate = parseLocalDate(startStr)
+  const endDate = parseLocalDate(endStr)
 
   if (!startDate && !endDate) return ''
 
@@ -86,7 +152,7 @@ export function formatDateTimeRange(startStr, endStr) {
 
   if (startDate && endDate) {
     const sameDay = startDate.toDateString() === endDate.toDateString()
-    
+
     if (sameDay) {
       const dPart = startDate.toLocaleDateString('en-US', dateFmt)
       if (startHasTime && endHasTime) {
@@ -121,4 +187,3 @@ export function formatDateTimeRange(startStr, endStr) {
 
   return ''
 }
-

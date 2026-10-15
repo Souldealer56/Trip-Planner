@@ -1,42 +1,45 @@
-# 🎒 TripSync — Collaborative Trip Planner
+# 🎒 Trip Planner — Collaborative Trip Planning Web App
 
-[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Vite 8](https://img.shields.io/badge/Vite-v8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/)
-[![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot_API-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://core.telegram.org/bots/api)
-[![Vite](https://img.shields.io/badge/Vite-v6-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![CSS3](https://img.shields.io/badge/Styling-Vanilla_CSS_Glassmorphic-1572B6?style=flat-square&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
 
-**TripSync** is a collaborative trip planning platform that bridges **Telegram group chats** with a modern **React web application**. It allows group members to plan itineraries, pitch options, vote on choices, track RSVPs, and log shared expenses with automated debt settlements—either directly in Telegram or via the standalone web client.
+**Trip Planner** is a standalone, web-first collaborative trip planning application. It enables groups of travelers to plan itineraries, pitch and vote on options (lodging, dining, activities, flights), manage participant RSVPs and permissions, visualize schedules on a dynamic Gantt timeline, and split shared expenses with automated debt minimization settlements.
 
 ---
 
 ## ✨ Key Features
 
-### ✈️ Dual Interface (Telegram Bot + Web App)
-- **Telegram Group Bot**: Interactive PM wizards, inline poll creation, `/roster`, `/budget`, `/ledger`, `/settle`, `/itinerary`, and `/change_rsvp` commands.
-- **React Web Application**: Responsive, glassmorphic dark-mode dashboard for visual trip planning and profile management.
+### 🗺️ Visual Trip Cockpit & Gantt Timeline
+- **Interactive Itinerary**: Drag-and-drop or date-driven scheduling with automated event overlap detection.
+- **Visual Gantt Timeline**: Day-by-day and hour-by-hour timeline visualization for all scheduled trip activities and accommodation coverage.
+- **iCalendar (.ics) Export**: One-click download of the finalized itinerary into Apple Calendar, Google Calendar, or Outlook.
 
-### 👥 Roster & Traveler Profiles
-- **RSVP Tracking**: Track `Committed`, `Tentative`, and `Declined` statuses with custom notes.
-- **Hybrid Account Support**: Works seamlessly for users with Telegram accounts, web-only email profiles, or hybrid linked profiles.
-- **Telegram Account Linking**: High-entropy 6-character code link flow to merge Telegram and web travel histories.
+### 👥 Participant Roster & Role Permissions
+- **RSVP Tracking**: Track `Committed`, `Tentative`, and `Declined` participant statuses with custom preferences.
+- **Role Hierarchy**: First-class organizer, co-organizer, and participant roles for managing trip settings and approvals.
+- **Shareable Invites**: Instant shareable invite URLs (`/join/:tripId`) for frictionless guest onboarding.
 
 ### 🗳️ Option Pitching & Voting
-- **Categorized Pitching**: Pitch options for Accommodation, Flights, Activities, Food, Transport, and Other categories.
-- **Dual Voting**: Vote on choices via Telegram inline polls or web option cards; tallies stay synchronized across both interfaces.
+- **Categorized Pitching**: Pitch options for Accommodation, Activities, Food, Flights, Transport, and custom categories.
+- **Democratic Voting**: Transparent group voting tallies on proposed options.
+- **Option Locking**: Organizers can lock winning choices, automatically reflecting them into the itinerary schedule and budget ledger.
 
-### 🧾 Shared Expense Ledger & Debt Settlement
-- **Multi-Currency Expenses**: Log expenses in USD, EUR, GBP, CAD, AUD with automated live exchange rate conversion.
-- **Custom Splits**: Split costs equally across all committed members or select specific participants.
-- **Minimal Settlement Paths**: Smart debt-minimization algorithm calculates exact net balances and the fewest "who pays whom" transactions.
+### 🧾 Shared Expense Ledger & Smart Settlement
+- **Multi-Currency Ledger**: Log shared expenses in USD, EUR, GBP, CAD, AUD with automated live conversion.
+- **Custom Splits**: Split costs equally across all committed members or customize exact splits per participant.
+- **Debt Minimization Algorithm**: Computes net balances and the fewest "who pays whom" transactions to settle all debts.
 
-### 🔗 Shareable Invites & Passwordless Login
-- **Magic Link Auth**: Table-based, high-entropy passwordless email login flow.
-- **Shareable Trip Links**: Instant shareable invite URLs (`/join/:tripId`) with standalone guest onboarding.
+### 🔔 Activity Feed, Notifications & Real-Time Sync
+- **Automated Database Triggers**: Centralized activity log tracking RSVPs, pitches, locked options, and expenses.
+- **Real-Time WebSocket Sync (`useTripRealtime`)**: Bi-directional live synchronization using Supabase Realtime broadcast channels (`trip-room:<id>`) with automated per-resource debouncing.
+- **Slide-Out Notification Drawer**: Real-time notification drawer with relative timestamps and unread badges.
 
-### 🔔 Activity Feed & Notifications
-- **Automated Database Triggers**: Postgres triggers automatically record RSVPs, option pitches, and expenses to a central `activity_log` table.
-- **Slide-Out Feed Drawer**: Interactive notifications drawer on the web app displaying relative timestamps (`5m ago`, `2h ago`) and unread indicator badges.
+### 🔐 Native Supabase Auth & Security
+- **Native Passwordless Authentication**: Native Supabase Auth email OTP magic links (`supabase.auth.signInWithOtp`).
+- **PostgreSQL Row Level Security (RLS)**: Enforces access control strictly using `auth.uid() = user_id` and trip participant rosters.
+- **Public Client Isolation**: Web client code operates strictly via `VITE_SUPABASE_ANON_KEY` without exposing secret service keys.
 
 ---
 
@@ -44,114 +47,96 @@
 
 | Layer | Technologies |
 |-------|--------------|
-| **Bot Backend** | Python 3.13, `python-telegram-bot` 22.7, `supabase-py`, `python-dotenv`, `pytest` |
-| **Web Frontend** | React, Vite, Vanilla CSS (Glassmorphism design system), `react-router-dom` |
-| **Database** | Supabase PostgreSQL with Row Level Security (RLS) & PL/pgSQL database triggers |
-| **External APIs** | Exchange Rate API (live currency conversion), Resend API (transactional emails) |
+| **Frontend Framework** | React 19 (`react`, `react-dom`), React Router v7 (`react-router-dom`) |
+| **Build System & Tooling** | Vite 8, `@vitejs/plugin-react`, Oxlint (`oxlint`), Vitest (`vitest`) |
+| **Testing & CI/CD** | Vitest, `@testing-library/react`, JSDOM, GitHub Actions CI |
+| **Database & Realtime** | Supabase PostgreSQL with Row Level Security (RLS), Triggers & Realtime WebSockets |
+| **Client Library** | `@supabase/supabase-js` v2 |
+| **Design System** | Bespoke Vanilla CSS (Glassmorphism aesthetic, dark-mode first, CSS variables) |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.13+
-- Node.js 18+ and npm
+- [Node.js](https://nodejs.org/) (version 22 recommended, 18+ supported)
+- npm (version 9 or later)
 - A [Supabase](https://supabase.com) project with PostgreSQL instance
-- A Telegram Bot Token from [@BotFather](https://t.me/BotFather)
 
 ### Environment Setup
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root or in `web/.env`:
 
 ```env
-# Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-BOT_USERNAME=TripSyncBot
-
-# Supabase Configuration
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_KEY=your_supabase_anon_or_service_key
-SUPABASE_DB_PASSWORD=your_database_password
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your_public_anon_key_here
 ```
 
-### 1. Setting Up the Database
+### Development & CI Workflow
 
-Run the SQL migration scripts in `.planning/phases/*/` or execute the Phase migration scripts to initialize tables (`trips`, `users`, `rsvps`, `poll_options`, `active_polls`, `expenses`, `activity_log`, `login_tokens`).
-
-To apply Phase migrations using python:
-```bash
-python scratch/apply_migrations_20.py
-```
-
-### 2. Running the Telegram Bot
-
-1. Create a virtual environment and install dependencies:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-   pip install python-telegram-bot supabase python-dotenv pg8000 pytest pytest-asyncio
-   ```
-2. Start the bot listener:
-   ```bash
-   python main.py
-   ```
-
-### 3. Running the React Web Application
-
-1. Navigate to the `web/` directory:
+1. Navigate to the `web/` directory and install dependencies:
    ```bash
    cd web
    npm install
    ```
-2. Start the Vite local development server:
+
+2. Start the local development server:
    ```bash
    npm run dev
    ```
-3. Open `http://localhost:5173` in your browser.
+   The application will be available at `http://localhost:5173`.
 
----
+3. Lint the codebase:
+   ```bash
+   npm run lint
+   ```
 
-## 🧪 Running Tests
+4. Run unit and UI smoke tests:
+   ```bash
+   npm test
+   ```
 
-### Python Backend Unit Tests
-```bash
-pytest tests/
-```
+5. Build the production bundle:
+   ```bash
+   npm run build
+   ```
 
-### Integration & Database Verifications
-```bash
-node web/verify-activity-log.cjs
-node web/verify-options-service.cjs
-node web/verify-expenses-service.cjs
-```
+### 🤖 Automated Continuous Integration (CI)
 
-### Building Web Application for Production
-```bash
-cd web
-npm run build
-```
+Every `push` to `main`/`master` and every `pull_request` triggers an automated GitHub Actions CI pipeline (`.github/workflows/ci.yml`) executing:
+1. `npm ci`
+2. `npm run lint` (`oxlint`)
+3. `npm test` (Vitest offline unit & component smoke tests)
+4. `npm run build` (Vite production bundle)
 
 ---
 
 ## 📁 Repository Structure
 
+
 ```
 Trip Planner/
-├── main.py                    # Telegram bot main application entrypoint
-├── scratch/                   # Database migration runners
-├── tests/                     # Pytest unit & async test suites
-├── web/                       # Standalone React web application
+├── web/
 │   ├── src/
-│   │   ├── services/          # Supabase API data access layer
-│   │   ├── views/             # Trips Dashboard & Trip Details UI components
-│   │   ├── utils/             # Currency conversion & date formatting helpers
-│   │   └── styles/            # Glassmorphism design system & global CSS
-│   └── verify-*.cjs           # Node.js integration test scripts
-└── README.md
+│   │   ├── assets/        # Visual assets and icons
+│   │   ├── components/    # Reusable UI components & Gantt timeline
+│   │   ├── hooks/         # Custom React hooks (trips, roster, auth session)
+│   │   ├── services/      # Supabase data layer (trips, rsvps, options, expenses)
+│   │   ├── styles/        # CSS variables & glassmorphic design system
+│   │   ├── utils/         # Currency, schedule engine, ical, and formatters
+│   │   ├── views/         # Route pages (Dashboard, Trip Cockpit, Join, Profile)
+│   │   ├── App.jsx        # Routing configuration
+│   │   └── main.jsx       # React application entrypoint
+│   ├── index.html         # HTML template
+│   ├── package.json       # Web dependencies and scripts
+│   └── vite.config.js     # Vite configuration
+├── .env.example           # Example environment configuration
+├── GEMINI.md              # Project architectural blueprint & coding guidelines
+└── README.md              # Project documentation
 ```
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License.
