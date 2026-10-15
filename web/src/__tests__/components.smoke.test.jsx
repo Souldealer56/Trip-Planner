@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import React from 'react'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import { TripHeader } from '../components/trip/TripHeader'
@@ -26,6 +26,7 @@ const mockTrip = {
 const mockActiveUser = {
   id: 'user-1',
   name: 'Alex Explorer',
+  first_name: 'Alex',
   email: 'alex@example.com'
 }
 
@@ -90,8 +91,9 @@ const mockRates = {
 }
 
 describe('UI Component Smoke Tests', () => {
-  it('renders TripHeader without crashing', () => {
-    const { container } = render(
+  it('renders TripHeader and toggles Actions dropdown menu', () => {
+    const onOpenEditModal = vi.fn()
+    const { container, getByText } = render(
       <MemoryRouter>
         <TripHeader
           trip={mockTrip}
@@ -100,10 +102,11 @@ describe('UI Component Smoke Tests', () => {
           unreadCount={2}
           realtimeStatus="connected"
           onRefresh={vi.fn()}
-          onOpenEditModal={vi.fn()}
+          onOpenEditModal={onOpenEditModal}
           onToggleArchive={vi.fn()}
           onExportICal={vi.fn()}
           onOpenPrintModal={vi.fn()}
+          onOpenPollRecapModal={vi.fn()}
           onToggleActivityDrawer={vi.fn()}
           onLogout={vi.fn()}
         />
@@ -113,6 +116,25 @@ describe('UI Component Smoke Tests', () => {
     expect(container).toBeDefined()
     expect(container.textContent).toContain('Kyoto Cultural Expedition')
     expect(container.textContent).toContain('Live')
+    expect(container.textContent).toContain('Share Invite')
+    expect(container.textContent).toContain('Feed')
+
+    // Find and click Actions menu trigger
+    const actionsTrigger = container.querySelector('.actions-menu-trigger')
+    expect(actionsTrigger).toBeDefined()
+    fireEvent.click(actionsTrigger)
+
+    // Verify secondary actions are revealed in dropdown
+    expect(container.textContent).toContain('Edit Trip')
+    expect(container.textContent).toContain('Export iCal')
+    expect(container.textContent).toContain('Print Itinerary')
+    expect(container.textContent).toContain('Poll Recap')
+    expect(container.textContent).toContain('Switch Profile / Log Out')
+
+    // Click Edit Trip and verify handler called
+    const editBtn = getByText('Edit Trip')
+    fireEvent.click(editBtn)
+    expect(onOpenEditModal).toHaveBeenCalled()
   })
 
   it('renders RosterSection with participant list and RSVP controls', () => {
@@ -169,9 +191,11 @@ describe('UI Component Smoke Tests', () => {
     expect(container).toBeDefined()
     expect(container.textContent).toContain('Traditional Machiya Ryokan')
     expect(container.textContent).toContain('Pitch Option')
+    // Confirm duplicate Refresh button is removed from OptionsTab toolbar
+    expect(container.textContent).not.toContain('🔄 Refresh')
   })
 
-  it('renders LedgerAndSettleTab with expense items and settlement calculation', () => {
+  it('renders LedgerAndSettleTab with expense items, mobile stacked cards, and settlement calculation', () => {
     const { container } = render(
       <LedgerAndSettleTab
         ledgerTab="ledger"
@@ -194,6 +218,9 @@ describe('UI Component Smoke Tests', () => {
     expect(container).toBeDefined()
     expect(container.textContent).toContain('Tea Ceremony Experience')
     expect(container.textContent).toContain('Add Expense')
+    expect(container.querySelector('.ledger-mobile-cards')).not.toBeNull()
+    expect(container.querySelector('.ledger-card')).not.toBeNull()
+    expect(container.querySelector('.ledger-card-desc')?.textContent).toContain('Tea Ceremony Experience')
   })
 
   it('renders BudgetAnalyticsTab with calculation metrics and cards', () => {

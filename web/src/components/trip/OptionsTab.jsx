@@ -103,14 +103,6 @@ export function OptionsTab({
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
-            onClick={onRefresh}
-            className="btn btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            title="Refresh Votes & Options"
-          >
-            🔄 Refresh
-          </button>
-          <button
             onClick={onOpenPollRecapModal}
             className="btn btn-secondary"
             style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}

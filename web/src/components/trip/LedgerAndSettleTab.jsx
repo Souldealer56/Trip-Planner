@@ -219,18 +219,23 @@ export function LedgerAndSettleTab({
 
                 return (
                   <div key={exp.id} className="ledger-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{exp.description}</span>
-                      <span style={{ color: 'var(--primary-light)', fontWeight: '600' }}>
+                    <div className="ledger-card-header">
+                      <span className="ledger-card-desc">{exp.description}</span>
+                      <span className="ledger-card-amount">
                         {Number(exp.amount).toFixed(2)} {exp.currency || 'USD'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      <span>Paid by: <strong>{payerName}</strong> ({catLabel})</span>
-                      <span>{new Date(exp.created_at).toLocaleDateString()}</span>
+                    <div className="ledger-card-meta">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="ledger-card-category-pill">{catLabel}</span>
+                        <span>Paid by: <strong>{payerName}</strong></span>
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {new Date(exp.created_at).toLocaleDateString()}
+                      </span>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-light)', paddingTop: '6px', marginTop: '6px' }}>
-                      Split with: <span style={{ color: 'var(--text-main)' }}>{splitsText}</span>
+                    <div className="ledger-card-splits">
+                      Split with: <span style={{ color: 'var(--text-main)', fontWeight: '500' }}>{splitsText}</span>
                     </div>
                   </div>
                 )

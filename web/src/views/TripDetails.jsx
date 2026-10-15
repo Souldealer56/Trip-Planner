@@ -96,6 +96,7 @@ function TripDetails() {
   const [viewMode, setViewMode] = useState('grid')
   const [allTripOptions, setAllTripOptions] = useState([])
   const [allActivePollsMap, setAllActivePollsMap] = useState({})
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('itinerary')
 
   const loadOptionsAndPoll = useCallback(async (silent = false) => {
     if (!silent) setOptionsLoading(true)
@@ -132,8 +133,9 @@ function TripDetails() {
   useEffect(() => {
     if (activeUser) {
       loadOptionsAndPoll()
+      loadGanttData()
     }
-  }, [activeUser, activeTab, loadOptionsAndPoll])
+  }, [activeUser, activeTab, loadOptionsAndPoll, loadGanttData])
 
   useEffect(() => {
     if (viewMode === 'gantt') {
@@ -228,9 +230,7 @@ function TripDetails() {
       },
       onOptionsChange: () => {
         loadOptionsAndPoll(true)
-        if (viewMode === 'gantt') {
-          loadGanttData()
-        }
+        loadGanttData()
       },
       onExpensesChange: () => {
         loadExpenses(true)
@@ -248,6 +248,7 @@ function TripDetails() {
     refreshRoster()
     if (activeUser) {
       loadOptionsAndPoll()
+      loadGanttData()
       loadExpenses()
       loadActivityLogs()
       fetchExchangeRates().then(setRates).catch(console.warn)
@@ -504,6 +505,10 @@ function TripDetails() {
   const settlementsList = rates ? calculateSettlements(memberBalances) : []
   const perPersonSplit = committedMembers.length > 0 ? totalGroupSpend / committedMembers.length : 0.0
 
+  const totalOptionsCount = allTripOptions.length > 0 ? allTripOptions.length : options.length
+  const expensesCount = expenses.length
+  const rosterCount = roster.length
+
   const activeUserInRoster = activeUser ? roster.some((m) => m.user_id === activeUser.id) : false
   const [reconcileLoading, setReconcileLoading] = useState(false)
   const [reconcileError, setReconcileError] = useState('')
@@ -545,7 +550,7 @@ function TripDetails() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', width: '100%' }} className="animate-fade-in">
+    <div className="trip-details-container animate-fade-in">
       {/* Blocking Modal if user is not in roster */}
       {activeUser && !activeUserInRoster && (
         <div className="modal-overlay">
@@ -571,7 +576,7 @@ function TripDetails() {
         </div>
       )}
 
-      {/* Main Trip Cockpit */}
+      {/* Main Trip Cockpit Header */}
       <TripHeader
         trip={trip}
         activeUser={activeUser}
@@ -586,77 +591,136 @@ function TripDetails() {
         onToggleArchive={handleToggleArchive}
         onExportICal={handleExportICal}
         onOpenPrintModal={() => setShowPrintableItineraryModal(true)}
+        onOpenPollRecapModal={() => setShowPollRecapModal(true)}
         onToggleActivityDrawer={handleToggleDrawer}
         onLogout={onLogout}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        <OptionsTab
-          categories={CATEGORIES}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          options={options}
-          optionsLoading={optionsLoading}
-          activePoll={activePoll}
-          allTripOptions={allTripOptions}
-          allActivePollsMap={allActivePollsMap}
-          trip={trip}
-          roster={roster}
-          activeUser={activeUser}
-          expenses={expenses}
-          onVoteToggle={handleVoteToggle}
-          onLockToggle={handleLockToggle}
-          onOpenPitchModal={(cat, start = '', end = '') => {
-            setPitchInitialCategory(cat || activeTab)
-            setPitchInitialDates({ start, end })
-            setShowPitchModal(true)
-          }}
-          onOpenPollRecapModal={() => setShowPollRecapModal(true)}
-          onOpenExpenseModal={(opt) => {
-            setExpenseOptionToPreFill(opt)
-            setShowExpenseModal(true)
-          }}
-          onRefresh={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}
-        />
+      {/* 3-Tab Workspace Navigation (Sticky segmented pill on desktop, thumb-friendly fixed bottom bar on mobile) */}
+      <nav className="workspace-tabs-nav" aria-label="Trip Workspace Tabs" role="tablist">
+        <button
+          id="tab-itinerary"
+          role="tab"
+          type="button"
+          aria-selected={activeWorkspaceTab === 'itinerary'}
+          aria-controls="panel-itinerary"
+          className={`workspace-tab-btn ${activeWorkspaceTab === 'itinerary' ? 'active' : ''}`}
+          onClick={() => setActiveWorkspaceTab('itinerary')}
+        >
+          <span className="workspace-tab-icon">🗺️</span>
+          <span className="workspace-tab-label">Itinerary & Options</span>
+          <span className="workspace-tab-badge">{totalOptionsCount}</span>
+        </button>
 
-        <RosterSection
-          roster={roster}
-          activeUser={activeUser}
-          trip={trip}
-          isAdmin={isAdmin}
-          userNote={userNote}
-          setUserNote={setUserNote}
-          savingNote={savingNote}
-          onNoteBlur={handleNoteBlur}
-          onStatusChange={handleStatusChange}
-          onPromoteMember={handlePromoteMember}
-          onDemoteMember={handleDemoteMember}
-          onCopyInviteLink={handleCopyInviteLink}
-          showCopiedToast={showCopiedToast}
-        />
+        <button
+          id="tab-expenses"
+          role="tab"
+          type="button"
+          aria-selected={activeWorkspaceTab === 'expenses'}
+          aria-controls="panel-expenses"
+          className={`workspace-tab-btn ${activeWorkspaceTab === 'expenses' ? 'active' : ''}`}
+          onClick={() => setActiveWorkspaceTab('expenses')}
+        >
+          <span className="workspace-tab-icon">💰</span>
+          <span className="workspace-tab-label">Expenses & Budget</span>
+          <span className="workspace-tab-badge">{expensesCount}</span>
+        </button>
 
-        <LedgerAndSettleTab
-          ledgerTab={ledgerTab}
-          onLedgerTabChange={setLedgerTab}
-          expenses={expenses}
-          expensesLoading={expensesLoading}
-          committedMembers={committedMembers}
-          roster={roster}
-          memberBalances={memberBalances}
-          settlementsList={settlementsList}
-          totalGroupSpend={totalGroupSpend}
-          perPersonSplit={perPersonSplit}
-          baseCurrency={baseCurrency}
-          onOpenExpenseModal={() => {
-            setExpenseOptionToPreFill(null)
-            setShowExpenseModal(true)
-          }}
-          allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
-          rates={rates}
-        />
-      </div>
+        <button
+          id="tab-roster"
+          role="tab"
+          type="button"
+          aria-selected={activeWorkspaceTab === 'roster'}
+          aria-controls="panel-roster"
+          className={`workspace-tab-btn ${activeWorkspaceTab === 'roster' ? 'active' : ''}`}
+          onClick={() => setActiveWorkspaceTab('roster')}
+        >
+          <span className="workspace-tab-icon">👥</span>
+          <span className="workspace-tab-label">Crew & RSVPs</span>
+          <span className="workspace-tab-badge">{rosterCount}</span>
+        </button>
+      </nav>
+
+      {/* Full-Width Workspace Active Content (100% width, non-overlapping) */}
+      <main className="workspace-content-pane">
+        {activeWorkspaceTab === 'itinerary' && (
+          <div id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary" className="animate-fade-in">
+            <OptionsTab
+              categories={CATEGORIES}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              options={options}
+              optionsLoading={optionsLoading}
+              activePoll={activePoll}
+              allTripOptions={allTripOptions}
+              allActivePollsMap={allActivePollsMap}
+              trip={trip}
+              roster={roster}
+              activeUser={activeUser}
+              expenses={expenses}
+              onVoteToggle={handleVoteToggle}
+              onLockToggle={handleLockToggle}
+              onOpenPitchModal={(cat, start = '', end = '') => {
+                setPitchInitialCategory(cat || activeTab)
+                setPitchInitialDates({ start, end })
+                setShowPitchModal(true)
+              }}
+              onOpenPollRecapModal={() => setShowPollRecapModal(true)}
+              onOpenExpenseModal={(opt) => {
+                setExpenseOptionToPreFill(opt)
+                setShowExpenseModal(true)
+              }}
+              onRefresh={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}
+            />
+          </div>
+        )}
+
+        {activeWorkspaceTab === 'expenses' && (
+          <div id="panel-expenses" role="tabpanel" aria-labelledby="tab-expenses" className="animate-fade-in">
+            <LedgerAndSettleTab
+              ledgerTab={ledgerTab}
+              onLedgerTabChange={setLedgerTab}
+              expenses={expenses}
+              expensesLoading={expensesLoading}
+              committedMembers={committedMembers}
+              roster={roster}
+              memberBalances={memberBalances}
+              settlementsList={settlementsList}
+              totalGroupSpend={totalGroupSpend}
+              perPersonSplit={perPersonSplit}
+              baseCurrency={baseCurrency}
+              onOpenExpenseModal={() => {
+                setExpenseOptionToPreFill(null)
+                setShowExpenseModal(true)
+              }}
+              allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
+              rates={rates}
+            />
+          </div>
+        )}
+
+        {activeWorkspaceTab === 'roster' && (
+          <div id="panel-roster" role="tabpanel" aria-labelledby="tab-roster" className="animate-fade-in">
+            <RosterSection
+              roster={roster}
+              activeUser={activeUser}
+              trip={trip}
+              isAdmin={isAdmin}
+              userNote={userNote}
+              setUserNote={setUserNote}
+              savingNote={savingNote}
+              onNoteBlur={handleNoteBlur}
+              onStatusChange={handleStatusChange}
+              onPromoteMember={handlePromoteMember}
+              onDemoteMember={handleDemoteMember}
+              onCopyInviteLink={handleCopyInviteLink}
+              showCopiedToast={showCopiedToast}
+            />
+          </div>
+        )}
+      </main>
 
       {/* Extracted Modals */}
       <PitchOptionModal
