@@ -1,6 +1,11 @@
 import React, { useState } from 'react'
 import { formatDateTimeRange, parseLocalDate, formatLocalDateStr } from '../utils/format'
-import { detectScheduleGaps, detectScheduleConflicts, packOptionsIntoSubTracks } from '../utils/schedule'
+import {
+  detectScheduleGaps,
+  detectScheduleConflicts,
+  packOptionsIntoSubTracks,
+  analyzeDailyLogisticsCoverage
+} from '../utils/schedule'
 
 export { packOptionsIntoSubTracks }
 
@@ -15,7 +20,7 @@ const CATEGORY_COLORS = {
 
 const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
 
-export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionClick, onPitchForSlot }) {
+export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [], onOptionClick, onPitchForSlot }) {
   const [hoveredOption, setHoveredOption] = useState(null)
 
   // 1. Build trip days grid using local date calculations
@@ -75,10 +80,11 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionCl
   // 2. Separate unscheduled options from scheduled options
   const unscheduledOptions = options.filter(opt => opt && !opt.start_date && !opt.end_date)
 
-  // 3. Schedule Analysis: Gaps & Conflicts
+  // 3. Schedule Analysis: Gaps & Logistics Coverage
   const unbookedDays = detectScheduleGaps(trip, options)
   const unbookedDateStrs = new Set(unbookedDays.map(d => d.dateStr))
   const { conflictingOptionIds } = detectScheduleConflicts(options, lockedOptionIds)
+  const logistics = analyzeDailyLogisticsCoverage(trip, options, roster, activePolls)
 
   // 4. Pre-calculate multi-lane packing for each category
   const categoryLanes = {}
@@ -125,7 +131,7 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionCl
 
   return (
     <div className="gantt-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* Schedule Summary Banner */}
+      {/* Daily Logistics Coverage & Schedule Health Summary Banner */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -137,20 +143,74 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionCl
         borderRadius: '12px',
         border: '1px solid var(--border-light)'
       }}>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: unbookedDays.length > 0 ? '#f59e0b' : '#10b981', fontWeight: '600' }}>
-            <span>{unbookedDays.length > 0 ? '⚠️' : '✓'}</span>
+        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Nights Covered Gauge */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.88rem',
+            color: logistics.nightsCoveredCount >= logistics.totalNights && logistics.totalNights > 0 ? '#10b981' : '#f59e0b',
+            fontWeight: '600'
+          }}>
+            <span>🛏️</span>
             <span>
-              {unbookedDays.length > 0 
-                ? `${unbookedDays.length} Unbooked Day${unbookedDays.length > 1 ? 's' : ''} (Holes in Plan)` 
-                : 'All Trip Days Covered!'}
+              Nights Covered: <strong>{logistics.nightsCoveredCount}</strong> / {logistics.totalNights}
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: conflictingOptionIds.size > 0 ? '#f43f5e' : 'var(--text-muted)', fontWeight: '600' }}>
-            <span>{conflictingOptionIds.size > 0 ? '🚨' : '🛡️'}</span>
-            <span>{conflictingOptionIds.size > 0 ? `${conflictingOptionIds.size} Overlapping Schedule Conflict${conflictingOptionIds.size > 1 ? 's' : ''}` : 'No Time Conflicts'}</span>
+          {/* Meals Planned Gauge */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.88rem',
+            color: logistics.mealsPlannedCount === logistics.totalMealsSlots && logistics.totalMealsSlots > 0 ? '#10b981' : '#fcd34d',
+            fontWeight: '600'
+          }}>
+            <span>🍴</span>
+            <span>
+              Meals Planned: <strong>{logistics.mealsPlannedCount}</strong> / {logistics.totalMealsSlots}
+            </span>
           </div>
+
+          {/* Overlapping Conflict Indicator */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.88rem',
+            color: conflictingOptionIds.size > 0 ? '#f43f5e' : 'var(--text-muted)',
+            fontWeight: '600'
+          }}>
+            <span>{conflictingOptionIds.size > 0 ? '🚨' : '🛡️'}</span>
+            <span>
+              {conflictingOptionIds.size > 0 
+                ? `${conflictingOptionIds.size} Schedule Conflict${conflictingOptionIds.size > 1 ? 's' : ''}` 
+                : 'No Time Conflicts'}
+            </span>
+          </div>
+
+          {/* Logistics Alerts Counter if any */}
+          {logistics.alerts.length > 0 && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: '#fcd34d',
+              border: '1px solid rgba(245, 158, 11, 0.3)'
+            }} title={logistics.alerts.join('\n')}>
+              <span>⚠️</span>
+              <span>{logistics.alerts[0]}</span>
+              {logistics.alerts.length > 1 && (
+                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}> (+{logistics.alerts.length - 1} more)</span>
+              )}
+            </div>
+          )}
         </div>
 
         {unbookedDays.length > 0 && (
@@ -359,6 +419,9 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionCl
                 const dStr = formatLocalDateStr(d)
                 const isUnbooked = unbookedDateStrs.has(dStr)
 
+                const dayLog = logistics.days[idx]
+                const isDep = dayLog?.isDepartureDay
+
                 return (
                   <div 
                     key={idx} 
@@ -368,22 +431,114 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionCl
                       padding: '6px 4px',
                       borderRadius: '8px',
                       cursor: 'pointer',
-                      background: isUnbooked ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
-                      border: isUnbooked ? '1px dashed rgba(245, 158, 11, 0.3)' : '1px solid transparent',
-                      transition: 'all 0.15s ease'
+                      background: isUnbooked ? 'rgba(245, 158, 11, 0.05)' : 'transparent',
+                      border: isUnbooked ? '1px dashed rgba(245, 158, 11, 0.25)' : '1px solid transparent',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px'
                     }}
                     title={isUnbooked ? 'Hole in Plan! Click to pitch an activity for this day' : 'Click to pitch an option for this day'}
                   >
                     <div style={{ fontSize: '0.75rem', color: isUnbooked ? '#f59e0b' : 'var(--primary-light)', fontWeight: 'bold' }}>
                       Day {idx + 1}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: '600' }}>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-main)', fontWeight: '600' }}>
                       {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
 
-                    {isUnbooked && (
-                      <div style={{ fontSize: '0.65rem', color: '#fcd34d', marginTop: '2px', fontWeight: 'bold' }}>
-                        ➕ Hole in Plan
+                    {/* Logistics Coverage Gauges */}
+                    {dayLog && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%', marginTop: '2px' }}>
+                        {isDep ? (
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              padding: '2px 4px',
+                              borderRadius: '4px',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: 'var(--text-muted)'
+                            }}
+                            title="Departure Day (no lodging required tonight)"
+                          >
+                            🏁 Departure
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (onPitchForSlot) onPitchForSlot(d, 'Accommodation')
+                            }}
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 4px',
+                              borderRadius: '4px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              background:
+                                dayLog.accommodation.status === 'covered'
+                                  ? 'rgba(16, 185, 129, 0.18)'
+                                  : dayLog.accommodation.status === 'partial'
+                                  ? 'rgba(245, 158, 11, 0.18)'
+                                  : 'rgba(244, 63, 94, 0.18)',
+                              color:
+                                dayLog.accommodation.status === 'covered'
+                                  ? '#34d399'
+                                  : dayLog.accommodation.status === 'partial'
+                                  ? '#fbbf24'
+                                  : '#fda4af',
+                              width: '100%',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '2px'
+                            }}
+                            title={`${dayLog.accommodation.bedsLocked}/${dayLog.presentCount} beds locked. Click to pitch/book accommodation.`}
+                          >
+                            <span>🛏️</span>
+                            <span>{dayLog.accommodation.bedsLocked}/{dayLog.presentCount}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (onPitchForSlot) onPitchForSlot(d, 'Food')
+                          }}
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            background:
+                              dayLog.meals.count === 3
+                                ? 'rgba(16, 185, 129, 0.15)'
+                                : dayLog.meals.count > 0
+                                ? 'rgba(245, 158, 11, 0.15)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                            color:
+                              dayLog.meals.count === 3
+                                ? '#34d399'
+                                : dayLog.meals.count > 0
+                                ? '#fcd34d'
+                                : 'var(--text-muted)',
+                            width: '100%',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '2px'
+                          }}
+                          title={`${dayLog.meals.count} of 3 meals planned (${Object.keys(dayLog.meals.slots).filter(k => dayLog.meals.slots[k]).join(', ') || 'none'}). Click to plan a meal.`}
+                        >
+                          <span>🍴</span>
+                          <span>{dayLog.meals.count}/3</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -550,16 +705,40 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, onOptionCl
                                 : (isHovered ? '0 4px 12px rgba(0, 0, 0, 0.4)' : 'none')
                             }}
                           >
-                            <span style={{ 
-                              fontSize: '0.8rem', 
-                              fontWeight: '600', 
-                              color: isLocked ? '#fef08a' : (hasConflict ? '#fda4af' : 'var(--text-main)'), 
-                              whiteSpace: 'nowrap', 
-                              overflow: 'hidden', 
-                              textOverflow: 'ellipsis' 
-                            }}>
-                              {isLocked ? '🏆 ' : (hasConflict ? '⚠️ ' : '')}{opt.option_text}
-                            </span>
+                            {(() => {
+                              const isFood = catKey === 'food'
+                              const mealMode = opt.metadata?.meal_mode
+                              const optDate = opt.start_date ? String(opt.start_date).slice(0, 10) : ''
+                              const dayLog = logistics.days.find(d => d.dateStr === optDate)
+                              const kitchenMissing = isFood && mealMode === 'cook' && dayLog?.accommodation?.hasKitchen === false && (dayLog?.accommodation?.lockedOptions?.length || 0) > 0
+
+                              return (
+                                <span style={{ 
+                                  fontSize: '0.8rem', 
+                                  fontWeight: '600', 
+                                  color: isLocked ? '#fef08a' : (hasConflict ? '#fda4af' : 'var(--text-main)'), 
+                                  whiteSpace: 'nowrap', 
+                                  overflow: 'hidden', 
+                                  textOverflow: 'ellipsis',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  {isLocked && '🏆 '}
+                                  {hasConflict && '⚠️ '}
+                                  {isFood && (
+                                    mealMode === 'cook' ? '🍳 ' :
+                                    mealMode === 'picnic' ? '🥪 ' : '🍽️ '
+                                  )}
+                                  <span>{opt.option_text}</span>
+                                  {kitchenMissing && (
+                                    <span style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 'bold' }}>
+                                      ⚠️ No Kitchen!
+                                    </span>
+                                  )}
+                                </span>
+                              )
+                            })()}
                             <span style={{ 
                               fontSize: '0.7rem', 
                               fontWeight: 'bold', 

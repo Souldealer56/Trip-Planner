@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { calculateOptionCostBreakdown } from '../../utils/currency'
 
 export function AddExpenseModal({
   isOpen,
@@ -53,28 +54,56 @@ export function AddExpenseModal({
         const validCat = CATEGORIES.includes(optCat) ? optCat : 'Accommodation'
         setExpenseCategory(validCat)
         setExpenseDesc(`[${validCat.toUpperCase()}] ${optionTitle}`.trim())
-        const optCost = optionToPreFill.estimated_cost ? String(optionToPreFill.estimated_cost) : ''
-        setExpenseAmount(optCost)
-        setExpenseCurrency(optionToPreFill.currency || baseCurrency || 'USD')
+        const optCurrency = optionToPreFill.currency || baseCurrency || 'USD'
+        setExpenseCurrency(optCurrency)
         setExpensePaidBy(optionToPreFill.added_by || activeUserId || (committedRoster[0]?.user_id || ''))
+
+        const breakdown = calculateOptionCostBreakdown(optionToPreFill, committedRoster, null, optCurrency)
+        setExpenseAmount(breakdown.totalGroupCost ? String(breakdown.totalGroupCost) : '')
+
+        if (breakdown.costType === 'per_night') {
+          setExpenseSplitMode('custom_amount')
+          setExpenseSplitEqually(false)
+          const customAmounts = {}
+          const initialSplits = {}
+          committedRoster.forEach(m => {
+            const isAssigned = breakdown.effectiveParticipantIds.includes(String(m.user_id))
+            initialSplits[m.user_id] = isAssigned
+            if (isAssigned) {
+              customAmounts[m.user_id] = String(breakdown.participantSharesMap.get(String(m.user_id)) || 0)
+            }
+          })
+          setCustomSplitAmounts(customAmounts)
+          setCustomSplitPercents({})
+          setExpenseSplitUsers(initialSplits)
+        } else {
+          setExpenseSplitMode('equal')
+          const initialSplits = {}
+          committedRoster.forEach(m => {
+            initialSplits[m.user_id] = breakdown.effectiveParticipantIds.includes(String(m.user_id))
+          })
+          setExpenseSplitUsers(initialSplits)
+          setExpenseSplitEqually(breakdown.effectiveParticipantIds.length === committedRoster.length)
+          setCustomSplitAmounts({})
+          setCustomSplitPercents({})
+        }
       } else {
         setExpenseDesc('')
         setExpenseAmount('')
         setExpenseCurrency(baseCurrency || 'USD')
         setExpenseCategory('Other')
         setExpensePaidBy(activeUserId || (committedRoster[0]?.user_id || ''))
+        setExpenseSplitEqually(true)
+        setExpenseSplitMode('equal')
+        setCustomSplitAmounts({})
+        setCustomSplitPercents({})
+
+        const initialSplits = {}
+        committedRoster.forEach(m => {
+          initialSplits[m.user_id] = true
+        })
+        setExpenseSplitUsers(initialSplits)
       }
-
-      setExpenseSplitEqually(true)
-      setExpenseSplitMode('equal')
-      setCustomSplitAmounts({})
-      setCustomSplitPercents({})
-
-      const initialSplits = {}
-      committedRoster.forEach(m => {
-        initialSplits[m.user_id] = true
-      })
-      setExpenseSplitUsers(initialSplits)
     }
   }, [isOpen, optionToPreFill, baseCurrency, activeUserId, roster])
 

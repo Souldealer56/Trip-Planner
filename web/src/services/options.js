@@ -23,15 +23,52 @@ export async function fetchOptions(tripId, category) {
 /**
  * Inserts a new pitched option into the database.
  */
-export async function pitchOption(tripId, category, name, estimatedCost, currency, link, description, addedByUserId, startDate, endDate) {
+export async function pitchOption(
+  tripId,
+  category,
+  name,
+  estimatedCost,
+  currency,
+  link,
+  description,
+  addedByUserId,
+  startDate,
+  endDate,
+  costType = 'split_total',
+  assignedUsers = [],
+  metadata = {}
+) {
   let sanitizedLink = link ? link.trim() : null
   if (sanitizedLink && !/^https?:\/\//i.test(sanitizedLink)) {
     sanitizedLink = `https://${sanitizedLink}`
   }
 
-  const { data, error } = await supabase
+  const payload = {
+    trip_id: tripId,
+    category: category.toLowerCase(),
+    option_text: name,
+    estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
+    currency: estimatedCost ? (currency || 'USD') : null,
+    link: sanitizedLink,
+    description: description || null,
+    start_date: startDate || null,
+    end_date: endDate || null,
+    added_by: addedByUserId,
+    is_locked: false,
+    cost_type: costType || 'split_total',
+    assigned_users: Array.isArray(assignedUsers) ? assignedUsers : [],
+    metadata: metadata && typeof metadata === 'object' ? metadata : {}
+  }
+
+  let { data, error } = await supabase
     .from('poll_options')
-    .insert({
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) {
+    // Fallback without new columns if schema not yet migrated
+    const fallbackPayload = {
       trip_id: tripId,
       category: category.toLowerCase(),
       option_text: name,
@@ -43,12 +80,18 @@ export async function pitchOption(tripId, category, name, estimatedCost, currenc
       end_date: endDate || null,
       added_by: addedByUserId,
       is_locked: false
-    })
-    .select()
-    .single()
+    }
 
-  if (error) {
-    throw error
+    const fallback = await supabase
+      .from('poll_options')
+      .insert(fallbackPayload)
+      .select()
+      .single()
+
+    if (fallback.error) {
+      throw fallback.error
+    }
+    data = fallback.data
   }
 
   // Ensure active poll record exists for this trip category
@@ -468,5 +511,175 @@ export async function updateOptionDates(optionId, startDate, endDate, tripId = n
 
   return data
 }
+
+/**
+ * Updates a pitched option's attributes with graceful fallback for unmigrated columns.
+ * @param {string|number} optionId The option ID.
+ * @param {Object} updates Properties to update.
+ * @returns {Promise<Object>} Updated option record.
+ */
+export async function updateOption(optionId, updates) {
+  const allowedKeys = [
+    'option_text', 'estimated_cost', 'currency', 'link',
+    'description', 'start_date', 'end_date', 'cost_type',
+    'assigned_users', 'metadata', 'is_locked', 'category'
+  ]
+  const payload = {}
+  Object.keys(updates || {}).forEach(k => {
+    if (allowedKeys.includes(k) && updates[k] !== undefined) {
+      payload[k] = updates[k]
+    }
+  })
+
+  try {
+    const { data, error } = await supabase
+      .from('poll_options')
+      .update(payload)
+      .eq('id', optionId)
+      .select()
+      .single()
+
+    if (!error && data) return data
+  } catch (_) {
+    // Fallback if schema does not support new columns
+  }
+
+  const fallbackPayload = { ...payload }
+  delete fallbackPayload.cost_type
+  delete fallbackPayload.assigned_users
+  delete fallbackPayload.metadata
+
+  if (Object.keys(fallbackPayload).length > 0) {
+    const { data, error } = await supabase
+      .from('poll_options')
+      .update(fallbackPayload)
+      .eq('id', optionId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  return { id: optionId, ...payload }
+}
+
+/**
+ * Toggles a user's participation in an option's assigned_users list.
+ * Supports implicit-to-explicit resolution if currentAssignedUsers is empty.
+ * @param {string|number} optionId The option ID.
+ * @param {string} userId The user UUID to add or remove.
+ * @param {Array} [currentAssignedUsers=[]] The current assigned user IDs.
+ * @param {Array} [fallbackAllUserIds=[]] All present/committed user IDs if current list is empty.
+ * @returns {Promise<Object>} Updated option record.
+ */
+export async function toggleOptionParticipant(optionId, userId, currentAssignedUsers = [], fallbackAllUserIds = []) {
+  const uIdStr = String(userId)
+  const currentList = Array.isArray(currentAssignedUsers) ? [...currentAssignedUsers].map(String) : []
+  let nextList = []
+
+  if (currentList.length === 0 && Array.isArray(fallbackAllUserIds) && fallbackAllUserIds.length > 0) {
+    const allNormalized = fallbackAllUserIds.map(String)
+    if (allNormalized.includes(uIdStr)) {
+      nextList = allNormalized.filter(id => id !== uIdStr)
+    } else {
+      nextList = [...allNormalized, uIdStr]
+    }
+  } else if (currentList.includes(uIdStr)) {
+    nextList = currentList.filter(id => id !== uIdStr)
+  } else {
+    nextList = [...currentList, uIdStr]
+  }
+
+  return updateOption(optionId, { assigned_users: nextList })
+}
+
+/**
+ * Calculates dynamic cost per passenger for a shared vehicle based on passenger count and capacity.
+ * @param {number|string} totalCost Total rental/vehicle cost.
+ * @param {number|string} assignedCount Number of currently assigned passengers.
+ * @param {number|string|null} seatsCapacity Total seats in vehicle.
+ * @param {string} [currency='USD'] Currency ISO code.
+ * @returns {Object} Vehicle cost analysis.
+ */
+export function calculateVehicleCostPerPassenger(totalCost, assignedCount, seatsCapacity, currency = 'USD') {
+  const cost = parseFloat(totalCost || 0)
+  const validCost = !isNaN(cost) && cost >= 0 ? cost : 0
+  const assigned = parseInt(assignedCount || 0, 10)
+  const effectiveDivisor = Math.max(1, assigned)
+  const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
+
+  const costPerPassenger = round2(validCost / effectiveDivisor)
+  const seatsCap = seatsCapacity ? parseInt(seatsCapacity, 10) : null
+  const costIfFull = seatsCap && seatsCap > 0 ? round2(validCost / seatsCap) : costPerPassenger
+  const seatsLeft = seatsCap !== null ? Math.max(0, seatsCap - assigned) : null
+  const isFull = seatsCap !== null ? assigned >= seatsCap : false
+  const isOverCapacity = seatsCap !== null ? assigned > seatsCap : false
+
+  return {
+    totalCost: validCost,
+    costPerPassenger,
+    costIfFull,
+    assignedCount: assigned,
+    seatsCapacity: seatsCap,
+    seatsLeft,
+    isFull,
+    isOverCapacity,
+    currency
+  }
+}
+
+/**
+ * Checks accommodation capacity and warns if assigned travelers or group size exceed available beds.
+ * @param {number|string} assignedCount Currently assigned sleepers.
+ * @param {number|string|null} maxCapacity Maximum bed/sleep capacity.
+ * @param {number|string} [totalGroupSize=0] Total size of group on trip.
+ * @returns {Object} Accommodation capacity status.
+ */
+export function checkAccommodationCapacity(assignedCount, maxCapacity, totalGroupSize = 0) {
+  const assigned = parseInt(assignedCount || 0, 10)
+  const maxCap = maxCapacity ? parseInt(maxCapacity, 10) : null
+  const groupSize = parseInt(totalGroupSize || 0, 10)
+
+  const isOverCapacity = maxCap !== null ? assigned > maxCap : false
+  const bedsRemaining = maxCap !== null ? Math.max(0, maxCap - assigned) : null
+  const bedsNeededForGroup = maxCap !== null && groupSize > 0 ? Math.max(0, groupSize - maxCap) : 0
+  const groupExceedsCapacity = maxCap !== null && groupSize > 0 ? groupSize > maxCap : false
+
+  return {
+    assignedCount: assigned,
+    maxCapacity: maxCap,
+    bedsRemaining,
+    isOverCapacity,
+    bedsNeededForGroup,
+    groupExceedsCapacity,
+    capacityPercent: maxCap && maxCap > 0 ? Math.round((assigned / maxCap) * 100) : null
+  }
+}
+
+/**
+ * Checks activity spot quota and remaining spots.
+ * @param {number|string} assignedCount Currently joined travelers.
+ * @param {number|string|null} maxParticipants Quota limit.
+ * @returns {Object} Activity spots quota status.
+ */
+export function checkActivitySpots(assignedCount, maxParticipants) {
+  const assigned = parseInt(assignedCount || 0, 10)
+  const maxPart = maxParticipants ? parseInt(maxParticipants, 10) : null
+
+  const isFull = maxPart !== null ? assigned >= maxPart : false
+  const isOverLimit = maxPart !== null ? assigned > maxPart : false
+  const spotsLeft = maxPart !== null ? Math.max(0, maxPart - assigned) : null
+
+  return {
+    assignedCount: assigned,
+    maxParticipants: maxPart,
+    spotsLeft,
+    isFull,
+    isOverLimit
+  }
+}
+
+
 
 

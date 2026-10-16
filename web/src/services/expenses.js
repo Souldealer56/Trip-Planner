@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { calculateOptionCostBreakdown } from '../utils/currency'
 
 /**
  * Fetches all expenses logged for a trip, joining with the payer's user details.
@@ -114,15 +115,51 @@ export function parseOptionCost(option, baseCurrency = 'USD') {
 
 /**
  * Converts a locked trip option directly into a logged expense ledger entry.
+ * Links participants (assigned_users / present travelers) and automatically splits
+ * by pricing model ('split_total', 'per_person', or 'per_night').
  * @param {string} tripId The UUID of the trip.
  * @param {Object} option The locked option object.
  * @param {string|number} paidByUserId The ID of the payer.
- * @param {Array} splitUserIds Array of user IDs participating in the expense split.
- * @param {string} [baseCurrency='USD'] Default currency fallback.
+ * @param {Array} committedRoster Roster array or split user IDs array.
+ * @param {Object|string|null} [ratesOrBaseCurrency=null] Currency rates map or baseCurrency string.
+ * @param {string|number|null} [baseCurrencyOrExchangeRate='USD'] Base currency or frozen rate.
  * @param {number|null} [exchangeRate=null] Frozen conversion rate.
  * @returns {Promise<Object>} Created expense record.
  */
-export async function convertOptionToExpense(tripId, option, paidByUserId, splitUserIds, baseCurrency = 'USD', exchangeRate = null) {
+export async function convertOptionToExpense(
+  tripId,
+  option,
+  paidByUserId,
+  committedRoster = [],
+  ratesOrBaseCurrency = null,
+  baseCurrencyOrExchangeRate = 'USD',
+  exchangeRate = null
+) {
+  let rates = null
+  let baseCurrency = 'USD'
+  let frozenRate = null
+
+  if (typeof ratesOrBaseCurrency === 'string') {
+    baseCurrency = ratesOrBaseCurrency
+    rates = null
+    frozenRate = typeof baseCurrencyOrExchangeRate === 'number' ? baseCurrencyOrExchangeRate : null
+  } else if (typeof ratesOrBaseCurrency === 'object' && ratesOrBaseCurrency !== null) {
+    rates = ratesOrBaseCurrency
+    baseCurrency = typeof baseCurrencyOrExchangeRate === 'string' ? baseCurrencyOrExchangeRate : 'USD'
+    frozenRate = exchangeRate
+  } else {
+    baseCurrency = typeof baseCurrencyOrExchangeRate === 'string' ? baseCurrencyOrExchangeRate : 'USD'
+    frozenRate = exchangeRate
+  }
+
+  // Normalize roster array
+  const roster = Array.isArray(committedRoster)
+    ? committedRoster.map(m => (typeof m === 'object' && m !== null ? m : { user_id: String(m), status: 'Committed' }))
+    : []
+
+  // Compute breakdown
+  const breakdown = calculateOptionCostBreakdown(option, roster, rates, baseCurrency)
+
   const optionTitle = option.option_text || option.text || 'Locked Option'
   let rawCategory = (option.category || option.poll_category || '').toLowerCase().trim()
   
@@ -145,8 +182,32 @@ export async function convertOptionToExpense(tripId, option, paidByUserId, split
 
   const category = rawCategory
   const description = `[${category.toUpperCase()}] ${optionTitle}`.trim()
-  const { amount, currency } = parseOptionCost(option, baseCurrency)
+  
+  // Resolve amount and currency
+  let amount = breakdown.totalGroupCost
+  let currency = option.currency || baseCurrency || 'USD'
+
+  if (rates && option.currency && option.currency.toUpperCase() !== baseCurrency.toUpperCase()) {
+    currency = baseCurrency
+  } else if (!amount || amount === 0) {
+    const parsed = parseOptionCost(option, baseCurrency)
+    amount = parsed.amount
+    currency = parsed.currency
+  }
+
   const optionId = option.id || null
+
+  // Determine split_users based on cost_type
+  let splitUsers = []
+  if (breakdown.costType === 'per_night') {
+    splitUsers = breakdown.effectiveParticipantIds.map(uid => ({
+      user_id: uid,
+      amount: breakdown.participantSharesMap.get(uid) || 0
+    }))
+  } else {
+    // Both 'per_person' and 'split_total' split across effectiveParticipantIds
+    splitUsers = breakdown.effectiveParticipantIds
+  }
 
   return logExpense(
     tripId,
@@ -154,9 +215,9 @@ export async function convertOptionToExpense(tripId, option, paidByUserId, split
     amount,
     currency,
     description,
-    splitUserIds,
+    splitUsers,
     category,
     optionId,
-    exchangeRate
+    frozenRate
   )
 }

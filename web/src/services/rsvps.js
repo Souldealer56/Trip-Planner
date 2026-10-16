@@ -9,17 +9,27 @@ import { supabase } from './supabase'
 export async function fetchRsvpRoster(tripId) {
   let { data, error } = await supabase
     .from('rsvps')
-    .select('status, user_id, notes, role, is_admin, users(*)')
+    .select('status, user_id, notes, role, is_admin, arrival_date, departure_date, dietary_tags, users(*)')
     .eq('trip_id', tripId)
 
   if (error) {
-    // Fallback if role or is_admin column absent on unmigrated schema
+    // Fallback if arrival_date, departure_date, or dietary_tags column absent on unmigrated schema
     const fallback = await supabase
       .from('rsvps')
-      .select('status, user_id, notes, users(*)')
+      .select('status, user_id, notes, role, is_admin, users(*)')
       .eq('trip_id', tripId)
     data = fallback.data
     error = fallback.error
+  }
+
+  if (error) {
+    // Fallback if role or is_admin column absent on unmigrated schema
+    const baseline = await supabase
+      .from('rsvps')
+      .select('status, user_id, notes, users(*)')
+      .eq('trip_id', tripId)
+    data = baseline.data
+    error = baseline.error
   }
 
   if (error) {
@@ -214,3 +224,101 @@ export async function demoteCoOrganizer(tripId, userId) {
   }
   return data
 }
+
+/**
+ * Updates an RSVP's presence dates, dietary tags, and/or notes with graceful schema fallback.
+ * @param {string} tripId The UUID of the trip.
+ * @param {string|number} userId The user ID.
+ * @param {Object} details Details to update: { arrival_date, departure_date, dietary_tags, notes }.
+ * @returns {Promise<Object>} Updated RSVP record.
+ */
+export async function updateRsvpDetails(tripId, userId, { arrival_date, departure_date, dietary_tags, notes }) {
+  const payload = {}
+  if (arrival_date !== undefined) payload.arrival_date = arrival_date || null
+  if (departure_date !== undefined) payload.departure_date = departure_date || null
+  if (dietary_tags !== undefined) payload.dietary_tags = Array.isArray(dietary_tags) ? dietary_tags : []
+  if (notes !== undefined) payload.notes = notes
+
+  try {
+    const { data, error } = await supabase
+      .from('rsvps')
+      .update(payload)
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+
+    if (!error && data) return data
+  } catch (_) {
+    // Fallback if columns not yet migrated
+  }
+
+  // Schema-resilient fallback to notes only if arrival_date / dietary_tags are absent
+  const fallbackPayload = {}
+  if (notes !== undefined) fallbackPayload.notes = notes
+
+  if (Object.keys(fallbackPayload).length > 0) {
+    const { data, error } = await supabase
+      .from('rsvps')
+      .update(fallbackPayload)
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  return { trip_id: tripId, user_id: userId, ...payload }
+}
+
+/**
+ * Helper to filter committed roster members whose presence overlaps with the given dates.
+ * Defaults to the full trip duration if a member hasn't set custom arrival/departure dates.
+ * @param {Array} roster List of RSVP records.
+ * @param {string|null} startDateStr Option/event start date (YYYY-MM-DD or ISO).
+ * @param {string|null} endDateStr Option/event end date (YYYY-MM-DD or ISO).
+ * @returns {Array} List of committed members present during the date window.
+ */
+export function getPresentTravelers(roster = [], startDateStr = null, endDateStr = null) {
+  if (!Array.isArray(roster)) return []
+
+  // Filter only committed members
+  const committed = roster.filter(m => m.status?.toLowerCase() === 'committed')
+
+  // If no date boundaries specified on the option, all committed travelers are present
+  if (!startDateStr && !endDateStr) {
+    return committed
+  }
+
+  const optStart = startDateStr ? String(startDateStr).slice(0, 10) : null
+  const optEnd = endDateStr ? String(endDateStr).slice(0, 10) : null
+
+  let effectiveStart = optStart || optEnd
+  let effectiveEnd = optEnd || optStart
+
+  if (effectiveStart && effectiveEnd && effectiveStart > effectiveEnd) {
+    const temp = effectiveStart
+    effectiveStart = effectiveEnd
+    effectiveEnd = temp
+  }
+
+  return committed.filter(m => {
+    const arr = m.arrival_date ? String(m.arrival_date).slice(0, 10) : null
+    const dep = m.departure_date ? String(m.departure_date).slice(0, 10) : null
+
+    // Traveler left before option starts
+    if (dep && effectiveStart && dep < effectiveStart) {
+      return false
+    }
+
+    // Traveler arrives after option ends
+    if (arr && effectiveEnd && arr > effectiveEnd) {
+      return false
+    }
+
+    return true
+  })
+}
+

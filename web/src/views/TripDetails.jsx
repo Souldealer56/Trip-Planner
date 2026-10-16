@@ -5,8 +5,8 @@ import { useRsvpRoster } from '../hooks/useRsvpRoster'
 import { useAddParticipant } from '../hooks/useAddParticipant'
 import { useUserSession } from '../hooks/useUserSession'
 import { useTripRealtime } from '../hooks/useTripRealtime'
-import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer } from '../services/rsvps'
-import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption, deleteOption, updateOptionDates } from '../services/options'
+import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer, updateRsvpDetails } from '../services/rsvps'
+import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption, deleteOption, updateOptionDates, toggleOptionParticipant } from '../services/options'
 import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
 import { fetchExpenses, logExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements, calculateExpenseParticipantShares } from '../utils/currency'
@@ -360,7 +360,28 @@ function TripDetails() {
     }
   }
 
-  const handlePitchSubmit = async ({ category, name, cost, currency, link, description, startDate, endDate }) => {
+  const handleToggleOptionParticipant = async (optionId, currentAssignedUsers, fallbackAllUserIds = []) => {
+    if (!activeUser) return
+    try {
+      await toggleOptionParticipant(optionId, activeUser.id, currentAssignedUsers, fallbackAllUserIds)
+      await loadOptionsAndPoll()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to toggle option participant:', err)
+    }
+  }
+
+  const handleUpdateRsvpDetails = async (userId, details) => {
+    try {
+      await updateRsvpDetails(id, userId, details)
+      refreshRoster()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to update RSVP details:', err)
+    }
+  }
+
+  const handlePitchSubmit = async ({ category, name, cost, currency, link, description, startDate, endDate, costType }) => {
     setPitchLoading(true)
     setPitchError('')
     try {
@@ -374,7 +395,8 @@ function TripDetails() {
         description,
         activeUser.id,
         startDate,
-        endDate
+        endDate,
+        costType || 'split_total'
       )
       setShowPitchModal(false)
       if (activeTab !== category) {
@@ -413,6 +435,60 @@ function TripDetails() {
       setExpenseError(err.message || 'Failed to log expense.')
     } finally {
       setExpenseLoading(false)
+    }
+  }
+
+  const handleLogGroceryExpense = async (expenseData) => {
+    try {
+      const {
+        paid_by,
+        amount,
+        currency,
+        description,
+        split_details,
+        category,
+        option_id
+      } = expenseData
+      const splitUsers = split_details ? Object.keys(split_details) : []
+      await logExpense(
+        id,
+        paid_by || activeUser?.id,
+        amount,
+        currency || trip?.base_currency || 'USD',
+        description,
+        splitUsers,
+        category || 'food',
+        option_id || null
+      )
+      loadExpenses()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to log grocery expense:', err)
+      throw err
+    }
+  }
+
+  const handleSubmitMeal = async (mealData) => {
+    try {
+      await pitchOption(
+        id,
+        mealData.category || 'Food',
+        mealData.option_text,
+        mealData.estimated_cost,
+        mealData.currency || trip?.base_currency || 'USD',
+        mealData.link || '',
+        mealData.start_date || '',
+        mealData.end_date || '',
+        activeUser?.id,
+        mealData.cost_type || 'split_total',
+        mealData.assigned_users || [],
+        mealData.metadata || {}
+      )
+      await loadOptionsAndPoll()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to submit meal:', err)
+      throw err
     }
   }
 
@@ -707,6 +783,9 @@ function TripDetails() {
                 setShowExpenseModal(true)
               }}
               onRefresh={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}
+              onToggleParticipant={handleToggleOptionParticipant}
+              onLogExpense={handleLogGroceryExpense}
+              onSubmitMeal={handleSubmitMeal}
             />
           </div>
         )}
@@ -731,6 +810,7 @@ function TripDetails() {
               }}
               allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
               rates={rates}
+              activeUser={activeUser}
             />
           </div>
         )}
@@ -751,6 +831,7 @@ function TripDetails() {
               onDemoteMember={handleDemoteMember}
               onCopyInviteLink={handleCopyInviteLink}
               showCopiedToast={showCopiedToast}
+              onUpdateRsvpDetails={handleUpdateRsvpDetails}
             />
           </div>
         )}
@@ -768,6 +849,8 @@ function TripDetails() {
         initialStartDate={pitchInitialDates.start}
         initialEndDate={pitchInitialDates.end}
         baseCurrency={baseCurrency}
+        roster={roster}
+        activeUserId={activeUser?.id}
       />
 
       <AddExpenseModal

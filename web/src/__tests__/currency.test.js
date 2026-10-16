@@ -4,7 +4,9 @@ import {
   calculateExpenseParticipantShares,
   calculateSettlements,
   calculateTripBudgetAnalytics,
-  fetchExchangeRates
+  fetchExchangeRates,
+  calculateOptionCostBreakdown,
+  getPresentTravelers
 } from '../utils/currency'
 
 describe('Currency & Expense Utilities', () => {
@@ -321,4 +323,193 @@ describe('Currency & Expense Utilities', () => {
       expect(result.CAD).toBe(1.36) // Fallback merged
     })
   })
+
+  describe('getPresentTravelers', () => {
+    const mockRoster = [
+      { user_id: 'alice', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-10' },
+      { user_id: 'bob', status: 'Committed', arrival_date: '2026-09-06', departure_date: '2026-09-10' },
+      { user_id: 'charlie', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-05' },
+      { user_id: 'dave', status: 'Committed', arrival_date: null, departure_date: null },
+      { user_id: 'eve', status: 'Tentative', arrival_date: '2026-09-01', departure_date: '2026-09-10' }
+    ]
+
+    it('returns all committed travelers when option has no dates', () => {
+      const present = getPresentTravelers(mockRoster, null, null)
+      const ids = present.map(p => p.user_id)
+      expect(ids).toEqual(['alice', 'bob', 'charlie', 'dave'])
+      expect(ids).not.toContain('eve') // Tentative is excluded
+    })
+
+    it('filters travelers based on arrival and departure dates overlap', () => {
+      // Early activity: Sept 2 to Sept 4 -> Alice, Charlie, Dave (Bob arrives Sept 6)
+      const early = getPresentTravelers(mockRoster, '2026-09-02', '2026-09-04')
+      expect(early.map(p => p.user_id)).toEqual(['alice', 'charlie', 'dave'])
+
+      // Late activity: Sept 7 to Sept 9 -> Alice, Bob, Dave (Charlie leaves Sept 5)
+      const late = getPresentTravelers(mockRoster, '2026-09-07', '2026-09-09')
+      expect(late.map(p => p.user_id)).toEqual(['alice', 'bob', 'dave'])
+    })
+  })
+
+  describe('calculateOptionCostBreakdown', () => {
+    const mockRoster = [
+      { user_id: 'alice', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-07' },
+      { user_id: 'bob', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'charlie', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-07' }
+    ]
+
+    it('calculates split_total equally across all present participants with rounding', () => {
+      const option = {
+        estimated_cost: 100,
+        currency: 'USD',
+        cost_type: 'split_total'
+      }
+      const breakdown = calculateOptionCostBreakdown(option, mockRoster, rates, 'USD')
+      expect(breakdown.totalGroupCost).toBe(100)
+      expect(breakdown.costType).toBe('split_total')
+      expect(breakdown.effectiveParticipantIds).toEqual(['alice', 'bob', 'charlie'])
+      // 100 / 3 = 33.34 + 33.33 + 33.33 = 100
+      expect(breakdown.participantSharesMap.get('alice')).toBe(33.34)
+      expect(breakdown.participantSharesMap.get('bob')).toBe(33.33)
+      expect(breakdown.participantSharesMap.get('charlie')).toBe(33.33)
+    })
+
+    it('uses explicitly assigned_users when provided', () => {
+      const option = {
+        estimated_cost: 150,
+        currency: 'USD',
+        cost_type: 'split_total',
+        assigned_users: ['alice', 'bob']
+      }
+      const breakdown = calculateOptionCostBreakdown(option, mockRoster, rates, 'USD')
+      expect(breakdown.effectiveParticipantIds).toEqual(['alice', 'bob'])
+      expect(breakdown.participantSharesMap.get('alice')).toBe(75)
+      expect(breakdown.participantSharesMap.get('bob')).toBe(75)
+      expect(breakdown.participantSharesMap.has('charlie')).toBe(false)
+    })
+
+    it('calculates per_person unit pricing multiplied by participant count', () => {
+      const option = {
+        estimated_cost: 45,
+        currency: 'USD',
+        cost_type: 'per_person',
+        assigned_users: ['alice', 'charlie']
+      }
+      const breakdown = calculateOptionCostBreakdown(option, mockRoster, rates, 'USD')
+      expect(breakdown.totalGroupCost).toBe(90) // 45 * 2
+      expect(breakdown.perPersonCost).toBe(45)
+      expect(breakdown.participantSharesMap.get('alice')).toBe(45)
+      expect(breakdown.participantSharesMap.get('charlie')).toBe(45)
+    })
+
+    it('prorates per_night accommodation cost across participant nights (e.g. 3 out of 6 nights)', () => {
+      // Option duration: Sept 1 to Sept 7 (6 nights). Total cost: $600.
+      // Alice stays 6 nights (Sept 1 to Sept 7).
+      // Bob stays 3 nights (Sept 1 to Sept 4).
+      // Total nights = 6 + 3 = 9.
+      // Alice: 6/9 * 600 = 400.
+      // Bob: 3/9 * 600 = 200.
+      const option = {
+        estimated_cost: 600,
+        currency: 'USD',
+        cost_type: 'per_night',
+        start_date: '2026-09-01',
+        end_date: '2026-09-07',
+        assigned_users: ['alice', 'bob']
+      }
+      const breakdown = calculateOptionCostBreakdown(option, mockRoster, rates, 'USD')
+      expect(breakdown.totalGroupCost).toBe(600)
+      expect(breakdown.participantSharesMap.get('alice')).toBe(400)
+      expect(breakdown.participantSharesMap.get('bob')).toBe(200)
+    })
+  })
+
+  describe('calculateTripBudgetAnalytics - Personal Projected Cost Simulator', () => {
+    const mockRoster = [
+      { user_id: 'alice', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-07', users: { first_name: 'Alice' } },
+      { user_id: 'bob', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-07', users: { first_name: 'Bob' } }
+    ]
+
+    it('assigns 0 projected cost to traveler not included in assigned_users of a locked activity', () => {
+      // Alice is assigned to an expensive Scuba Diving activity ($200 per_person), Bob is not
+      const options = [
+        {
+          id: 1,
+          option_text: 'Scuba Diving Tour',
+          category: 'Activities',
+          estimated_cost: 200,
+          currency: 'USD',
+          cost_type: 'per_person',
+          assigned_users: ['alice'],
+          is_locked: true
+        }
+      ]
+
+      const analytics = calculateTripBudgetAnalytics([], options, mockRoster, rates, 'USD')
+      const alice = analytics.travelerStats.find(t => t.userId === 'alice')
+      const bob = analytics.travelerStats.find(t => t.userId === 'bob')
+
+      expect(alice.projectedFromLockedOptions).toBe(200)
+      expect(alice.totalProjectedPersonalCost).toBe(200)
+      expect(bob.projectedFromLockedOptions).toBe(0)
+      expect(bob.totalProjectedPersonalCost).toBe(0)
+    })
+
+    it('avoids double-counting when a locked option is converted into a logged expense', () => {
+      const options = [
+        {
+          id: 10,
+          option_text: 'Mountain Chalet Rental',
+          category: 'Accommodation',
+          estimated_cost: 400,
+          currency: 'USD',
+          cost_type: 'split_total',
+          assigned_users: ['alice', 'bob'],
+          is_locked: true
+        },
+        {
+          id: 11,
+          option_text: 'Rafting Adventure',
+          category: 'Activities',
+          estimated_cost: 100,
+          currency: 'USD',
+          cost_type: 'split_total',
+          assigned_users: ['alice', 'bob'],
+          is_locked: true
+        }
+      ]
+
+      // Chalet has been converted into an expense (option_id = 10)
+      const expenses = [
+        {
+          id: 501,
+          option_id: 10,
+          description: '[Accommodation] Mountain Chalet Rental',
+          amount: 400,
+          currency: 'USD',
+          paid_by: 'alice',
+          split_users: ['alice', 'bob']
+        }
+      ]
+
+      const analytics = calculateTripBudgetAnalytics(expenses, options, mockRoster, rates, 'USD')
+      const alice = analytics.travelerStats.find(t => t.userId === 'alice')
+      const bob = analytics.travelerStats.find(t => t.userId === 'bob')
+
+      // For Chalet (already logged):
+      // Logged share: 200 each.
+      // For Rafting (unlogged locked option):
+      // Projected share: 50 each.
+      // Total projected personal cost = 200 (actual logged) + 50 (unlogged locked) = 250 each.
+      expect(alice.actualLoggedShare).toBe(200)
+      expect(alice.projectedFromLockedOptions).toBe(50)
+      expect(alice.totalProjectedPersonalCost).toBe(250)
+
+      expect(bob.actualLoggedShare).toBe(200)
+      expect(bob.projectedFromLockedOptions).toBe(50)
+      expect(bob.totalProjectedPersonalCost).toBe(250)
+    })
+  })
 })
+
+

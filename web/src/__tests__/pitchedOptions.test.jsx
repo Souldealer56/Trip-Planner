@@ -136,6 +136,82 @@ describe('Pitched Options & Expense Conversion Redesign', () => {
       expect(insertCall.description).toBe('[ACCOMMODATION] Grand Villa Resort')
       expect(insertCall.option_id).toBe('opt-villa-2')
     })
+
+    it('converts per_person option to total group cost and assigns participants in split_users', async () => {
+      supabase.from.mockReturnValue({
+        insert: vi.fn().mockImplementation((payload) => ({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 503, ...payload },
+              error: null
+            })
+          })
+        }))
+      })
+
+      const option = {
+        id: 'opt-activity-1',
+        option_text: 'Zip-line Adventure Tour',
+        category: 'Activities',
+        estimated_cost: 75,
+        currency: 'USD',
+        cost_type: 'per_person',
+        assigned_users: ['user-1', 'user-2', 'user-3']
+      }
+
+      const roster = [
+        { user_id: 'user-1', status: 'Committed' },
+        { user_id: 'user-2', status: 'Committed' },
+        { user_id: 'user-3', status: 'Committed' },
+        { user_id: 'user-4', status: 'Committed' }
+      ]
+
+      await convertOptionToExpense('trip-100', option, 'user-1', roster, 'USD')
+
+      const insertCall = supabase.from().insert.mock.calls[0][0]
+      expect(insertCall.amount).toBe(225) // 75 * 3
+      expect(insertCall.split_users).toEqual(['user-1', 'user-2', 'user-3'])
+      expect(insertCall.category).toBe('activities')
+    })
+
+    it('converts per_night option into prorated custom split_users', async () => {
+      supabase.from.mockReturnValue({
+        insert: vi.fn().mockImplementation((payload) => ({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 504, ...payload },
+              error: null
+            })
+          })
+        }))
+      })
+
+      const option = {
+        id: 'opt-hotel-1',
+        option_text: 'Mountain Lodge Cabin',
+        category: 'Accommodation',
+        estimated_cost: 600,
+        currency: 'USD',
+        cost_type: 'per_night',
+        start_date: '2026-09-01',
+        end_date: '2026-09-07',
+        assigned_users: ['user-1', 'user-2']
+      }
+
+      const roster = [
+        { user_id: 'user-1', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-07' }, // 6 nights
+        { user_id: 'user-2', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' }  // 3 nights
+      ]
+
+      await convertOptionToExpense('trip-100', option, 'user-1', roster, 'USD')
+
+      const insertCall = supabase.from().insert.mock.calls[0][0]
+      expect(insertCall.amount).toBe(600)
+      expect(insertCall.split_users).toEqual([
+        { user_id: 'user-1', amount: 400 },
+        { user_id: 'user-2', amount: 200 }
+      ])
+    })
   })
 
   describe('calculateTripBudgetAnalytics category classification', () => {

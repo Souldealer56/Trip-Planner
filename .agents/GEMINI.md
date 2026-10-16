@@ -33,16 +33,17 @@ web/
 │   ├── services/         # Supabase data access layer:
 │   │   ├── supabase.js   # Supabase client initialization (anon key + RLS)
 │   │   ├── trips.js      # Trip CRUD, archiving, status management
-│   │   ├── rsvps.js      # Participant RSVP states, permissions, roles
-│   │   ├── options.js    # Pitched options, voting, locked choices
+│   │   ├── rsvps.js      # Participant RSVP states, permissions, roles, presence dates, dietary tags
+│   │   ├── options.js    # Pitched options, voting, locked choices, participant assignments, cost types
+│   │   ├── groceries.js  # Smart grocery list by aisle, live checks, checkout & expense conversion
 │   │   ├── expenses.js   # Expense ledger, custom splits, settlements
 │   │   ├── users.js      # User profiles, avatar management
 │   │   ├── activity.js   # Activity feed and system notifications
 │   │   ├── auth.js       # Passwordless magic links via custom login_tokens & Resend
 │   ├── styles/           # CSS design system (variables.css, global.css)
 │   ├── utils/            # Pure domain logic:
-│   │   ├── currency.js   # Currency conversions & rate caching
-│   │   ├── schedule.js   # Event overlap detection & scheduling logic
+│   │   ├── currency.js   # Currency conversions, rate caching, option cost breakdown, personal projected cost simulation
+│   │   ├── schedule.js   # Event overlap detection, track packing, daily logistics coverage engine
 │   │   ├── ical.js       # iCalendar export generators (.ics)
 │   │   └── format.js     # Date, time, and currency formatting helpers
 │   ├── views/            # Route-level views:
@@ -75,7 +76,7 @@ supabase/migrations/      # Versioned SQL migrations and RLS policies
 
 3. **Real-Time Synchronization (`useTripRealtime`):**
    - Interactive trip views leverage `useTripRealtime` to listen for Postgres CDC updates via Supabase WebSocket channels (`trip-room:<id>`).
-   - Mutations across `trips`, `rsvps`, `poll_options`, `option_votes`, `active_polls`, `expenses`, and `activity_log` are debounced to prevent duplicate network fetches while ensuring instantaneous multi-user state synchronization.
+   - Mutations across `trips`, `rsvps`, `poll_options`, `option_votes`, `active_polls`, `expenses`, `grocery_items`, and `activity_log` are debounced to prevent duplicate network fetches while ensuring instantaneous multi-user state synchronization.
 
 4. **Clean Data Model & First-Class Schema Columns:**
    - Never store system state or flags inside user-facing text columns.
@@ -83,11 +84,18 @@ supabase/migrations/      # Versioned SQL migrations and RLS policies
    - **No role tags in notes:** Never place `[CO_ORGANIZER]` or `[ADMIN]` in `rsvps.notes`. Use the first-class `role` column in `rsvps` table (`organizer`, `co_organizer`, `participant`).
    - **No metadata stuffing:** Never stash internal metadata like `_locked_option_id` inside `voter_selections`. Use dedicated relational foreign keys (`locked_option_id` on polls or options).
 
-5. **Security & Client Key Constraints:**
+5. **Smart Trip OS Relational Core & Category Specialization (v4.0):**
+   - **Participant Presence & Diet:** `rsvps` stores `arrival_date`, `departure_date`, and `dietary_tags` (`TEXT[]`). Participant presence is determined by date overlap (`getPresentTravelers`).
+   - **Option Assignments & Pricing Models:** `poll_options` stores `cost_type` (`split_total`, `per_person`, `per_night`), `assigned_users` (`UUID[]`), and `metadata` (`JSONB`). Logged expenses from options split exclusively among `assigned_users`.
+   - **Category Metadata & Intendance:** Category-specific fields (capacities, kitchen presence, flight numbers, meal slots, cooking/cleanup crew, ingredients) reside cleanly in `metadata`. The `grocery_items` table coordinates supermarket runs categorized by aisle.
+   - **Daily Logistics Coverage Engine (`analyzeDailyLogisticsCoverage`):** Evaluates daily bed capacity (`🛏️ bedsLocked / presentCount`), transport seats (`🚗 seatsLocked / presentCount`), and meal slot coverage (`🍴 0/3` to `3/3`) against committed travelers present each day. Flags capacity deficits and kitchen mismatches (`hasCookedWithoutKitchen`).
+   - **Personal Projected Cost Simulator:** `calculateTripBudgetAnalytics` projects each traveler's individual financial commitment across locked options, computing `actualLoggedShare`, `projectedFromLockedOptions`, and `totalProjectedPersonalCost` while avoiding double-counting converted expenses.
+
+6. **Security & Client Key Constraints:**
    - Never expose `service_role` or secret admin keys in client code or `.env`.
    - Client code strictly uses the public `anon` key (`VITE_SUPABASE_ANON_KEY`) constrained by Row Level Security (RLS) policies in PostgreSQL.
 
-6. **Styling & UI Aesthetics:**
+7. **Styling & UI Aesthetics:**
    - Maintain the bespoke Vanilla CSS Glassmorphism design system (`global.css`, `variables.css`).
    - Avoid generic browser styles. Use modern typography, vibrant accent gradients, translucent card surfaces with backdrop filters, and subtle micro-interactions.
 

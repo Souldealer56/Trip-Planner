@@ -10,13 +10,13 @@ Provide an intuitive, real-time, responsive web interface for frictionless group
 
 ## Current State
 
-Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** and **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline** (Complete).
+Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor**, **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline**, and **v4.0 Smart Trip OS: Relational Core, Dynamic Logistics & Personal Cost Simulation** (Complete).
 
 ---
 
-## Current Milestone: Milestone v3.1 Complete
+## Current Milestone: Milestone v4.0 Complete — Smart Trip OS
 
-**Goal:** Provide enterprise-grade standalone web security with native Supabase Auth, bi-directional real-time multi-user synchronization, offline UI smoke testing, and continuous integration automation.
+**Goal:** Transform Trip Planner from a passive itinerary board into an active operational operating system linking participant presence, option pricing models, category intendance (meals & groceries), daily logistics coverage gauges, and personal projected cost simulations.
 
 ---
 
@@ -73,6 +73,11 @@ Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** and **v
 - ✓ Real-time multi-user synchronization with `useTripRealtime` debounced WebSocket channel subscriptions — v3.1
 - ✓ Automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) running `npm ci`, `npm run lint`, `npm test`, `npm run build` — v3.1
 - ✓ Offline test suite with JSDOM component UI smoke tests and pure domain logic unit tests running in <3s — v3.1
+- ✓ Smart Trip OS relational core: presence dates (`arrival_date`, `departure_date`), dietary tags on `rsvps`, pricing models (`cost_type`), assignments (`assigned_users`), category `metadata`, and `grocery_items` table — v4.0
+- ✓ Dynamic category specialization: dedicated form & card fields for Accommodation, Flights/Transport, Activities, and Food — v4.0
+- ✓ Group meal intendance system: 3 daily meal slots, meal mode tags (`cook`, `restaurant`, `picnic`), crew assignments, and smart grocery drawer with live checkout to expense — v4.0
+- ✓ Daily logistics coverage engine (`analyzeDailyLogisticsCoverage`) with bed/seat/meal gauges and kitchen mismatch warnings on Gantt timeline — v4.0
+- ✓ Personal Projected Cost Simulator with active traveler forecast hero card and individualized commitment breakdowns — v4.0
 
 ### Out of Scope
 
@@ -89,6 +94,7 @@ Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** and **v
 - Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** which integrated locked-in itinerary options into the expense ledger ("💸 Log as Expense"), built flexible cost partitioning supporting equal, custom dollar amount, and percentage participant splits, and created a visual Budget & Cost Analytics report.
 - Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** which permanently removed all Python code and Telegram bot integrations, migrated to clean normalized PostgreSQL schemas with first-class columns (`is_archived`, `role`, `locked_option_id`), and decomposed the monolithic `TripDetails.jsx` view into maintainable modular sub-components.
 - Shipped **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline** which implemented native `supabase.auth` integration, enforced PostgreSQL RLS referencing `auth.uid()`, built the `useTripRealtime` multi-user live synchronization hook with resource debouncing, added JSDOM UI smoke tests, and established automated GitHub Actions CI.
+- Shipped **v4.0 Smart Trip OS: Relational Core, Dynamic Logistics & Personal Cost Simulation** which linked participant presence dates and dietary preferences with category-specialized option pricing, full group meal intendance & supermarket aisle groceries, Gantt daily logistics coverage gauges (`🛏️`, `🚗`, `🍴`), and an individualized personal trip cost forecasting simulator.
 
 ## Constraints
 
@@ -113,11 +119,16 @@ Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** and **v
 | Channel-Level Resource Debouncing (`useTripRealtime`) | Mitigates Supabase broadcast storming while delivering instantaneous multi-user updates | ✓ Good (v3.1 complete) |
 | GitHub Actions Automated CI Pipeline | Enforces quality gate (lint, test, build) on every commit and PR without secrets exposure | ✓ Good (v3.1 complete) |
 | Offline JSDOM Component Smoke Tests | Guarantees zero runtime state/reference crashes in core sub-components without network calls | ✓ Good (v3.1 complete) |
+| First-Class Presence Dates & Dietary Tags on RSVPs | Enables accurate per-day traveler counts and automated dietary hazard checks | ✓ Good (v4.0 complete) |
+| Category Metadata & Pricing Models (`split_total`, `per_person`, `per_night`) | Prevents erroneous expense allocations when options are converted to expenses | ✓ Good (v4.0 complete) |
+| Daily Logistics Coverage Gauges (`🛏️`, `🚗`, `🍴`) | Replaces binary gap warnings with day-by-day traveler coverage metrics | ✓ Good (v4.0 complete) |
+| Personal Projected Cost Simulation | Gives travelers transparent visibility into their personal financial share before and after logging | ✓ Good (v4.0 complete) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-10-15 after v3.1 milestone*
+*Last updated: 2026-10-16 after v4.0 milestone*
+
 

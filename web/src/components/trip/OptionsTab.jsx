@@ -1,8 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { GanttTimeline } from '../GanttTimeline'
 import { formatDateTimeRange, formatDateRange } from '../../utils/format'
-import { checkOptionDateConflict, isOptionLocked } from '../../services/options'
-import { convertCurrency } from '../../utils/currency'
+import { checkOptionDateConflict, isOptionLocked, calculateVehicleCostPerPassenger, checkAccommodationCapacity, checkActivitySpots } from '../../services/options'
+import { getPresentTravelers } from '../../services/rsvps'
+import { convertCurrency, calculateOptionCostBreakdown } from '../../utils/currency'
+import { MealPlannerMatrix } from './MealPlannerMatrix'
+import { GroceryListPanel } from './GroceryListPanel'
+import { fetchGroceryItems, getMealDietaryAlerts } from '../../services/groceries'
 
 // Helper to extract initials from user name
 function getInitials(name) {
@@ -158,13 +162,41 @@ export function OptionsTab({
   onOpenPitchModal,
   onOpenPollRecapModal,
   onOpenExpenseModal,
-  onRefresh
+  onRefresh,
+  onToggleParticipant,
+  onLogExpense,
+  onSubmitMeal
 }) {
   // Filter & Sort State
   const [filterState, setFilterState] = useState('all') // 'all' | 'locked' | 'top_voted'
   const [sortOrder, setSortOrder] = useState('recommended') // 'recommended' | 'chronological' | 'price_asc'
   const [outsideCollapsed, setOutsideCollapsed] = useState(true)
   const [dateModalOption, setDateModalOption] = useState(null)
+
+  // Food Intendance & Grocery State
+  const [foodViewMode, setFoodViewMode] = useState('matrix') // 'matrix' | 'cards'
+  const [isGroceryPanelOpen, setIsGroceryPanelOpen] = useState(false)
+  const [groceryItems, setGroceryItems] = useState([])
+
+  const loadGroceries = React.useCallback(async () => {
+    if (trip?.id) {
+      try {
+        const items = await fetchGroceryItems(trip.id)
+        setGroceryItems(items || [])
+      } catch (err) {
+        console.warn('Failed to load grocery items in OptionsTab:', err)
+      }
+    }
+  }, [trip?.id])
+
+  React.useEffect(() => {
+    loadGroceries()
+  }, [loadGroceries])
+
+  const uncheckedGroceryCount = useMemo(
+    () => groceryItems.filter((i) => !i.is_checked).length,
+    [groceryItems]
+  )
 
   const baseCurrency = trip?.base_currency || 'USD'
   const committedMembers = useMemo(() => roster.filter((m) => m.status === 'Committed'), [roster])
@@ -189,25 +221,25 @@ export function OptionsTab({
     })
   }
 
-  // Cost and currency conversion calculations
+  // Cost and currency conversion calculations using Smart Pricing breakdown
   const getCostDetails = (opt) => {
     if (!opt || !opt.estimated_cost || isNaN(Number(opt.estimated_cost)) || Number(opt.estimated_cost) <= 0) return null
     const rawCost = Number(opt.estimated_cost)
     const optCurr = (opt.currency || baseCurrency).toUpperCase()
     const tripBaseCurr = (baseCurrency || 'USD').toUpperCase()
     const isDiff = optCurr !== tripBaseCurr
-    let converted = rawCost
-    if (isDiff && rates) {
-      converted = convertCurrency(rawCost, optCurr, tripBaseCurr, rates)
-    }
-    const perPerson = converted / committedCount
+    const breakdown = calculateOptionCostBreakdown(opt, committedMembers, rates, tripBaseCurr)
+
     return {
       rawCost,
       currency: optCurr,
       isDiff,
-      converted,
+      converted: breakdown.totalGroupCost,
       baseCurrency: tripBaseCurr,
-      perPerson
+      perPerson: breakdown.perPersonCost,
+      costType: breakdown.costType,
+      participantCount: breakdown.effectiveParticipantIds.length,
+      effectiveParticipantIds: breakdown.effectiveParticipantIds
     }
   }
 
@@ -351,6 +383,37 @@ export function OptionsTab({
 
     const votePercent = Math.min(100, Math.round((votesCount / Math.max(1, committedCount)) * 100))
 
+    const optCategory = (opt.category || activeTab || '').toLowerCase()
+    const metadata = opt.metadata || {}
+
+    const presentTravelers = getPresentTravelers(committedMembers, opt.start_date, opt.end_date)
+    const presentTravelerIds = presentTravelers.map((m) => String(m.user_id || m.id))
+    const hasExplicitAssignments = Array.isArray(opt.assigned_users) && opt.assigned_users.length > 0
+    const assignedUserIds = hasExplicitAssignments ? opt.assigned_users.map(String) : presentTravelerIds
+    const assignedCount = assignedUserIds.length
+    const isUserJoined = activeUser && assignedUserIds.includes(String(activeUser.id))
+
+    // Resolve assigned users to member objects for avatar chips
+    const assignedMembers = assignedUserIds.map((uId) => {
+      const member = roster.find(
+        (m) => String(m.user_id) === String(uId) || String(m.users?.id) === String(uId) || String(m.id) === String(uId)
+      )
+      return {
+        id: uId,
+        name: member?.users?.first_name || member?.username || 'Traveler'
+      }
+    })
+
+    // Determine capacity if applicable
+    let capacity = null
+    if (optCategory === 'accommodation' && metadata.max_capacity) {
+      capacity = Number(metadata.max_capacity)
+    } else if ((optCategory === 'transport' || optCategory === 'flights') && metadata.transport_mode !== 'ticket' && metadata.seats_capacity) {
+      capacity = Number(metadata.seats_capacity)
+    } else if (optCategory === 'activities' && metadata.max_participants) {
+      capacity = Number(metadata.max_participants)
+    }
+
     return (
       <div
         key={opt.id}
@@ -484,6 +547,248 @@ export function OptionsTab({
             </div>
           )}
 
+          {/* Category-Specific Metadata Spec Box */}
+          {optCategory === 'accommodation' && (metadata.max_capacity || metadata.beds_summary || metadata.has_kitchen || metadata.check_in_out) && (
+            <div className="category-spec-box">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {metadata.max_capacity && (() => {
+                  const cap = checkAccommodationCapacity(assignedCount, metadata.max_capacity, committedMembers.length)
+                  if (cap.isOverCapacity) {
+                    return (
+                      <span className="capacity-gauge-pill gauge-red">
+                        ⚠️ Over capacity! ({assignedCount}/{metadata.max_capacity} sleepers)
+                      </span>
+                    )
+                  }
+                  return (
+                    <span className="capacity-gauge-pill gauge-green">
+                      🛏️ {assignedCount}/{metadata.max_capacity} sleepers ({cap.bedsRemaining} left)
+                    </span>
+                  )
+                })()}
+                {metadata.has_kitchen && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                    🍳 Kitchen available
+                  </span>
+                )}
+                {metadata.check_in_out && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    ⏰ {metadata.check_in_out}
+                  </span>
+                )}
+              </div>
+              {metadata.beds_summary && (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  🛏️ {metadata.beds_summary}
+                </div>
+              )}
+              {metadata.max_capacity && (() => {
+                const cap = checkAccommodationCapacity(assignedCount, metadata.max_capacity, committedMembers.length)
+                if (cap.groupExceedsCapacity) {
+                  return (
+                    <div style={{ fontSize: '0.75rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>⚠️</span> Whole group ({committedMembers.length}) needs {cap.bedsNeededForGroup} more bed{cap.bedsNeededForGroup !== 1 ? 's' : ''}
+                    </div>
+                  )
+                }
+                return null
+              })()}
+            </div>
+          )}
+
+          {((optCategory === 'transport' && metadata.transport_mode !== 'ticket') || (optCategory === 'transport' && !metadata.transport_mode && metadata.seats_capacity)) && (
+            <div className="category-spec-box">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {metadata.seats_capacity && (() => {
+                  const veh = calculateVehicleCostPerPassenger(
+                    costDetails?.rawCost || opt.estimated_cost,
+                    assignedCount,
+                    metadata.seats_capacity,
+                    costDetails?.currency || opt.currency || baseCurrency
+                  )
+                  if (veh.isOverCapacity) {
+                    return (
+                      <span className="capacity-gauge-pill gauge-red">
+                        🚗 {assignedCount} / {metadata.seats_capacity} seats (Overloaded!)
+                      </span>
+                    )
+                  }
+                  if (veh.isFull) {
+                    return (
+                      <span className="capacity-gauge-pill gauge-amber">
+                        🚗 {assignedCount} / {metadata.seats_capacity} seats filled (Full)
+                      </span>
+                    )
+                  }
+                  return (
+                    <span className="capacity-gauge-pill gauge-green">
+                      🚗 {assignedCount} / {metadata.seats_capacity} seats filled ({veh.seatsLeft} seat{veh.seatsLeft !== 1 ? 's' : ''} left)
+                    </span>
+                  )
+                })()}
+                {metadata.driver_user_id && (() => {
+                  const driverMember = roster.find((m) => String(m.user_id) === String(metadata.driver_user_id) || String(m.users?.id) === String(metadata.driver_user_id) || String(m.id) === String(metadata.driver_user_id))
+                  const driverName = driverMember?.users?.first_name || driverMember?.username || 'Designated Driver'
+                  return (
+                    <span className="capacity-gauge-pill" style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#93c5fd', border: '1px solid rgba(96, 165, 250, 0.3)' }}>
+                      🛞 Driver: {driverName}
+                    </span>
+                  )
+                })()}
+              </div>
+              {metadata.seats_capacity && (costDetails?.rawCost || opt.estimated_cost) && (() => {
+                const veh = calculateVehicleCostPerPassenger(
+                  costDetails?.rawCost || opt.estimated_cost,
+                  assignedCount,
+                  metadata.seats_capacity,
+                  costDetails?.currency || opt.currency || baseCurrency
+                )
+                return (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                    <strong>Cost per passenger: {formatMoney(veh.costPerPassenger, costDetails?.currency || opt.currency || baseCurrency)}</strong>
+                    {metadata.seats_capacity > assignedCount && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                        (If all {metadata.seats_capacity} seats fill: ~{formatMoney(veh.costIfFull, costDetails?.currency || opt.currency || baseCurrency)} / person)
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+              {metadata.estimated_fuel_cost && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  ⛽ Estimated fuel: ~{metadata.estimated_fuel_cost} {costDetails?.currency || opt.currency || baseCurrency}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(optCategory === 'flights' || (optCategory === 'transport' && metadata.transport_mode === 'ticket')) && (
+            <div className="category-spec-box">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {metadata.route_code && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', border: '1px solid rgba(14, 165, 233, 0.3)' }}>
+                    ✈️ {metadata.route_code}
+                  </span>
+                )}
+                {metadata.baggage_included && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    🧳 Baggage included
+                  </span>
+                )}
+              </div>
+              {(costDetails?.rawCost || opt.estimated_cost) && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                  <strong>🎟️ {formatMoney(costDetails?.rawCost || opt.estimated_cost, costDetails?.currency || opt.currency || baseCurrency)} / person</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    (Total for {assignedCount} traveler{assignedCount !== 1 ? 's' : ''}: {formatMoney((costDetails?.rawCost || opt.estimated_cost) * assignedCount, costDetails?.currency || opt.currency || baseCurrency)})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {optCategory === 'activities' && (metadata.max_participants || metadata.difficulty_or_duration || metadata.required_gear) && (
+            <div className="category-spec-box">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {metadata.max_participants && (() => {
+                  const act = checkActivitySpots(assignedCount, metadata.max_participants)
+                  if (act.isOverLimit) {
+                    return (
+                      <span className="capacity-gauge-pill gauge-red">
+                        ⚠️ {assignedCount}/{metadata.max_participants} spots (Over quota!)
+                      </span>
+                    )
+                  }
+                  if (act.isFull) {
+                    return (
+                      <span className="capacity-gauge-pill gauge-amber">
+                        🎯 Full ({assignedCount}/{metadata.max_participants} spots)
+                      </span>
+                    )
+                  }
+                  return (
+                    <span className="capacity-gauge-pill gauge-green">
+                      🎯 {assignedCount}/{metadata.max_participants} spots ({act.spotsLeft} left)
+                    </span>
+                  )
+                })()}
+                {metadata.difficulty_or_duration && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                    ⏱️ {metadata.difficulty_or_duration}
+                  </span>
+                )}
+              </div>
+              {metadata.required_gear && (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  🎒 Gear needed: <strong style={{ color: 'var(--text-main)' }}>{metadata.required_gear}</strong>
+                </div>
+              )}
+            </div>
+          )}
+
+          {optCategory === 'food' && (metadata.meal_mode || metadata.chef_ids?.length > 0 || metadata.cleanup_ids?.length > 0 || metadata.ingredients?.length > 0 || metadata.meal_slot) && (
+            <div className="category-spec-box">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {metadata.meal_slot && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
+                    {metadata.meal_slot === 'breakfast' && '🌅 Breakfast'}
+                    {metadata.meal_slot === 'lunch' && '☀️ Lunch'}
+                    {metadata.meal_slot === 'dinner' && '🌙 Dinner'}
+                  </span>
+                )}
+                {metadata.meal_mode && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                    {metadata.meal_mode === 'cook' && '🍳 Home-Cooked'}
+                    {metadata.meal_mode === 'restaurant' && '🍽️ Restaurant'}
+                    {metadata.meal_mode === 'picnic' && '🥪 Trail Picnic'}
+                  </span>
+                )}
+                {Array.isArray(metadata.ingredients) && metadata.ingredients.length > 0 && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    🛒 {metadata.ingredients.length} ingredients
+                  </span>
+                )}
+              </div>
+
+              {/* Kitchen Crew */}
+              {(metadata.chef_ids?.length > 0 || metadata.cleanup_ids?.length > 0) && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
+                  {metadata.chef_ids?.length > 0 && (() => {
+                    const chefs = metadata.chef_ids.map((id) => {
+                      const m = roster.find((r) => String(r.user_id || r.id) === String(id))
+                      return m?.users?.first_name || m?.username || 'Traveler'
+                    }).join(', ')
+                    return (
+                      <span className="duty-badge chef">👨‍🍳 Chefs: {chefs}</span>
+                    )
+                  })()}
+                  {metadata.cleanup_ids?.length > 0 && (() => {
+                    const washers = metadata.cleanup_ids.map((id) => {
+                      const m = roster.find((r) => String(r.user_id || r.id) === String(id))
+                      return m?.users?.first_name || m?.username || 'Traveler'
+                    }).join(', ')
+                    return (
+                      <span className="duty-badge cleanup">🧽 Cleanup: {washers}</span>
+                    )
+                  })()}
+                </div>
+              )}
+
+              {/* Dietary Alerts */}
+              {(() => {
+                const alerts = getMealDietaryAlerts(opt, roster)
+                if (alerts.length === 0) return null
+                return (
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '3px' }}>
+                    {alerts.map((al, idx) => (
+                      <span key={idx} className="dietary-warning-pill">{al.label}</span>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           {/* Dual Currency and Per-Person Cost Display */}
           {costDetails && (
             <div className="option-cost-container">
@@ -497,11 +802,55 @@ export function OptionsTab({
                   </span>
                 )}
                 <span className="option-per-person">
-                  ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person
+                  {costDetails.costType === 'per_person' && (
+                    <span title="Priced per ticket/person">🎟️ {formatMoney(costDetails.rawCost, costDetails.currency)} / person</span>
+                  )}
+                  {costDetails.costType === 'per_night' && (
+                    <span title="Priced per night and prorated by stay dates">🌙 ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person</span>
+                  )}
+                  {(!costDetails.costType || costDetails.costType === 'split_total') && (
+                    <span>~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person</span>
+                  )}
                 </span>
               </div>
             </div>
           )}
+
+          {/* Interactive Participant Bar on Every Card */}
+          <div className="participant-bar-row">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                👥 {assignedCount} traveler{assignedCount !== 1 ? 's' : ''}
+              </span>
+              {assignedMembers.length > 0 && (
+                <div className="voter-avatars-row" style={{ margin: 0 }}>
+                  {assignedMembers.slice(0, 5).map((m, i) => (
+                    <div
+                      key={i}
+                      className="voter-avatar-chip"
+                      style={{ backgroundColor: getAvatarColor(m.name) }}
+                      title={m.name}
+                    >
+                      {getInitials(m.name)}
+                    </div>
+                  ))}
+                  {assignedMembers.length > 5 && (
+                    <span className="voter-more-chip">+{assignedMembers.length - 5}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            {onToggleParticipant && activeUser && (
+              <button
+                type="button"
+                className={`one-tap-join-btn ${isUserJoined ? 'joined' : 'not-joined'}`}
+                onClick={() => onToggleParticipant(opt.id, opt.assigned_users || [], presentTravelerIds)}
+                title={isUserJoined ? 'Click to leave this option' : 'Click to join this option'}
+              >
+                {isUserJoined ? '✓ Joined (Leave)' : `✋ Join (${assignedCount}${capacity ? '/' + capacity : ''})`}
+              </button>
+            )}
+          </div>
 
           {/* Description */}
           {opt.description && (
@@ -759,8 +1108,71 @@ export function OptionsTab({
             ))}
           </div>
 
-          {/* Quick Filter & Sort Toolbar */}
-          <div className="options-filter-toolbar">
+          {/* Food Category Sub-Bar: Matrix vs Cards Toggle + Grocery List Button */}
+          {activeTab === 'Food' && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+                marginBottom: '1.25rem',
+                padding: '0.6rem 0.85rem',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '10px'
+              }}
+            >
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`filter-pill ${foodViewMode === 'matrix' ? 'active' : ''}`}
+                  onClick={() => setFoodViewMode('matrix')}
+                >
+                  📅 Daily Meal Matrix (Recommended)
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${foodViewMode === 'cards' ? 'active' : ''}`}
+                  onClick={() => setFoodViewMode('cards')}
+                >
+                  🃏 All Food Cards
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary grocery-btn-accent"
+                onClick={() => setIsGroceryPanelOpen(true)}
+              >
+                <span>🛒 Grocery List</span>
+                {uncheckedGroceryCount > 0 && (
+                  <span className="grocery-cart-badge">{uncheckedGroceryCount}</span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'Food' && foodViewMode === 'matrix' ? (
+            <MealPlannerMatrix
+              trip={trip}
+              roster={roster}
+              activeUser={activeUser}
+              foodOptions={options}
+              onOpenPitchModal={onOpenPitchModal}
+              onVoteToggle={onVoteToggle}
+              onLockToggle={onLockToggle}
+              onDeleteOption={onDeleteOption}
+              onToggleParticipant={onToggleParticipant}
+              onOpenGroceryList={() => setIsGroceryPanelOpen(true)}
+              uncheckedGroceryCount={uncheckedGroceryCount}
+              onSubmitMeal={onSubmitMeal}
+            />
+          ) : (
+            <>
+              {/* Quick Filter & Sort Toolbar */}
+              <div className="options-filter-toolbar">
             <div className="filter-pills-group">
               <button
                 type="button"
@@ -938,6 +1350,8 @@ export function OptionsTab({
           )}
         </>
       )}
+    </>
+  )}
 
       {/* Set / Fix Option Dates Modal */}
       <SetOptionDatesModal
@@ -947,6 +1361,22 @@ export function OptionsTab({
         trip={trip}
         onSave={onUpdateOptionDates}
       />
+
+      {/* Smart Grocery List Slide-Over Panel */}
+      {isGroceryPanelOpen && (
+        <GroceryListPanel
+          tripId={trip?.id}
+          trip={trip}
+          roster={roster}
+          activeUser={activeUser}
+          foodOptions={allTripOptions.length > 0 ? allTripOptions : options}
+          onClose={() => {
+            setIsGroceryPanelOpen(false)
+            loadGroceries()
+          }}
+          onLogExpense={onLogExpense}
+        />
+      )}
     </div>
   )
 }

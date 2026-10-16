@@ -1,3 +1,6 @@
+import { getPresentTravelers } from '../services/rsvps'
+export { getPresentTravelers }
+
 const FX_CACHE_KEY = 'trip_planner_fx_cache'
 const FX_CACHE_TTL = 6 * 60 * 60 * 1000 // 6 hours
 
@@ -275,11 +278,15 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
 
   const travelerStats = {}
   roster.forEach(m => {
-    travelerStats[String(m.user_id)] = {
-      userId: String(m.user_id),
+    const uId = String(m.user_id || m.id)
+    travelerStats[uId] = {
+      userId: uId,
       name: m.users?.first_name || m.username || 'Member',
       paid: 0,
       owed: 0,
+      actualLoggedShare: 0,
+      projectedFromLockedOptions: 0,
+      totalProjectedPersonalCost: 0,
       netBalance: 0,
       sharePercent: 0
     }
@@ -356,18 +363,58 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
     })
   }
 
-  // 3. Compute Net Balances & Percent Shares
+  // 3. Personal Projected Cost Simulator across locked options
+  const hasAnyLocked = options.some(o => Boolean(o.is_locked))
+  const candidateOptions = hasAnyLocked ? options.filter(o => Boolean(o.is_locked)) : options.filter(o => (o.estimated_cost || 0) > 0)
+
+  // Identify options already converted into logged expenses to prevent double-counting
+  const isOptionLogged = (opt) => {
+    return expenses.some(exp => {
+      if (exp.option_id && String(exp.option_id) === String(opt.id)) return true
+      if (exp.description && opt.option_text) {
+        const descLower = exp.description.toLowerCase()
+        const textLower = opt.option_text.toLowerCase()
+        const strippedDesc = descLower.replace(/^\[[^\]]+\]\s*/, '')
+        if (descLower.includes(textLower) || textLower.includes(strippedDesc)) return true
+      }
+      return false
+    })
+  }
+
+  let totalUnloggedLockedBudget = 0
+
+  candidateOptions.forEach(opt => {
+    if (!isOptionLogged(opt)) {
+      const breakdown = calculateOptionCostBreakdown(opt, roster, rates, baseCurrency)
+      totalUnloggedLockedBudget += breakdown.totalGroupCost
+      breakdown.participantSharesMap.forEach((share, uId) => {
+        if (travelerStats[uId]) {
+          travelerStats[uId].projectedFromLockedOptions = (travelerStats[uId].projectedFromLockedOptions || 0) + share
+        }
+      })
+    }
+  })
+
+  const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100
+
+  // 4. Compute Net Balances, Forecasts & Percent Shares
   Object.values(travelerStats).forEach(t => {
-    t.netBalance = t.paid - t.owed
+    t.netBalance = round2(t.paid - t.owed)
     t.sharePercent = totalActualSpend > 0 ? (t.owed / totalActualSpend) * 100 : 0
+    t.actualLoggedShare = round2(t.owed)
+    t.projectedFromLockedOptions = round2(t.projectedFromLockedOptions || 0)
+    t.totalProjectedPersonalCost = round2(t.actualLoggedShare + t.projectedFromLockedOptions)
   })
 
   const variance = totalEstimatedBudget > 0 ? totalActualSpend - totalEstimatedBudget : 0
   const variancePercent = totalEstimatedBudget > 0 ? (variance / totalEstimatedBudget) * 100 : 0
+  const totalProjectedTripCost = round2(totalActualSpend + totalUnloggedLockedBudget)
 
   return {
     totalEstimatedBudget,
     totalActualSpend,
+    totalUnloggedLockedBudget: round2(totalUnloggedLockedBudget),
+    totalProjectedTripCost,
     variance,
     variancePercent,
     categoryEstimates,
@@ -375,3 +422,137 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
     travelerStats: Object.values(travelerStats)
   }
 }
+
+/**
+ * Calculates total and per-person cost breakdown for a pitched option based on its pricing model
+ * ('split_total', 'per_person', or 'per_night') and assigned/present participants.
+ * @param {Object} option The option object.
+ * @param {Array} committedRoster Roster array of committed participants.
+ * @param {Object|null} rates Currency exchange rates map.
+ * @param {string} [baseCurrency='USD'] Target trip base currency.
+ * @returns {Object} { totalGroupCost, perPersonCost, participantSharesMap, effectiveParticipantIds, costType }
+ */
+export function calculateOptionCostBreakdown(option, committedRoster = [], rates = null, baseCurrency = 'USD') {
+  if (!option) {
+    return {
+      totalGroupCost: 0,
+      perPersonCost: 0,
+      participantSharesMap: new Map(),
+      effectiveParticipantIds: [],
+      costType: 'split_total'
+    }
+  }
+
+  // Normalize committed roster array
+  const normalizedRoster = Array.isArray(committedRoster)
+    ? committedRoster.map(item => (typeof item === 'object' && item !== null ? item : { user_id: String(item), status: 'Committed' }))
+    : []
+
+  // Resolve effective participants list:
+  // If assigned_users is specified and non-empty, use those users; otherwise use getPresentTravelers
+  let effectiveParticipantIds = []
+  if (Array.isArray(option.assigned_users) && option.assigned_users.length > 0) {
+    effectiveParticipantIds = option.assigned_users.map(String)
+  } else {
+    const present = getPresentTravelers(normalizedRoster, option.start_date, option.end_date)
+    effectiveParticipantIds = present.map(m => String(m.user_id || m.id))
+  }
+
+  // Calculate raw cost converted to baseCurrency
+  const rawCost = parseFloat(option.estimated_cost || 0)
+  const validCost = !isNaN(rawCost) && rawCost > 0 ? rawCost : 0
+  const optCurrency = option.currency || baseCurrency || 'USD'
+  const convertedCost = rates ? convertCurrency(validCost, optCurrency, baseCurrency, rates) : validCost
+  const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100
+  const rawUnitOrTotal = round2(convertedCost)
+
+  const costType = option.cost_type || 'split_total'
+  const count = effectiveParticipantIds.length
+  const participantSharesMap = new Map()
+
+  let totalGroupCost = 0
+  let perPersonCost = 0
+
+  if (costType === 'per_person') {
+    perPersonCost = rawUnitOrTotal
+    totalGroupCost = round2(rawUnitOrTotal * Math.max(1, count))
+    effectiveParticipantIds.forEach(uid => {
+      participantSharesMap.set(uid, perPersonCost)
+    })
+  } else if (costType === 'per_night') {
+    totalGroupCost = rawUnitOrTotal
+
+    const optStart = option.start_date ? new Date(String(option.start_date).slice(0, 10)) : null
+    const optEnd = option.end_date ? new Date(String(option.end_date).slice(0, 10)) : null
+
+    const nightsMap = {}
+    let totalStayNights = 0
+
+    effectiveParticipantIds.forEach(uid => {
+      const member = normalizedRoster.find(m => String(m.user_id || m.id) === uid)
+      let stayNights = 1
+      if (optStart && optEnd && optEnd > optStart) {
+        const arr = member?.arrival_date ? new Date(String(member.arrival_date).slice(0, 10)) : optStart
+        const dep = member?.departure_date ? new Date(String(member.departure_date).slice(0, 10)) : optEnd
+
+        const overlapStart = Math.max(optStart.getTime(), arr.getTime())
+        const overlapEnd = Math.min(optEnd.getTime(), dep.getTime())
+
+        stayNights = overlapEnd > overlapStart ? Math.round((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) : 0
+      }
+      nightsMap[uid] = stayNights
+      totalStayNights += stayNights
+    })
+
+    if (totalStayNights > 0) {
+      let sum = 0
+      effectiveParticipantIds.forEach(uid => {
+        const share = round2(totalGroupCost * (nightsMap[uid] / totalStayNights))
+        participantSharesMap.set(uid, share)
+        sum = round2(sum + share)
+      })
+      const delta = round2(totalGroupCost - sum)
+      if (delta !== 0 && count > 0) {
+        const firstUid = effectiveParticipantIds[0]
+        participantSharesMap.set(firstUid, round2(participantSharesMap.get(firstUid) + delta))
+      }
+    } else {
+      const equalShare = round2(totalGroupCost / Math.max(1, count))
+      let sum = 0
+      effectiveParticipantIds.forEach(uid => {
+        participantSharesMap.set(uid, equalShare)
+        sum = round2(sum + equalShare)
+      })
+      const delta = round2(totalGroupCost - sum)
+      if (delta !== 0 && count > 0) {
+        const firstUid = effectiveParticipantIds[0]
+        participantSharesMap.set(firstUid, round2(participantSharesMap.get(firstUid) + delta))
+      }
+    }
+
+    perPersonCost = count > 0 ? round2(totalGroupCost / count) : 0
+  } else {
+    // Default: 'split_total'
+    totalGroupCost = rawUnitOrTotal
+    perPersonCost = count > 0 ? round2(totalGroupCost / count) : totalGroupCost
+    let sum = 0
+    effectiveParticipantIds.forEach(uid => {
+      participantSharesMap.set(uid, perPersonCost)
+      sum = round2(sum + perPersonCost)
+    })
+    const delta = round2(totalGroupCost - sum)
+    if (delta !== 0 && count > 0) {
+      const firstUid = effectiveParticipantIds[0]
+      participantSharesMap.set(firstUid, round2(participantSharesMap.get(firstUid) + delta))
+    }
+  }
+
+  return {
+    totalGroupCost,
+    perPersonCost,
+    participantSharesMap,
+    effectiveParticipantIds,
+    costType
+  }
+}
+

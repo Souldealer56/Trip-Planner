@@ -1,4 +1,5 @@
 import { parseLocalDate, formatLocalDateStr } from './format'
+import { getPresentTravelers } from '../services/rsvps'
 
 /**
  * Analyzes trip days to detect unbooked gap days ("Holes in the Plan").
@@ -231,4 +232,260 @@ export function detectScheduleConflicts(options = [], lockedOptionIds = null) {
   }
 
   return { conflictingOptionIds, conflictPairs }
+}
+
+/**
+ * Analyzes day-by-day logistics coverage (Beds, Seats, Meals) across the trip.
+ * Correlates exact traveler presence each day against locked accommodations,
+ * transports, and scheduled meal slots.
+ *
+ * @param {Object} trip Trip object with start_date and end_date.
+ * @param {Array} options Array of pitched options.
+ * @param {Array} roster Roster array of participants.
+ * @param {Object} activePollsMap Map of active category polls with locked choices.
+ * @returns {Object} { days, nightsCoveredCount, totalNights, mealsPlannedCount, totalMealsSlots, alerts }
+ */
+export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], activePollsMap = {}) {
+  if (!trip?.start_date || !trip?.end_date) {
+    return {
+      days: [],
+      nightsCoveredCount: 0,
+      totalNights: 0,
+      mealsPlannedCount: 0,
+      totalMealsSlots: 0,
+      alerts: []
+    }
+  }
+
+  const start = parseLocalDate(trip.start_date)
+  const end = parseLocalDate(trip.end_date)
+  if (!start || !end) {
+    return {
+      days: [],
+      nightsCoveredCount: 0,
+      totalNights: 0,
+      mealsPlannedCount: 0,
+      totalMealsSlots: 0,
+      alerts: []
+    }
+  }
+
+  // Build calendar days array using local date math
+  const cur = new Date(start)
+  cur.setHours(0, 0, 0, 0)
+  const endBoundary = new Date(end)
+  endBoundary.setHours(23, 59, 59, 999)
+
+  const calendarDays = []
+  while (cur <= endBoundary) {
+    calendarDays.push(new Date(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  const totalDays = calendarDays.length
+  const totalNights = totalDays > 1 ? totalDays - 1 : 1
+
+  // Filter committed members
+  const committedRoster = Array.isArray(roster)
+    ? roster.filter((m) => m && m.status?.toLowerCase() === 'committed')
+    : []
+
+  // Gather locked option IDs
+  const lockedOptionIds = new Set()
+  options.forEach((opt) => {
+    if (opt.is_locked) lockedOptionIds.add(String(opt.id))
+  })
+  Object.values(activePollsMap || {}).forEach((poll) => {
+    if (poll?.locked_option_id) lockedOptionIds.add(String(poll.locked_option_id))
+    if (Array.isArray(poll?.voter_selections?._locked_option_ids)) {
+      poll.voter_selections._locked_option_ids.forEach((id) => lockedOptionIds.add(String(id)))
+    }
+  })
+
+  const isOptLocked = (opt) => lockedOptionIds.has(String(opt.id))
+
+  let nightsCoveredCount = 0
+  let totalMealsPlanned = 0
+  const alerts = []
+  let missingNightsCount = 0
+
+  const days = calendarDays.map((dayDate, dayIdx) => {
+    const dayStr = formatLocalDateStr(dayDate)
+    const dayLabel = `Day ${dayIdx + 1}`
+    const subLabel = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    const isDepartureDay = totalDays > 1 && dayIdx === totalDays - 1
+
+    // 1. Present travelers for this date
+    const presentTravelers = getPresentTravelers(committedRoster, dayStr, dayStr)
+    const presentCount = presentTravelers.length
+
+    // 2. Accommodation Coverage for this night (all days except final departure day)
+    let bedsLocked = 0
+    let pitchedAccomCount = 0
+    let lockedAccoms = []
+    let hasKitchen = true // default true unless explicitly false in locked accommodation
+
+    if (!isDepartureDay) {
+      // Find accommodations covering this night
+      options.forEach((opt) => {
+        if ((opt.category || '').toLowerCase() !== 'accommodation') return
+
+        const sStr = opt.start_date ? String(opt.start_date).slice(0, 10) : null
+        const eStr = opt.end_date ? String(opt.end_date).slice(0, 10) : null
+
+        let coversNight = false
+        if (sStr && eStr && eStr > sStr) {
+          coversNight = dayStr >= sStr && dayStr < eStr
+        } else if (sStr) {
+          coversNight = dayStr === sStr
+        }
+
+        if (coversNight) {
+          if (isOptLocked(opt)) {
+            lockedAccoms.push(opt)
+            const explicitCap = opt.metadata?.max_capacity ? Number(opt.metadata.max_capacity) : 0
+            const assignedCap = Array.isArray(opt.assigned_users) && opt.assigned_users.length > 0 ? opt.assigned_users.length : 0
+            const cap = explicitCap > 0 ? explicitCap : (assignedCap > 0 ? assignedCap : presentCount)
+            bedsLocked += cap
+
+            if (opt.metadata?.has_kitchen === false) {
+              hasKitchen = false
+            }
+          } else {
+            pitchedAccomCount++
+          }
+        }
+      })
+    }
+
+    let accomStatus = 'departure'
+    if (!isDepartureDay) {
+      if (bedsLocked >= presentCount && presentCount > 0) {
+        accomStatus = 'covered'
+        nightsCoveredCount++
+      } else if (bedsLocked > 0) {
+        accomStatus = 'partial'
+        alerts.push(
+          `⚠️ ${dayLabel}: ${bedsLocked}/${presentCount} sleepers covered — ${presentCount - bedsLocked} beds short`
+        )
+      } else {
+        accomStatus = 'missing'
+        missingNightsCount++
+      }
+    }
+
+    // 3. Transport Coverage
+    let seatsLocked = 0
+    const lockedTransports = []
+
+    options.forEach((opt) => {
+      const cat = (opt.category || '').toLowerCase()
+      if (cat !== 'transport' && cat !== 'flights') return
+
+      const sStr = opt.start_date ? String(opt.start_date).slice(0, 10) : null
+      const eStr = opt.end_date ? String(opt.end_date).slice(0, 10) : null
+
+      const activeOnDay = (sStr && sStr === dayStr) || (eStr && eStr === dayStr) || (sStr && eStr && dayStr >= sStr && dayStr <= eStr)
+      if (activeOnDay && isOptLocked(opt)) {
+        lockedTransports.push(opt)
+        const explicitCap = opt.metadata?.max_capacity ? Number(opt.metadata.max_capacity) : 0
+        const assignedCap = Array.isArray(opt.assigned_users) && opt.assigned_users.length > 0 ? opt.assigned_users.length : 0
+        seatsLocked += explicitCap > 0 ? explicitCap : (assignedCap > 0 ? assignedCap : presentCount)
+      }
+    })
+
+    let transportStatus = 'not_scheduled'
+    if (lockedTransports.length > 0) {
+      transportStatus = seatsLocked >= presentCount ? 'covered' : 'partial'
+    }
+
+    // 4. Meals Coverage (Breakfast, Lunch, Dinner)
+    const dayMeals = options.filter((opt) => {
+      if ((opt.category || '').toLowerCase() !== 'food') return false
+      const sStr = opt.start_date ? String(opt.start_date).slice(0, 10) : null
+      return sStr === dayStr
+    })
+
+    const slots = {
+      breakfast: null,
+      lunch: null,
+      dinner: null
+    }
+
+    let hasCookedWithoutKitchen = false
+
+    dayMeals.forEach((meal) => {
+      let slotKey = meal.metadata?.meal_slot
+      if (!slotKey && meal.start_date) {
+        const hour = parseInt(meal.start_date.slice(11, 13), 10) || 12
+        if (hour < 11) slotKey = 'breakfast'
+        else if (hour < 16) slotKey = 'lunch'
+        else slotKey = 'dinner'
+      }
+
+      if (slotKey && slots[slotKey] === null) {
+        slots[slotKey] = meal
+      }
+
+      // Check if meal is cooked while accommodation has no kitchen
+      if (meal.metadata?.meal_mode === 'cook' && !hasKitchen && lockedAccoms.length > 0) {
+        hasCookedWithoutKitchen = true
+      }
+    })
+
+    const plannedSlotsCount = (slots.breakfast ? 1 : 0) + (slots.lunch ? 1 : 0) + (slots.dinner ? 1 : 0)
+    totalMealsPlanned += plannedSlotsCount
+
+    if (hasCookedWithoutKitchen) {
+      alerts.push(`⚠️ ${dayLabel}: Home-cooked meal planned, but locked accommodation has no kitchen!`)
+    }
+
+    return {
+      dayIndex: dayIdx + 1,
+      date: dayDate,
+      dateStr: dayStr,
+      label: dayLabel,
+      subLabel,
+      isDepartureDay,
+      presentCount,
+      presentTravelers,
+      accommodation: {
+        bedsLocked,
+        presentCount,
+        status: accomStatus,
+        pitchedCount: pitchedAccomCount,
+        lockedOptions: lockedAccoms,
+        hasKitchen
+      },
+      transport: {
+        seatsLocked,
+        presentCount,
+        status: transportStatus,
+        lockedOptions: lockedTransports
+      },
+      meals: {
+        count: plannedSlotsCount,
+        slots,
+        hasCookedWithoutKitchen
+      }
+    }
+  })
+
+  if (missingNightsCount > 0) {
+    alerts.unshift(`⚠️ ${missingNightsCount} night${missingNightsCount > 1 ? 's' : ''} missing locked accommodation`)
+  }
+
+  const totalMealsSlots = totalDays * 3
+  if (totalMealsPlanned < totalMealsSlots) {
+    alerts.push(`🍴 ${totalMealsPlanned}/${totalMealsSlots} meals planned`)
+  }
+
+  return {
+    days,
+    nightsCoveredCount,
+    totalNights,
+    mealsPlannedCount: totalMealsPlanned,
+    totalMealsSlots,
+    alerts
+  }
 }

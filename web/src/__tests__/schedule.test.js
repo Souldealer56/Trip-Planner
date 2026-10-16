@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { detectScheduleGaps, detectScheduleConflicts, packOptionsIntoSubTracks } from '../utils/schedule'
+import {
+  detectScheduleGaps,
+  detectScheduleConflicts,
+  packOptionsIntoSubTracks,
+  analyzeDailyLogisticsCoverage
+} from '../utils/schedule'
 import { parseLocalDate, formatLocalDateStr } from '../utils/format'
 
 describe('Schedule Engine Utilities', () => {
@@ -284,5 +289,108 @@ describe('Schedule Engine Utilities', () => {
       expect(lanes[0][0].id).toBe(1)
     })
   })
+
+  describe('analyzeDailyLogisticsCoverage', () => {
+    const trip = {
+      id: 'trip-100',
+      start_date: '2026-09-01',
+      end_date: '2026-09-04' // 4 days, 3 nights
+    }
+
+    const roster = [
+      { user_id: 'u1', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u2', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u3', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u4', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u5', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u6', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u7', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' },
+      { user_id: 'u8', status: 'Committed', arrival_date: '2026-09-01', departure_date: '2026-09-04' }
+    ]
+
+    it('identifies partial bed capacity when beds locked are fewer than present travelers (6/8 sleepers)', () => {
+      const options = [
+        {
+          id: 1,
+          category: 'Accommodation',
+          start_date: '2026-09-01',
+          end_date: '2026-09-02',
+          is_locked: true,
+          metadata: { max_capacity: 6, has_kitchen: true }
+        }
+      ]
+
+      const coverage = analyzeDailyLogisticsCoverage(trip, options, roster)
+      expect(coverage.days).toHaveLength(4)
+
+      const day1 = coverage.days[0]
+      expect(day1.presentCount).toBe(8)
+      expect(day1.accommodation.bedsLocked).toBe(6)
+      expect(day1.accommodation.status).toBe('partial')
+
+      // Verifies partial alert generated
+      const alert = coverage.alerts.find(a => a.includes('6/8 sleepers covered — 2 beds short'))
+      expect(alert).toBeDefined()
+    })
+
+    it('accurately tallies planned meal slots per day (e.g. 2/3 planned)', () => {
+      const options = [
+        {
+          id: 10,
+          category: 'Food',
+          start_date: '2026-09-01T08:00',
+          metadata: { meal_slot: 'breakfast', meal_mode: 'cook' }
+        },
+        {
+          id: 11,
+          category: 'Food',
+          start_date: '2026-09-01T19:00',
+          metadata: { meal_slot: 'dinner', meal_mode: 'restaurant' }
+        }
+      ]
+
+      const coverage = analyzeDailyLogisticsCoverage(trip, options, roster)
+      const day1 = coverage.days[0]
+      expect(day1.meals.count).toBe(2)
+      expect(day1.meals.slots.breakfast).toBeDefined()
+      expect(day1.meals.slots.dinner).toBeDefined()
+      expect(day1.meals.slots.lunch).toBeNull()
+    })
+
+    it('detects kitchen mismatch when a home-cooked meal is planned but accommodation has no kitchen', () => {
+      const options = [
+        {
+          id: 1,
+          category: 'Accommodation',
+          start_date: '2026-09-01',
+          end_date: '2026-09-04',
+          is_locked: true,
+          metadata: { max_capacity: 8, has_kitchen: false }
+        },
+        {
+          id: 20,
+          category: 'Food',
+          start_date: '2026-09-01T12:00',
+          metadata: { meal_slot: 'lunch', meal_mode: 'cook' }
+        }
+      ]
+
+      const coverage = analyzeDailyLogisticsCoverage(trip, options, roster)
+      const day1 = coverage.days[0]
+      expect(day1.meals.hasCookedWithoutKitchen).toBe(true)
+
+      const alert = coverage.alerts.find(a => a.includes('Home-cooked meal planned, but locked accommodation has no kitchen!'))
+      expect(alert).toBeDefined()
+    })
+
+    it('treats final calendar day as departure day where night accommodation is not expected', () => {
+      const coverage = analyzeDailyLogisticsCoverage(trip, [], roster)
+      const departureDay = coverage.days[3]
+      expect(departureDay.isDepartureDay).toBe(true)
+      expect(departureDay.accommodation.status).toBe('departure')
+      expect(coverage.totalNights).toBe(3)
+    })
+  })
 })
+
 

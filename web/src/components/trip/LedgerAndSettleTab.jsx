@@ -42,7 +42,8 @@ export function LedgerAndSettleTab({
   baseCurrency = 'USD',
   onOpenExpenseModal,
   allTripOptions = [],
-  rates = null
+  rates = null,
+  activeUser = null
 }) {
   return (
     <div className="glass-card animate-fade-in" style={{ padding: '2rem', border: '1px solid var(--border-light)' }}>
@@ -371,6 +372,7 @@ export function LedgerAndSettleTab({
           committedMembers={committedMembers}
           rates={rates}
           baseCurrency={baseCurrency}
+          activeUser={activeUser}
         />
       )}
     </div>
