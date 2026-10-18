@@ -202,6 +202,36 @@ export function OptionsTab({
   const committedMembers = useMemo(() => roster.filter((m) => m.status === 'Committed'), [roster])
   const committedCount = committedMembers.length > 0 ? committedMembers.length : (roster.length > 0 ? roster.length : 1)
 
+  // Derive effective category options from single source of truth (allTripOptions)
+  const effectiveOptions = useMemo(() => {
+    if (allTripOptions && allTripOptions.length > 0) {
+      const filtered = allTripOptions.filter(
+        (opt) => opt.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
+      )
+      if (filtered.length > 0 || !options || options.length === 0) {
+        return filtered
+      }
+    }
+    return options || []
+  }, [allTripOptions, activeTab, options])
+
+  // Count pitched options per category for badge display
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    categories.forEach((cat) => {
+      counts[cat] = 0
+    })
+    const source = (allTripOptions && allTripOptions.length > 0) ? allTripOptions : (options || [])
+    source.forEach((opt) => {
+      const optCat = (opt.category || '').trim().toLowerCase()
+      const matched = categories.find((c) => c.toLowerCase() === optCat)
+      if (matched) {
+        counts[matched] = (counts[matched] || 0) + 1
+      }
+    })
+    return counts
+  }, [categories, allTripOptions, options])
+
   // Duplicate expense detection
   const isOptionLogged = (option) => {
     if (!expenses || !option) return false
@@ -271,14 +301,22 @@ export function OptionsTab({
   const sortOptionList = (list) => {
     return [...list].sort((a, b) => {
       if (sortOrder === 'price_asc') {
-        const costA = getCostDetails(a)?.converted ?? Infinity
-        const costB = getCostDetails(b)?.converted ?? Infinity
-        return costA - costB
+        const rawCostA = getCostDetails(a)?.converted
+        const costA = (rawCostA !== undefined && rawCostA !== null && !isNaN(rawCostA))
+          ? rawCostA
+          : (a.estimated_cost === 0 ? 0 : Infinity)
+        const rawCostB = getCostDetails(b)?.converted
+        const costB = (rawCostB !== undefined && rawCostB !== null && !isNaN(rawCostB))
+          ? rawCostB
+          : (b.estimated_cost === 0 ? 0 : Infinity)
+        if (costA !== costB) return costA - costB
+        return (Number(a.id) || 0) - (Number(b.id) || 0)
       }
       if (sortOrder === 'chronological') {
         const dateA = a.start_date ? new Date(a.start_date).getTime() : Infinity
         const dateB = b.start_date ? new Date(b.start_date).getTime() : Infinity
-        return dateA - dateB
+        if (dateA !== dateB) return dateA - dateB
+        return (Number(a.id) || 0) - (Number(b.id) || 0)
       }
       // 'recommended': Locked first, then votes descending, then ID
       const isLockedA = isOptionLocked(a, activePoll) ? 1 : 0
@@ -289,7 +327,7 @@ export function OptionsTab({
       const votesB = votesByOpt[b.id] !== undefined ? votesByOpt[b.id] : getVotersForOption(b.id).length
       if (votesB !== votesA) return votesB - votesA
 
-      return a.id - b.id
+      return (Number(a.id) || 0) - (Number(b.id) || 0)
     })
   }
 
@@ -301,7 +339,7 @@ export function OptionsTab({
     const outside = []
     const topVoted = []
 
-    options.forEach((opt) => {
+    effectiveOptions.forEach((opt) => {
       const isLocked = isOptionLocked(opt, activePoll)
       const isConflict = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
       const optVotes = votesByOpt[opt.id] !== undefined ? votesByOpt[opt.id] : (activePoll?.voter_selections ? Object.values(activePoll.voter_selections).filter(arr => Array.isArray(arr) && arr.map(String).includes(String(opt.id))).length : 0)
@@ -359,7 +397,7 @@ export function OptionsTab({
       outsideSection: outside,
       topVotedList: topVoted
     }
-  }, [options, activePoll, trip, votesByOpt])
+  }, [effectiveOptions, activePoll, trip, votesByOpt])
 
   const handleDelete = async (opt) => {
     if (!onDeleteOption) return
@@ -1103,7 +1141,7 @@ export function OptionsTab({
                 onClick={() => onTabChange(cat)}
                 className={`tab-btn ${activeTab === cat ? 'active' : ''}`}
               >
-                {cat}
+                {cat} ({categoryCounts[cat] || 0})
               </button>
             ))}
           </div>
@@ -1159,7 +1197,7 @@ export function OptionsTab({
               trip={trip}
               roster={roster}
               activeUser={activeUser}
-              foodOptions={options}
+              foodOptions={effectiveOptions}
               onOpenPitchModal={onOpenPitchModal}
               onVoteToggle={onVoteToggle}
               onLockToggle={onLockToggle}
@@ -1179,7 +1217,7 @@ export function OptionsTab({
                 className={`filter-pill ${filterState === 'all' ? 'active' : ''}`}
                 onClick={() => setFilterState('all')}
               >
-                All ({options.length})
+                All ({effectiveOptions.length})
               </button>
               <button
                 type="button"
@@ -1219,7 +1257,7 @@ export function OptionsTab({
               <div className="skeleton skeleton-text" style={{ width: '80%' }} />
               <div className="skeleton skeleton-text" style={{ width: '60%' }} />
             </div>
-          ) : options.length === 0 ? (
+          ) : effectiveOptions.length === 0 ? (
             <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               <h3 style={{ marginBottom: '0.5rem', color: 'var(--text-main)' }}>
                 No options pitched for this category yet.

@@ -7,17 +7,18 @@ import { supabase } from './supabase'
  * @returns {Promise<Array>} A promise resolving to an array of option records.
  */
 export async function fetchOptions(tripId, category) {
+  const cat = (category || '').trim()
   const { data, error } = await supabase
     .from('poll_options')
     .select('*')
     .eq('trip_id', tripId)
-    .eq('category', category.toLowerCase())
+    .ilike('category', cat)
     .order('id', { ascending: true })
 
   if (error) {
     throw error
   }
-  return data
+  return data || []
 }
 
 /**
@@ -240,16 +241,38 @@ export function checkOptionDateConflict(option, tripStartDate, tripEndDate) {
   if (!tripStartDate || !tripEndDate) return false
   if (!option || (!option.start_date && !option.end_date)) return false
 
-  const tripStart = new Date(tripStartDate)
-  const tripEnd = new Date(tripEndDate)
+  // Parse start of trip day at 00:00:00 local time
+  const startParts = typeof tripStartDate === 'string' ? tripStartDate.slice(0, 10).split('-') : null
+  const tripStart = startParts && startParts.length === 3
+    ? new Date(Number(startParts[0]), Number(startParts[1]) - 1, Number(startParts[2]), 0, 0, 0, 0)
+    : new Date(tripStartDate)
+
+  // Parse end of trip day at 23:59:59.999 local time so anything on the departure day is inside the trip
+  const endParts = typeof tripEndDate === 'string' ? tripEndDate.slice(0, 10).split('-') : null
+  const tripEnd = endParts && endParts.length === 3
+    ? new Date(Number(endParts[0]), Number(endParts[1]) - 1, Number(endParts[2]), 23, 59, 59, 999)
+    : new Date(tripEndDate)
+
+  const parseOptDate = (dStr) => {
+    if (!dStr) return null
+    if (typeof dStr === 'string' && dStr.includes('T')) {
+      const [dateP, timeP] = dStr.split('T')
+      const dp = dateP.split('-')
+      const tp = timeP.split(':')
+      if (dp.length === 3 && tp.length >= 2) {
+        return new Date(Number(dp[0]), Number(dp[1]) - 1, Number(dp[2]), Number(tp[0]), Number(tp[1]), Number(tp[2] || 0))
+      }
+    }
+    return new Date(dStr)
+  }
 
   if (option.start_date) {
-    const optStart = new Date(option.start_date)
-    if (optStart < tripStart || optStart > tripEnd) return true
+    const optStart = parseOptDate(option.start_date)
+    if (optStart && (optStart < tripStart || optStart > tripEnd)) return true
   }
   if (option.end_date) {
-    const optEnd = new Date(option.end_date)
-    if (optEnd < tripStart || optEnd > tripEnd) return true
+    const optEnd = parseOptDate(option.end_date)
+    if (optEnd && (optEnd < tripStart || optEnd > tripEnd)) return true
   }
   return false
 }

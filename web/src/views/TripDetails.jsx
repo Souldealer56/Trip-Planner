@@ -32,7 +32,7 @@ const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport
 function TripDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { activeUser, login: onLogin, logout: onLogout } = useUserSession()
+  const { activeUser, login: onLogin, logout: onLogout, updateActiveUser } = useUserSession()
 
   // Redirect unauthenticated travelers back to splash screen
   useEffect(() => {
@@ -101,11 +101,20 @@ function TripDetails() {
   const loadOptionsAndPoll = useCallback(async (silent = false) => {
     if (!silent) setOptionsLoading(true)
     try {
-      const opts = await fetchOptions(id, activeTab)
-      setOptions(opts)
+      const [opts, allOpts] = await Promise.all([
+        fetchOptions(id, activeTab),
+        fetchAllTripOptions(id)
+      ])
+      const filteredFromAll = (allOpts || []).filter(
+        (o) => o.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
+      )
+      const unifiedCategoryOpts = filteredFromAll.length > 0 ? filteredFromAll : (opts || [])
+      setOptions(unifiedCategoryOpts)
+      if (allOpts) setAllTripOptions(allOpts)
+
       const poll = await fetchActivePoll(id, activeTab)
       setActivePoll(poll)
-      saveTripOfflineSnapshot(id, { options: opts })
+      saveTripOfflineSnapshot(id, { options: unifiedCategoryOpts })
     } catch (err) {
       console.warn('Failed to load options/poll, falling back to cache:', err)
       const cached = loadTripOfflineSnapshot(id)
@@ -118,7 +127,13 @@ function TripDetails() {
   const loadGanttData = useCallback(async () => {
     try {
       const allOpts = await fetchAllTripOptions(id)
-      setAllTripOptions(allOpts)
+      setAllTripOptions(allOpts || [])
+      const filteredForActiveTab = (allOpts || []).filter(
+        (o) => o.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
+      )
+      if (filteredForActiveTab.length > 0) {
+        setOptions(filteredForActiveTab)
+      }
       const map = {}
       for (const cat of CATEGORIES) {
         const poll = await fetchActivePoll(id, cat)
@@ -128,7 +143,20 @@ function TripDetails() {
     } catch (err) {
       console.warn('Failed to load Gantt data:', err)
     }
-  }, [id])
+  }, [id, activeTab])
+
+  // Single source of truth for active category options
+  const categoryOptions = useMemo(() => {
+    if (allTripOptions && allTripOptions.length > 0) {
+      const filtered = allTripOptions.filter(
+        (opt) => opt.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
+      )
+      if (filtered.length > 0 || !options || options.length === 0) {
+        return filtered
+      }
+    }
+    return options || []
+  }, [allTripOptions, activeTab, options])
 
   useEffect(() => {
     if (activeUser) {
@@ -318,6 +346,7 @@ function TripDetails() {
     try {
       const updatedPoll = await toggleVote(id, activeTab, optionId, activeUser.id, !hasVoted)
       setActivePoll(updatedPoll)
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to toggle vote:', err)
@@ -329,7 +358,7 @@ function TripDetails() {
     try {
       const updatedPoll = await lockOption(id, activeTab, optionId, activeUser.id)
       setActivePoll(updatedPoll)
-      loadOptionsAndPoll()
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to toggle lock option:', err)
@@ -339,8 +368,7 @@ function TripDetails() {
   const handleDeleteOption = async (optionId) => {
     try {
       await deleteOption(optionId, id, activeUser?.id)
-      await loadOptionsAndPoll()
-      await loadGanttData()
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to delete option:', err)
@@ -351,8 +379,7 @@ function TripDetails() {
   const handleUpdateOptionDates = async (optionId, startDate, endDate) => {
     try {
       await updateOptionDates(optionId, startDate, endDate, id, activeUser?.id)
-      await loadOptionsAndPoll()
-      await loadGanttData()
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to update option dates:', err)
@@ -364,7 +391,7 @@ function TripDetails() {
     if (!activeUser) return
     try {
       await toggleOptionParticipant(optionId, activeUser.id, currentAssignedUsers, fallbackAllUserIds)
-      await loadOptionsAndPoll()
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to toggle option participant:', err)
@@ -401,9 +428,8 @@ function TripDetails() {
       setShowPitchModal(false)
       if (activeTab !== category) {
         setActiveTab(category)
-      } else {
-        await loadOptionsAndPoll()
       }
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to pitch option:', err)
@@ -609,12 +635,48 @@ function TripDetails() {
   const expensesCount = expenses.length
   const rosterCount = roster.length
 
-  const activeUserInRoster = activeUser ? roster.some((m) => m.user_id === activeUser.id) : false
+  const activeUserInRoster = useMemo(() => {
+    if (!activeUser) return false
+    if (!trip) return true // Do not flag while trip is still loading
+    if (String(trip.organizer_id) === String(activeUser.id)) return true
+
+    const userEmail = activeUser.email?.trim().toLowerCase()
+    const userUsername = activeUser.username?.trim().toLowerCase()
+
+    return roster.some((r) => {
+      if (String(r.user_id) === String(activeUser.id)) return true
+      const rosterEmail = r.users?.email?.trim().toLowerCase()
+      if (rosterEmail && userEmail && rosterEmail === userEmail) return true
+      const rosterUsername = (r.users?.username || r.username)?.trim().toLowerCase()
+      if (rosterUsername && userUsername && rosterUsername === userUsername) return true
+      return false
+    })
+  }, [activeUser, trip, roster])
+
+  // Session reconciliation: if matched by email or username with different ID, update session UUID
+  useEffect(() => {
+    if (!activeUser || !roster.length || !updateActiveUser) return
+    const userEmail = activeUser.email?.trim().toLowerCase()
+    const userUsername = activeUser.username?.trim().toLowerCase()
+
+    for (const r of roster) {
+      const rosterEmail = r.users?.email?.trim().toLowerCase()
+      const rosterUsername = (r.users?.username || r.username)?.trim().toLowerCase()
+      const matchesEmail = rosterEmail && userEmail && rosterEmail === userEmail
+      const matchesUsername = rosterUsername && userUsername && rosterUsername === userUsername
+
+      if ((matchesEmail || matchesUsername) && String(activeUser.id) !== String(r.user_id)) {
+        updateActiveUser({ ...activeUser, id: r.user_id })
+        break
+      }
+    }
+  }, [activeUser, roster, updateActiveUser])
+
   const [reconcileLoading, setReconcileLoading] = useState(false)
   const [reconcileError, setReconcileError] = useState('')
 
   const handleJoinRoster = async () => {
-    if (!activeUser) return
+    if (!activeUser || !id) return
     setReconcileLoading(true)
     setReconcileError('')
     try {
@@ -651,13 +713,13 @@ function TripDetails() {
 
   return (
     <div className="trip-details-container animate-fade-in">
-      {/* Blocking Modal if user is not in roster */}
-      {activeUser && !activeUserInRoster && (
+      {/* Blocking Modal strictly if user is confirmed NOT in roster after loading completes */}
+      {!tripLoading && !rosterLoading && trip !== null && activeUser && !activeUserInRoster && (
         <div className="modal-overlay">
           <div className="modal-content glass-card animate-fade-in" style={{ textAlign: 'center', maxWidth: '400px' }}>
             <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem' }}>Not on the Roster</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              You are signed in as <strong>{activeUser.first_name}</strong>, but you are not registered on this trip.
+              You are signed in as <strong>{activeUser.first_name || activeUser.username || 'Traveler'}</strong>, but you are not registered on this trip.
             </p>
             {reconcileError && (
               <p style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', marginBottom: '1rem' }}>
@@ -751,7 +813,7 @@ function TripDetails() {
               onTabChange={setActiveTab}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
-              options={options}
+              options={categoryOptions}
               optionsLoading={optionsLoading}
               activePoll={activePoll}
               allTripOptions={allTripOptions}

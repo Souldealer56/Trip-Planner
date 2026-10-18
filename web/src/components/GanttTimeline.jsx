@@ -402,7 +402,10 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
               style={{ 
                 fontWeight: 'bold', 
                 color: 'var(--text-muted)', 
-                fontSize: '0.85rem'
+                fontSize: '0.85rem',
+                backgroundColor: 'var(--bg-surface, #141a29)',
+                zIndex: 15,
+                borderRight: '1px solid var(--border-light)'
               }}
             >
               Category
@@ -609,7 +612,10 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
                         display: 'flex', 
                         flexDirection: 'column',
                         justifyContent: 'center',
-                        gap: '2px'
+                        gap: '2px',
+                        backgroundColor: 'var(--bg-surface, #141a29)',
+                        zIndex: 10,
+                        borderRight: '1px solid var(--border-light)'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
