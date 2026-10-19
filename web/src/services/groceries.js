@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 export const GROCERY_AISLES = [
   { id: 'produce', label: 'Produce', icon: '🥬' },
@@ -17,6 +17,7 @@ function getFallbackKey(tripId) {
 
 function loadLocalGroceries(tripId) {
   try {
+    if (typeof localStorage === 'undefined') return []
     const raw = localStorage.getItem(getFallbackKey(tripId))
     return raw ? JSON.parse(raw) : []
   } catch (err) {
@@ -27,6 +28,7 @@ function loadLocalGroceries(tripId) {
 
 function saveLocalGroceries(tripId, items) {
   try {
+    if (typeof localStorage === 'undefined') return
     localStorage.setItem(getFallbackKey(tripId), JSON.stringify(items))
   } catch (err) {
     console.warn('Failed to persist local groceries cache:', err)

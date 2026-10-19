@@ -1,5 +1,5 @@
-import { parseLocalDate, formatLocalDateStr } from './format'
-import { getPresentTravelers } from '../services/rsvps'
+import { parseLocalDate, formatLocalDateStr } from './format.js'
+import { getPresentTravelers } from '../services/rsvps.js'
 
 /**
  * Analyzes trip days to detect unbooked gap days ("Holes in the Plan").

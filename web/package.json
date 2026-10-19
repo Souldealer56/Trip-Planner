@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "qa:live": "node qa-live-scenario.js",
     "preview": "vite preview"
   },
   "dependencies": {

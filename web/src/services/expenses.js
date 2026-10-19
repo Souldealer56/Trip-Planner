@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { calculateOptionCostBreakdown } from '../utils/currency'
+import { supabase } from './supabase.js'
+import { calculateOptionCostBreakdown } from '../utils/currency.js'
 
 /**
  * Fetches all expenses logged for a trip, joining with the payer's user details.

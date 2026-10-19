@@ -983,7 +983,7 @@ export function OptionsTab({
         {/* Card Footer Actions */}
         <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
           <button
-            onClick={() => onVoteToggle(opt.id, hasVoted, opt.category || activeTab)}
+            onClick={() => onVoteToggle && onVoteToggle(opt.id, hasVoted, opt.category || activeTab)}
             className={`btn ${hasVoted ? 'btn-voted' : 'btn-vote'}`}
             type="button"
             style={{ flex: 1, minHeight: '38px' }}
@@ -992,7 +992,7 @@ export function OptionsTab({
           </button>
 
           <button
-            onClick={() => onLockToggle(opt.id)}
+            onClick={() => onLockToggle && onLockToggle(opt.id)}
             className="btn btn-secondary"
             style={{
               padding: '6px 12px',

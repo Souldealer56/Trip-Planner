@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 /**
  * Fetches trips for a specific user from the database ordered by start_date ascending.

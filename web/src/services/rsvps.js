@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 /**
  * Fetches the RSVP roster for a specific trip, including user profile details.
@@ -9,14 +9,14 @@ import { supabase } from './supabase'
 export async function fetchRsvpRoster(tripId) {
   let { data, error } = await supabase
     .from('rsvps')
-    .select('status, user_id, notes, role, is_admin, arrival_date, departure_date, dietary_tags, users(*)')
+    .select('status, user_id, notes, role, arrival_date, departure_date, dietary_tags, users(*)')
     .eq('trip_id', tripId)
 
   if (error) {
     // Fallback if arrival_date, departure_date, or dietary_tags column absent on unmigrated schema
     const fallback = await supabase
       .from('rsvps')
-      .select('status, user_id, notes, role, is_admin, users(*)')
+      .select('status, user_id, notes, role, users(*)')
       .eq('trip_id', tripId)
     data = fallback.data
     error = fallback.error
@@ -133,16 +133,24 @@ export async function updateRsvpStatus(tripId, userId, status) {
  * @param {Object} [rsvp] Optional RSVP record for the user on this trip.
  * @returns {boolean} True if user is the primary organizer or a co-organizer.
  */
-export function isUserTripAdmin(user, trip, rsvp) {
-  if (!user || !trip) return false
+export function isUserTripAdmin(user, trip, rsvpOrRoster) {
+  if (!user) return false
   const userId = typeof user === 'object' ? user.id : user
 
-  // 1. Primary organizer check
-  if (trip.organizer_id && String(trip.organizer_id) === String(userId)) {
+  // 1. Primary organizer check from trip object
+  if (trip && trip.organizer_id && String(trip.organizer_id) === String(userId)) {
     return true
   }
 
-  // 2. Co-organizer or explicit admin check from RSVP role / is_admin column
+  // 2. Resolve RSVP if array was passed as 2nd or 3rd param
+  let rsvp = rsvpOrRoster
+  if (Array.isArray(rsvpOrRoster)) {
+    rsvp = rsvpOrRoster.find(r => String(r.user_id || r.id) === String(userId))
+  } else if (!rsvp && Array.isArray(trip)) {
+    rsvp = trip.find(r => String(r.user_id || r.id) === String(userId))
+  }
+
+  // 3. Co-organizer or explicit admin check from RSVP role / is_admin column
   if (rsvp) {
     if (rsvp.role === 'organizer' || rsvp.role === 'co_organizer') {
       return true
@@ -163,20 +171,19 @@ export function isUserTripAdmin(user, trip, rsvp) {
  * @returns {Promise<Object>} Updated RSVP record.
  */
 export async function promoteToCoOrganizer(tripId, userId) {
-  try {
-    const { data, error } = await supabase
-      .from('rsvps')
-      .update({ role: 'co_organizer', is_admin: true })
-      .eq('trip_id', tripId)
-      .eq('user_id', userId)
-      .select()
-      .single()
-    if (!error) return data
-  } catch (_) {
-    // Fallback if role column is absent on unmigrated schema
-  }
-
+  // 1. Update role directly (primary first-class role column)
   const { data, error } = await supabase
+    .from('rsvps')
+    .update({ role: 'co_organizer' })
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (!error) return data
+
+  // 2. Fallback if role column is absent on older schemas
+  const { data: fallbackData, error: fallbackError } = await supabase
     .from('rsvps')
     .update({ is_admin: true })
     .eq('trip_id', tripId)
@@ -184,34 +191,33 @@ export async function promoteToCoOrganizer(tripId, userId) {
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (fallbackError) {
+    throw error || fallbackError
   }
-  return data
+  return fallbackData
 }
 
 /**
  * Demotes a Co-Organizer back to regular participant status.
- * Updates role to 'member' and is_admin to false without mutating user notes.
+ * Updates role to 'member' without mutating user notes.
  * @param {string} tripId The UUID of the trip.
  * @param {string|number} userId The ID of the participant.
  * @returns {Promise<Object>} Updated RSVP record.
  */
 export async function demoteCoOrganizer(tripId, userId) {
-  try {
-    const { data, error } = await supabase
-      .from('rsvps')
-      .update({ role: 'member', is_admin: false })
-      .eq('trip_id', tripId)
-      .eq('user_id', userId)
-      .select()
-      .single()
-    if (!error) return data
-  } catch (_) {
-    // Fallback if role column is absent on unmigrated schema
-  }
-
+  // 1. Update role directly
   const { data, error } = await supabase
+    .from('rsvps')
+    .update({ role: 'member' })
+    .eq('trip_id', tripId)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (!error) return data
+
+  // 2. Fallback if role column is absent on older schemas
+  const { data: fallbackData, error: fallbackError } = await supabase
     .from('rsvps')
     .update({ is_admin: false })
     .eq('trip_id', tripId)
@@ -219,10 +225,10 @@ export async function demoteCoOrganizer(tripId, userId) {
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (fallbackError) {
+    throw error || fallbackError
   }
-  return data
+  return fallbackData
 }
 
 /**

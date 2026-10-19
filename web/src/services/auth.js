@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 const PENDING_TOKENS_STORAGE_KEY = 'trip_planner_pending_tokens';
 

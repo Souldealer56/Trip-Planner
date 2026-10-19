@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 /**
  * Fetches pitched options for a specific trip and category.

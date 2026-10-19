@@ -1,4 +1,4 @@
-import { getPresentTravelers } from '../services/rsvps'
+import { getPresentTravelers } from '../services/rsvps.js'
 export { getPresentTravelers }
 
 const FX_CACHE_KEY = 'trip_planner_fx_cache'
@@ -106,10 +106,13 @@ export function convertCurrency(amount, fromCurrency, toCurrency, rates) {
  * @returns {Array<Object>} List of transactions containing { fromId, fromName, toId, toName, amount }.
  */
 export function calculateSettlements(balances) {
+  if (!balances) return []
   const debtors = []
   const creditors = []
 
-  Object.values(balances).forEach(b => {
+  const balanceList = Array.isArray(balances) ? balances : Object.values(balances)
+  balanceList.forEach(b => {
+    if (!b) return
     const net = b.paid - b.owed
     if (net > 0.01) {
       creditors.push({ userId: b.userId, name: b.name, amount: net })
