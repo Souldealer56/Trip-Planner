@@ -140,7 +140,7 @@ function SetOptionDatesModal({ isOpen, onClose, option, trip, onSave }) {
 }
 
 export function OptionsTab({
-  categories = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other'],
+  categories = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other'],
   activeTab = 'Accommodation',
   onTabChange,
   viewMode = 'grid',
@@ -172,6 +172,7 @@ export function OptionsTab({
   const [sortOrder, setSortOrder] = useState('recommended') // 'recommended' | 'chronological' | 'price_asc'
   const [outsideCollapsed, setOutsideCollapsed] = useState(true)
   const [dateModalOption, setDateModalOption] = useState(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
 
   // Food Intendance & Grocery State
   const [foodViewMode, setFoodViewMode] = useState('matrix') // 'matrix' | 'cards'
@@ -204,10 +205,15 @@ export function OptionsTab({
 
   // Derive effective category options from single source of truth (allTripOptions)
   const effectiveOptions = useMemo(() => {
+    const activeTabLower = (activeTab || '').trim().toLowerCase()
     if (allTripOptions && allTripOptions.length > 0) {
-      const filtered = allTripOptions.filter(
-        (opt) => opt.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
-      )
+      const filtered = allTripOptions.filter((opt) => {
+        const optCat = (opt.category || '').trim().toLowerCase()
+        if (activeTabLower === 'transport') {
+          return optCat === 'transport' || optCat === 'flights' || optCat === 'flight'
+        }
+        return optCat === activeTabLower
+      })
       if (filtered.length > 0 || !options || options.length === 0) {
         return filtered
       }
@@ -223,7 +229,10 @@ export function OptionsTab({
     })
     const source = (allTripOptions && allTripOptions.length > 0) ? allTripOptions : (options || [])
     source.forEach((opt) => {
-      const optCat = (opt.category || '').trim().toLowerCase()
+      let optCat = (opt.category || '').trim().toLowerCase()
+      if (optCat === 'flights' || optCat === 'flight') {
+        optCat = 'transport'
+      }
       const matched = categories.find((c) => c.toLowerCase() === optCat)
       if (matched) {
         counts[matched] = (counts[matched] || 0) + 1
@@ -411,14 +420,6 @@ export function OptionsTab({
     }
   }, [effectiveOptions, activePoll, trip, votesByOpt])
 
-  const handleDelete = async (opt) => {
-    if (!onDeleteOption) return
-    const confirmed = window.confirm(`Are you sure you want to delete "${opt.option_text}"?`)
-    if (confirmed) {
-      await onDeleteOption(opt.id)
-    }
-  }
-
   // Render individual option card
   const renderOptionCard = (opt, isSectionLocked = false) => {
     const optCategory = (opt.category || activeTab || '').toLowerCase()
@@ -495,25 +496,66 @@ export function OptionsTab({
             <h4 style={{ margin: 0, fontSize: '1.15rem', color: isLockedChoice ? '#10b981' : 'var(--text-main)', lineHeight: 1.25 }}>
               {opt.option_text}
             </h4>
-            {isLockedChoice && (
-              <span
-                style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  whiteSpace: 'nowrap',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                🔒 Locked Choice
-              </span>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              {isLockedChoice && (
+                <span
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#10b981',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🔒 Locked Choice
+                </span>
+              )}
+              {onDeleteOption && (
+                confirmingDeleteId === opt.id ? (
+                  <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
+                    <span style={{ fontSize: '0.75rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      style={{ padding: '2px 8px', fontSize: '0.75rem', minHeight: 'auto' }}
+                      onClick={() => {
+                        setConfirmingDeleteId(null)
+                        onDeleteOption(opt)
+                      }}
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 6px', fontSize: '0.75rem', minHeight: 'auto' }}
+                      onClick={() => setConfirmingDeleteId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-delete-icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmingDeleteId(opt.id)
+                    }}
+                    title="Delete option"
+                    aria-label="Delete option"
+                  >
+                    🗑️
+                  </button>
+                )
+              )}
+            </div>
           </div>
 
           {/* Badges Bar: Logged in Ledger vs Log as Expense */}
@@ -720,12 +762,22 @@ export function OptionsTab({
             </div>
           )}
 
-          {(optCategory === 'flights' || (optCategory === 'transport' && metadata.transport_mode === 'ticket')) && (
+          {(optCategory === 'flights' || (optCategory === 'transport' && (metadata.transport_mode === 'ticket' || metadata.is_legacy_flight || /flight|vol|avion|airline|sata|tap|ticket|train/i.test(opt.option_text || '')))) && (
             <div className="category-spec-box">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {metadata.is_legacy_flight && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                    ✈️ Flight
+                  </span>
+                )}
                 {metadata.route_code && (
                   <span className="capacity-gauge-pill" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', border: '1px solid rgba(14, 165, 233, 0.3)' }}>
                     ✈️ {metadata.route_code}
+                  </span>
+                )}
+                {metadata.transit_times && (
+                  <span className="capacity-gauge-pill" style={{ background: 'rgba(147, 51, 234, 0.15)', color: '#c084fc', border: '1px solid rgba(147, 51, 234, 0.3)' }}>
+                    ⏱️ {metadata.transit_times}
                   </span>
                 )}
                 {metadata.baggage_included && (
@@ -1019,15 +1071,42 @@ export function OptionsTab({
               >
                 ✏️ Fix Dates
               </button>
-              <button
-                onClick={() => handleDelete(opt)}
-                className="btn btn-secondary btn-danger-soft"
-                style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-                title="Delete this out-of-bounds option"
-                type="button"
-              >
-                🗑️ Delete
-              </button>
+              {onDeleteOption && (
+                confirmingDeleteId === opt.id ? (
+                  <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
+                    <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
+                      onClick={() => {
+                        setConfirmingDeleteId(null)
+                        onDeleteOption(opt)
+                      }}
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
+                      onClick={() => setConfirmingDeleteId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingDeleteId(opt.id)}
+                    className="btn btn-secondary btn-danger-soft"
+                    style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
+                    title="Delete this out-of-bounds option"
+                    type="button"
+                  >
+                    🗑️ Delete
+                  </button>
+                )
+              )}
             </>
           )}
 
@@ -1132,6 +1211,7 @@ export function OptionsTab({
           options={allTripOptions.length > 0 ? allTripOptions : options}
           activePolls={allActivePollsMap}
           roster={roster}
+          onDeleteOption={onDeleteOption}
           onOptionClick={(opt) => setDateModalOption(opt)}
           onPitchForSlot={(dayDate, category) => {
             const dateToUse = dayDate || (trip?.start_date ? new Date(trip.start_date) : new Date())
@@ -1155,15 +1235,25 @@ export function OptionsTab({
               paddingBottom: '4px'
             }}
           >
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => onTabChange(cat)}
-                className={`tab-btn ${activeTab === cat ? 'active' : ''}`}
-              >
-                {cat} ({categoryCounts[cat] || 0})
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const labelWithIcon = {
+                Accommodation: '🏠 Accommodation',
+                Transport: '🚗✈️ Transport',
+                Activities: '🎟️ Activities',
+                Food: '🍴 Food',
+                Other: '✨ Other'
+              }[cat] || cat
+
+              return (
+                <button
+                  key={cat}
+                  onClick={() => onTabChange(cat)}
+                  className={`tab-btn ${activeTab === cat ? 'active' : ''}`}
+                >
+                  {labelWithIcon} ({categoryCounts[cat] || 0})
+                </button>
+              )
+            })}
           </div>
 
           {/* Food Category Sub-Bar: Matrix vs Cards Toggle + Grocery List Button */}

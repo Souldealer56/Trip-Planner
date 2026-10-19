@@ -1301,6 +1301,47 @@ input:checked + .toggle-slider:before {
   border-color: hsl(0, 85%, 65%);
 }
 
+.btn-danger {
+  color: #ffffff;
+  background: hsl(0, 75%, 52%);
+  border: 1px solid hsl(0, 75%, 45%);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-danger:hover {
+  background: hsl(0, 75%, 44%);
+  border-color: hsl(0, 75%, 38%);
+}
+
+.inline-delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  padding: 3px 8px;
+  animation: fadeIn 0.15s ease-in-out;
+}
+
+.btn-delete-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.btn-delete-icon:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+}
+
 /* ==========================================================================
    Gantt Timeline & Multi-Lane Sub-Tracks
    ========================================================================== */

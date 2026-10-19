@@ -5,7 +5,9 @@ import {
   calculateVehicleCostPerPassenger,
   checkAccommodationCapacity,
   checkActivitySpots,
-  toggleOptionParticipant
+  toggleOptionParticipant,
+  normalizeCategory,
+  normalizeOptionRow
 } from '../services/options'
 import { OptionsTab } from '../components/trip/OptionsTab'
 import { supabase } from '../services/supabase'
@@ -408,6 +410,33 @@ describe('Category Specialization & Dynamic Calculations', () => {
         ['user-1'],
         expect.any(Array)
       )
+    })
+  })
+
+  describe('Legacy Flights Category Normalization & Backward Compatibility', () => {
+    it('normalizes legacy flight option rows into transport with ticket mode and is_legacy_flight flag', () => {
+      const legacyRow = {
+        id: 'legacy-opt-1',
+        trip_id: 'trip-100',
+        category: 'flights',
+        option_text: 'Air Canada AC890 Flight',
+        metadata: { route_code: 'YUL → CDG' }
+      }
+
+      const normalized = normalizeOptionRow(legacyRow)
+      expect(normalized.category).toBe('transport')
+      expect(normalized.metadata.transport_mode).toBe('ticket')
+      expect(normalized.metadata.is_legacy_flight).toBe(true)
+      expect(normalized.metadata.route_code).toBe('YUL → CDG')
+    })
+
+    it('normalizes category strings correctly via normalizeCategory', () => {
+      expect(normalizeCategory('flights')).toBe('transport')
+      expect(normalizeCategory('Flight')).toBe('transport')
+      expect(normalizeCategory('FLIGHTS ')).toBe('transport')
+      expect(normalizeCategory('Accommodation')).toBe('accommodation')
+      expect(normalizeCategory('')).toBe('other')
+      expect(normalizeCategory(null)).toBe('other')
     })
   })
 })

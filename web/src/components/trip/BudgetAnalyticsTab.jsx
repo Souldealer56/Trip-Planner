@@ -21,7 +21,7 @@ export function BudgetAnalyticsTab({
     ? analytics.travelerStats.find((t) => String(t.userId) === String(activeUser.id))
     : null
 
-  const categories = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
+  const categories = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
 
   return (
     <div style={{ marginTop: '1.5rem' }} className="animate-fade-in">

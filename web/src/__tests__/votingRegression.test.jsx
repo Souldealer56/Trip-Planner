@@ -74,7 +74,7 @@ describe('Multi-User Voting & Active Polls Resiliency', () => {
       const createdPoll = {
         id: 99,
         trip_id: 'trip-abc',
-        category: 'flights',
+        category: 'transport',
         voter_selections: {},
         votes_by_option: {}
       }
@@ -104,10 +104,10 @@ describe('Multi-User Voting & Active Polls Resiliency', () => {
         return {}
       })
 
-      const poll = await fetchActivePoll('trip-abc', 'Flights')
+      const poll = await fetchActivePoll('trip-abc', 'Transport')
       expect(poll).toBeDefined()
       expect(poll.id).toBe(99)
-      expect(poll.category).toBe('flights')
+      expect(poll.category).toBe('transport')
     })
   })
 

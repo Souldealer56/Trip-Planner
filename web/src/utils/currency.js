@@ -268,8 +268,9 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
       const convertedCost = rates ? convertCurrency(opt.estimated_cost, optCurrency, baseCurrency, rates) : opt.estimated_cost
       totalEstimatedBudget += convertedCost
 
-      const cat = (opt.category || 'Other').trim()
-      const formattedCat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
+      const rawCat = (opt.category || 'Other').trim().toLowerCase()
+      const effectiveCat = (rawCat === 'flights' || rawCat === 'flight') ? 'transport' : rawCat
+      const formattedCat = effectiveCat.charAt(0).toUpperCase() + effectiveCat.slice(1).toLowerCase()
       categoryEstimates[formattedCat] = (categoryEstimates[formattedCat] || 0) + convertedCost
     }
   })
@@ -314,34 +315,39 @@ export function calculateTripBudgetAnalytics(expenses = [], options = [], roster
       const rawCat = (exp.category || '').trim().toLowerCase()
       if (rawCat && rawCat !== 'other') {
         if (rawCat === 'accommodation') cat = 'Accommodation'
-        else if (rawCat === 'flights') cat = 'Flights'
+        else if (rawCat === 'flights' || rawCat === 'flight' || rawCat === 'transport') cat = 'Transport'
         else if (rawCat === 'food') cat = 'Food'
-        else if (rawCat === 'transport') cat = 'Transport'
         else if (rawCat === 'activities') cat = 'Activities'
         else cat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1)
       } else {
         const descLower = (exp.description || '').toLowerCase()
-        const bracketMatch = descLower.match(/^\[(accommodation|flights|activities|food|transport|other)\]/i)
+        const bracketMatch = descLower.match(/^\[(accommodation|flights|flight|activities|food|transport|other)\]/i)
         if (bracketMatch && bracketMatch[1].toLowerCase() !== 'other') {
           const matched = bracketMatch[1].toLowerCase()
-          cat = matched.charAt(0).toUpperCase() + matched.slice(1)
+          if (matched === 'flights' || matched === 'flight') {
+            cat = 'Transport'
+          } else {
+            cat = matched.charAt(0).toUpperCase() + matched.slice(1)
+          }
         } else if (exp.option_id && options && options.length > 0) {
           const linkedOpt = options.find(o => String(o.id) === String(exp.option_id))
           if (linkedOpt && linkedOpt.category && linkedOpt.category.toLowerCase() !== 'other') {
             const lCat = linkedOpt.category.toLowerCase()
-            cat = lCat.charAt(0).toUpperCase() + lCat.slice(1)
+            if (lCat === 'flights' || lCat === 'flight') {
+              cat = 'Transport'
+            } else {
+              cat = lCat.charAt(0).toUpperCase() + lCat.slice(1)
+            }
           }
         }
 
         if (cat === 'Other') {
           if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(descLower)) {
             cat = 'Accommodation'
-          } else if (/flight|vol|avion|airline|airfare|billet d'avion|plane/i.test(descLower)) {
-            cat = 'Flights'
+          } else if (/flight|vol|avion|airline|airfare|billet d'avion|plane|transport|car|voiture|uber|taxi|train|ferry|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) {
+            cat = 'Transport'
           } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast|petit[ -]d[eé]jeuner/i.test(descLower)) {
             cat = 'Food'
-          } else if (/transport|car|voiture|uber|taxi|train|p[eé]age|toll|essence|gas|fuel|metro|m[eé]tro|bus/i.test(descLower)) {
-            cat = 'Transport'
           } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) {
             cat = 'Activities'
           }

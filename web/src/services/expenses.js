@@ -16,7 +16,14 @@ export async function fetchExpenses(tripId) {
   if (error) {
     throw error
   }
-  return data
+  return (data || []).map((exp) => {
+    if (!exp) return exp
+    const catLower = (exp.category || '').toLowerCase().trim()
+    if (catLower === 'flights' || catLower === 'flight') {
+      return { ...exp, category: 'transport', is_legacy_flight: true }
+    }
+    return exp
+  })
 }
 
 /**
@@ -44,8 +51,9 @@ export async function logExpense(
   optionId = null,
   exchangeRate = null
 ) {
-  const normalizedCategory = (category || 'other').toLowerCase()
-  const validCategory = ['accommodation', 'flights', 'activities', 'food', 'transport', 'other'].includes(normalizedCategory)
+  const rawCat = (category || 'other').toLowerCase().trim()
+  const normalizedCategory = (rawCat === 'flights' || rawCat === 'flight') ? 'transport' : rawCat
+  const validCategory = ['accommodation', 'activities', 'food', 'transport', 'other'].includes(normalizedCategory)
     ? normalizedCategory
     : 'other'
 
@@ -162,19 +170,20 @@ export async function convertOptionToExpense(
 
   const optionTitle = option.option_text || option.text || 'Locked Option'
   let rawCategory = (option.category || option.poll_category || '').toLowerCase().trim()
+  if (rawCategory === 'flights' || rawCategory === 'flight') {
+    rawCategory = 'transport'
+  }
   
   if (!rawCategory || rawCategory === 'other') {
     const titleLower = optionTitle.toLowerCase()
     if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(titleLower)) {
       rawCategory = 'accommodation'
-    } else if (/flight|vol|avion|airline|airfare|plane/i.test(titleLower)) {
-      rawCategory = 'flights'
+    } else if (/flight|vol|avion|airline|airfare|plane|transport|car|voiture|uber|taxi|train|toll|gas|fuel|bus|ferry/i.test(titleLower)) {
+      rawCategory = 'transport'
     } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(titleLower)) {
       rawCategory = 'activities'
     } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast/i.test(titleLower)) {
       rawCategory = 'food'
-    } else if (/transport|car|voiture|uber|taxi|train|toll|gas|fuel|bus/i.test(titleLower)) {
-      rawCategory = 'transport'
     } else {
       rawCategory = 'accommodation'
     }

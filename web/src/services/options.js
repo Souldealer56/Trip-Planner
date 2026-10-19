@@ -1,24 +1,71 @@
 import { supabase } from './supabase.js'
 
+export const TRIP_CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
+export const TRIP_CATEGORIES_LOWER = ['accommodation', 'transport', 'activities', 'food', 'other']
+
+/**
+ * Normalizes any category string. Automatically maps legacy 'flights' or 'flight' to 'transport'.
+ * @param {string} cat Category name
+ * @returns {string} Lowercase normalized category
+ */
+export function normalizeCategory(cat) {
+  if (!cat) return 'other'
+  const c = String(cat).trim().toLowerCase()
+  if (c === 'flights' || c === 'flight') return 'transport'
+  return c
+}
+
+/**
+ * Normalizes an option database row, transforming legacy 'flights' into 'transport'
+ * with transport_mode = 'ticket' and is_legacy_flight = true.
+ * @param {Object} row Raw option database row
+ * @returns {Object} Normalized option row
+ */
+export function normalizeOptionRow(row) {
+  if (!row) return row
+  const catLower = (row.category || '').trim().toLowerCase()
+  if (catLower === 'flights' || catLower === 'flight') {
+    const existingMeta = row.metadata && typeof row.metadata === 'object' ? row.metadata : {}
+    return {
+      ...row,
+      category: 'transport',
+      metadata: {
+        ...existingMeta,
+        transport_mode: existingMeta.transport_mode || 'ticket',
+        is_legacy_flight: true
+      }
+    }
+  }
+  return row
+}
+
 /**
  * Fetches pitched options for a specific trip and category.
+ * If querying 'transport', automatically fetches legacy 'flights' records as well.
  * @param {string} tripId The UUID of the trip.
- * @param {string} category The category name (lowercase).
+ * @param {string} category The category name (lowercase or capitalized).
  * @returns {Promise<Array>} A promise resolving to an array of option records.
  */
 export async function fetchOptions(tripId, category) {
-  const cat = (category || '').trim()
-  const { data, error } = await supabase
+  const normalizedCat = normalizeCategory(category)
+  let query = supabase
     .from('poll_options')
     .select('*')
     .eq('trip_id', tripId)
-    .ilike('category', cat)
     .order('id', { ascending: true })
+
+  if (normalizedCat === 'transport') {
+    query = query.in('category', ['transport', 'flights', 'flight'])
+  } else {
+    query = query.ilike('category', normalizedCat)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw error
   }
-  return data || []
+  return (data || []).map(normalizeOptionRow)
 }
 
 /**
@@ -44,9 +91,15 @@ export async function pitchOption(
     sanitizedLink = `https://${sanitizedLink}`
   }
 
+  const normalizedCat = normalizeCategory(category)
+  const cleanMeta = metadata && typeof metadata === 'object' ? { ...metadata } : {}
+  if (normalizedCat === 'transport' && !cleanMeta.transport_mode) {
+    cleanMeta.transport_mode = 'vehicle'
+  }
+
   const payload = {
     trip_id: tripId,
-    category: category.toLowerCase(),
+    category: normalizedCat,
     option_text: name,
     estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
     currency: estimatedCost ? (currency || 'USD') : null,
@@ -58,7 +111,7 @@ export async function pitchOption(
     is_locked: false,
     cost_type: costType || 'split_total',
     assigned_users: Array.isArray(assignedUsers) ? assignedUsers : [],
-    metadata: metadata && typeof metadata === 'object' ? metadata : {}
+    metadata: cleanMeta
   }
 
   let { data, error } = await supabase
@@ -71,7 +124,7 @@ export async function pitchOption(
     // Fallback without new columns if schema not yet migrated
     const fallbackPayload = {
       trip_id: tripId,
-      category: category.toLowerCase(),
+      category: normalizedCat,
       option_text: name,
       estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
       currency: estimatedCost ? (currency || 'USD') : null,
@@ -97,12 +150,12 @@ export async function pitchOption(
 
   // Ensure active poll record exists for this trip category
   try {
-    await fetchActivePoll(tripId, category)
+    await fetchActivePoll(tripId, normalizedCat)
   } catch (pollErr) {
     console.error('Failed to initialize active poll for pitched option:', pollErr)
   }
 
-  return data
+  return normalizeOptionRow(data)
 }
 
 /**
@@ -111,7 +164,7 @@ export async function pitchOption(
  * if duplicate rows exist for the same trip and category.
  */
 export async function fetchActivePoll(tripId, category) {
-  const cat = String(category || '').trim().toLowerCase()
+  const cat = normalizeCategory(category)
   const { data, error: fetchError } = await supabase
     .from('active_polls')
     .select('*')
@@ -190,7 +243,7 @@ export async function toggleVote(tripId, category, optionId, userId, cast) {
 
   const userKey = String(userId)
   const optIdStr = String(optionId)
-  const cat = String(category).trim().toLowerCase()
+  const cat = normalizeCategory(category)
 
   const poll = await fetchActivePoll(tripId, cat)
   if (!poll) {
@@ -337,7 +390,7 @@ export async function fetchAllTripOptions(tripId) {
   if (error) {
     throw error
   }
-  return data || []
+  return (data || []).map(normalizeOptionRow)
 }
 
 /**
@@ -395,7 +448,8 @@ export async function lockOption(tripId, category, optionId, userId) {
     // Column might not exist on older schemas
   }
 
-  const poll = await fetchActivePoll(tripId, category)
+  const cat = normalizeCategory(category)
+  const poll = await fetchActivePoll(tripId, cat)
   const selections = { ...(poll?.voter_selections || {}) }
   let lockedIds = Array.isArray(selections._locked_option_ids)
     ? [...selections._locked_option_ids]
@@ -485,41 +539,120 @@ export async function lockOption(tripId, category, optionId, userId) {
 }
 
 /**
- * Deletes a pitched option from the database and logs activity.
+ * Deletes a pitched option from the database, cleans up active_polls references and locks, and logs activity.
+ * @param {string} tripId The UUID of the trip.
  * @param {string|number} optionId The option ID to delete.
- * @param {string} [tripId] Optional trip UUID for activity logging.
+ * @param {string} [category] The category name for poll cleanup.
  * @param {string} [userId] Optional active user ID for activity logging.
  * @returns {Promise<boolean>} Resolves true on deletion.
  */
-export async function deleteOption(optionId, tripId = null, userId = null) {
-  const { error } = await supabase
-    .from('poll_options')
-    .delete()
-    .eq('id', optionId)
+export async function deleteOption(tripId, optionId, category, userId = null) {
+  let effectiveTripId = tripId
+  let effectiveOptionId = optionId
+  let effectiveCategory = category
+  let effectiveUserId = userId
 
+  // Support legacy signature deleteOption(optionId, tripId, userId)
+  if (typeof tripId === 'number' || (typeof optionId === 'string' && typeof category !== 'string' && !userId)) {
+    effectiveOptionId = tripId
+    effectiveTripId = optionId || null
+    effectiveCategory = null
+    effectiveUserId = category || null
+  }
+
+  if (effectiveOptionId === undefined || effectiveOptionId === null || effectiveOptionId === '') {
+    throw new Error('optionId is required to delete an option')
+  }
+
+  // 1. Delete the option from public.poll_options
+  let query = supabase.from('poll_options').delete().eq('id', effectiveOptionId)
+  if (effectiveTripId) {
+    query = query.eq('trip_id', effectiveTripId)
+  }
+  const { error } = await query
   if (error) {
     throw error
   }
 
-  if (tripId) {
+  // 2. Clean up any references to String(optionId) inside public.active_polls for (tripId, category)
+  if (effectiveTripId && effectiveCategory) {
+    try {
+      const cat = normalizeCategory(effectiveCategory)
+      const poll = await fetchActivePoll(effectiveTripId, cat)
+      if (poll) {
+        const optIdStr = String(effectiveOptionId)
+        const voterSelections = { ...(poll.voter_selections || {}) }
+
+        // Remove String(optionId) from every user's array in voter_selections
+        Object.keys(voterSelections).forEach((key) => {
+          if (!key.startsWith('_') && Array.isArray(voterSelections[key])) {
+            const filtered = voterSelections[key].filter((id) => String(id) !== optIdStr)
+            if (filtered.length > 0) {
+              voterSelections[key] = filtered
+            } else {
+              delete voterSelections[key]
+            }
+          }
+        })
+
+        // If voter_selections._locked_option_id === String(optionId), delete _locked_option_id
+        if (voterSelections._locked_option_id && String(voterSelections._locked_option_id) === optIdStr) {
+          delete voterSelections._locked_option_id
+        }
+
+        // If Array.isArray(voter_selections._locked_option_ids), filter out String(optionId)
+        if (Array.isArray(voterSelections._locked_option_ids)) {
+          voterSelections._locked_option_ids = voterSelections._locked_option_ids.filter((id) => String(id) !== optIdStr)
+        }
+
+        // Recalculate votes_by_option (ignoring metadata keys starting with '_')
+        const votesByOption = {}
+        Object.entries(voterSelections).forEach(([key, opts]) => {
+          if (!key.startsWith('_') && Array.isArray(opts)) {
+            opts.forEach((id) => {
+              const idStr = String(id)
+              votesByOption[idStr] = (votesByOption[idStr] || 0) + 1
+            })
+          }
+        })
+
+        await supabase
+          .from('active_polls')
+          .update({
+            voter_selections: voterSelections,
+            votes_by_option: votesByOption
+          })
+          .eq('id', poll.id)
+      }
+    } catch (pollCleanErr) {
+      console.warn('Failed to clean up active poll references after option deletion:', pollCleanErr)
+    }
+  }
+
+  // 3. Log the deletion in public.activity_log
+  if (effectiveTripId) {
     try {
       let userName = 'Someone'
-      if (userId) {
+      if (effectiveUserId) {
         const { data: userRec } = await supabase
           .from('users')
           .select('first_name')
-          .eq('id', userId)
+          .eq('id', effectiveUserId)
           .maybeSingle()
         if (userRec?.first_name) {
           userName = userRec.first_name
         }
       }
 
+      const description = effectiveCategory
+        ? `${userName} deleted a pitched option in ${effectiveCategory}`
+        : `${userName} deleted a pitched option`
+
       await supabase.from('activity_log').insert({
-        trip_id: tripId,
-        user_id: userId || null,
+        trip_id: effectiveTripId,
+        user_id: effectiveUserId || null,
         action_type: 'delete_option',
-        description: `${userName} deleted a pitched option`
+        description
       })
     } catch (logErr) {
       console.warn('Failed to log delete option activity:', logErr)

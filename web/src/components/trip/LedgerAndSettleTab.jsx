@@ -3,24 +3,25 @@ import { BudgetAnalyticsTab } from './BudgetAnalyticsTab'
 
 function getResolvedCategory(exp) {
   if (exp.category && exp.category.toLowerCase() !== 'other') {
+    const catLower = exp.category.toLowerCase().trim()
+    if (catLower === 'flights' || catLower === 'flight' || catLower === 'transport') return 'Transport'
     return exp.category.charAt(0).toUpperCase() + exp.category.slice(1).toLowerCase()
   }
-  const match = (exp.description || '').match(/^\[(accommodation|flights|activities|food|transport|other)\]/i)
+  const match = (exp.description || '').match(/^\[(accommodation|flights|flight|activities|food|transport|other)\]/i)
   if (match && match[1].toLowerCase() !== 'other') {
-    return match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase()
+    const matched = match[1].toLowerCase()
+    if (matched === 'flights' || matched === 'flight' || matched === 'transport') return 'Transport'
+    return matched.charAt(0).toUpperCase() + matched.slice(1).toLowerCase()
   }
   const descLower = (exp.description || '').toLowerCase()
   if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(descLower)) {
     return 'Accommodation'
   }
-  if (/flight|vol|avion|airline|airfare|plane/i.test(descLower)) {
-    return 'Flights'
+  if (/flight|vol|avion|airline|airfare|plane|transport|car|voiture|uber|taxi|train|ferry|toll|gas|fuel|bus/i.test(descLower)) {
+    return 'Transport'
   }
   if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast/i.test(descLower)) {
     return 'Food'
-  }
-  if (/transport|car|voiture|uber|taxi|train|toll|gas|fuel|bus/i.test(descLower)) {
-    return 'Transport'
   }
   if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(descLower)) {
     return 'Activities'

@@ -445,7 +445,12 @@ describe('Pitched Options & Expense Conversion Redesign', () => {
 
       const deleteBtn = container.querySelector('.btn-danger-soft')
       fireEvent.click(deleteBtn)
-      expect(onDeleteMock).toHaveBeenCalledWith(4)
+      expect(container.textContent).toContain('Delete?')
+      expect(container.textContent).toContain('Yes, Delete')
+
+      const yesDeleteBtn = container.querySelector('.btn-danger')
+      fireEvent.click(yesDeleteBtn)
+      expect(onDeleteMock).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }))
     })
 
     it('displays dual currency comparison and per-person cost beside total cost', () => {

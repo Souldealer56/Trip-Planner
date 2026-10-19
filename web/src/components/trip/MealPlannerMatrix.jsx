@@ -59,6 +59,7 @@ export function MealPlannerMatrix({
   const [newIngQty, setNewIngQty] = useState('')
   const [newIngAisle, setNewIngAisle] = useState('produce')
   const [submitting, setSubmitting] = useState(false)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
 
   const committedMembers = useMemo(() => roster.filter((m) => m.status === 'Committed'), [roster])
   const crewFairness = useMemo(() => computeKitchenCrewFairness(foodOptions, roster), [foodOptions, roster])
@@ -425,14 +426,39 @@ export function MealPlannerMatrix({
                                   )}
 
                                   {onDeleteOption && (
-                                    <button
-                                      type="button"
-                                      className="btn-icon-soft btn-danger-soft"
-                                      onClick={() => onDeleteOption(meal.id)}
-                                      title="Delete meal pitch"
-                                    >
-                                      🗑️
-                                    </button>
+                                    confirmingDeleteId === meal.id ? (
+                                      <div className="inline-delete-confirm" style={{ padding: '2px 6px' }}>
+                                        <span style={{ fontSize: '0.7rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
+                                        <button
+                                          type="button"
+                                          className="btn btn-danger"
+                                          style={{ padding: '2px 6px', fontSize: '0.7rem', minHeight: 'auto' }}
+                                          onClick={() => {
+                                            setConfirmingDeleteId(null)
+                                            onDeleteOption(meal)
+                                          }}
+                                        >
+                                          Yes
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn btn-secondary"
+                                          style={{ padding: '2px 4px', fontSize: '0.7rem', minHeight: 'auto' }}
+                                          onClick={() => setConfirmingDeleteId(null)}
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="btn-icon-soft btn-danger-soft"
+                                        onClick={() => setConfirmingDeleteId(meal.id)}
+                                        title="Delete meal pitch"
+                                      >
+                                        🗑️
+                                      </button>
+                                    )
                                   )}
                                 </div>
                               </div>

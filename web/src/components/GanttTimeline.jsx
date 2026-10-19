@@ -11,17 +11,18 @@ export { packOptionsIntoSubTracks }
 
 const CATEGORY_COLORS = {
   accommodation: { bg: 'rgba(139, 92, 246, 0.25)', border: '#8b5cf6', text: '#c4b5fd', label: 'Accommodation' },
-  flights: { bg: 'rgba(56, 189, 248, 0.25)', border: '#38bdf8', text: '#7dd3fc', label: 'Flights' },
+  transport: { bg: 'rgba(56, 189, 248, 0.25)', border: '#38bdf8', text: '#7dd3fc', label: 'Transport' },
+  flights: { bg: 'rgba(56, 189, 248, 0.25)', border: '#38bdf8', text: '#7dd3fc', label: 'Transport' },
   activities: { bg: 'rgba(16, 185, 129, 0.25)', border: '#10b981', text: '#6ee7b7', label: 'Activities' },
   food: { bg: 'rgba(245, 158, 11, 0.25)', border: '#f59e0b', text: '#fcd34d', label: 'Food' },
-  transport: { bg: 'rgba(244, 63, 94, 0.25)', border: '#f43f5e', text: '#fda4af', label: 'Transport' },
   other: { bg: 'rgba(148, 163, 184, 0.25)', border: '#94a3b8', text: '#cbd5e1', label: 'Other' }
 }
 
-const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
+const CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
 
-export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [], onOptionClick, onPitchForSlot }) {
+export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [], onOptionClick, onPitchForSlot, onDeleteOption }) {
   const [hoveredOption, setHoveredOption] = useState(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
 
   // 1. Build trip days grid using local date calculations
   const getDaysArray = () => {
@@ -93,7 +94,13 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
 
   CATEGORIES.forEach(cat => {
     const catKey = cat.toLowerCase()
-    const catOptions = options.filter(o => o.category?.toLowerCase() === catKey)
+    const catOptions = options.filter(o => {
+      const oCat = (o.category || '').toLowerCase().trim()
+      if (catKey === 'transport') {
+        return oCat === 'transport' || oCat === 'flights' || oCat === 'flight'
+      }
+      return oCat === catKey
+    })
     const scheduledCatOptions = catOptions.filter(o => o.start_date || o.end_date)
     const lanes = packOptionsIntoSubTracks(scheduledCatOptions, tripStartTime, tripEndTime)
     categoryLanes[catKey] = lanes
@@ -332,52 +339,123 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
             {unscheduledOptions.map(opt => {
-              const catKey = (opt.category || 'other').toLowerCase()
+              const rawCat = (opt.category || 'other').toLowerCase().trim()
+              const catKey = (rawCat === 'flights' || rawCat === 'flight') ? 'transport' : rawCat
               const catStyle = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.other
               const optIdStr = String(opt.id)
               const isLocked = lockedOptionIds.has(optIdStr)
               const activePoll = activePolls[catKey] || {}
               const votesCount = activePoll.votes_by_option?.[optIdStr] || 0
 
+              if (confirmingDeleteId === opt.id) {
+                return (
+                  <div
+                    key={opt.id}
+                    className="inline-delete-confirm"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.75rem', color: '#fca5a5', fontWeight: '600' }}>
+                      Delete?
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      style={{ padding: '2px 8px', fontSize: '0.75rem', minHeight: 'auto' }}
+                      onClick={() => {
+                        setConfirmingDeleteId(null)
+                        if (onDeleteOption) onDeleteOption(opt)
+                      }}
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 6px', fontSize: '0.75rem', minHeight: 'auto' }}
+                      onClick={() => setConfirmingDeleteId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )
+              }
+
               return (
-                <button
+                <div
                   key={opt.id}
-                  type="button"
-                  onClick={() => onOptionClick && onOptionClick(opt)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 12px',
                     borderRadius: '8px',
                     background: catStyle.bg,
                     border: `1px solid ${isLocked ? '#eab308' : catStyle.border}`,
-                    color: isLocked ? '#fef08a' : 'var(--text-main)',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: '500',
-                    textAlign: 'left',
-                    transition: 'all 0.15s ease',
-                    boxShadow: isLocked ? '0 0 8px rgba(234, 179, 8, 0.25)' : 'none'
+                    boxShadow: isLocked ? '0 0 8px rgba(234, 179, 8, 0.25)' : 'none',
+                    overflow: 'hidden'
                   }}
-                  title="Click to assign dates and place on timeline"
                 >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isLocked ? '#eab308' : catStyle.border }} />
-                  <span style={{ fontWeight: '600' }}>
-                    {isLocked ? '🏆 ' : ''}{opt.option_text}
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: catStyle.text, background: 'rgba(0,0,0,0.3)', padding: '1px 6px', borderRadius: '4px' }}>
-                    {opt.category || 'Other'}
-                  </span>
-                  {votesCount > 0 && (
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {votesCount}v
+                  <button
+                    type="button"
+                    onClick={() => onOptionClick && onOptionClick(opt)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '6px 10px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: isLocked ? '#fef08a' : 'var(--text-main)',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: '500',
+                      textAlign: 'left'
+                    }}
+                    title="Click to assign dates and place on timeline"
+                  >
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isLocked ? '#eab308' : catStyle.border }} />
+                    <span style={{ fontWeight: '600' }}>
+                      {isLocked ? '🏆 ' : ''}{opt.option_text}
                     </span>
+                    <span style={{ fontSize: '0.7rem', color: catStyle.text, background: 'rgba(0,0,0,0.3)', padding: '1px 6px', borderRadius: '4px' }}>
+                      {opt.category || 'Other'}
+                    </span>
+                    {votesCount > 0 && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {votesCount}v
+                      </span>
+                    )}
+                    <span style={{ fontSize: '0.75rem', color: '#60a5fa', marginLeft: '4px' }}>
+                      📅 Set dates →
+                    </span>
+                  </button>
+                  {onDeleteOption && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setConfirmingDeleteId(opt.id)
+                      }}
+                      className="btn-delete-icon"
+                      style={{
+                        padding: '6px 8px',
+                        borderLeft: `1px solid ${isLocked ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
+                        fontSize: '0.75rem',
+                        lineHeight: 1
+                      }}
+                      title="Delete option"
+                      aria-label="Delete option"
+                    >
+                      🗑️
+                    </button>
                   )}
-                  <span style={{ fontSize: '0.75rem', color: '#60a5fa', marginLeft: '4px' }}>
-                    📅 Set dates →
-                  </span>
-                </button>
+                </div>
               )
             })}
           </div>
@@ -713,7 +791,10 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
                           >
                             {(() => {
                               const isFood = catKey === 'food'
+                              const isTransport = catKey === 'transport'
                               const mealMode = opt.metadata?.meal_mode
+                              const transportMode = opt.metadata?.transport_mode
+                              const isFlightOrTicket = transportMode === 'ticket' || opt.metadata?.is_legacy_flight || /flight|vol|avion|airline|plane|airfare|sata|tap|ryanair|easyjet|air france|delta|united|ticket|train|sncf/i.test(opt.option_text || '') || /flight|sata|plane|ticket/i.test(opt.metadata?.route_code || '')
                               const optDate = opt.start_date ? String(opt.start_date).slice(0, 10) : ''
                               const dayLog = logistics.days.find(d => d.dateStr === optDate)
                               const kitchenMissing = isFood && mealMode === 'cook' && dayLog?.accommodation?.hasKitchen === false && (dayLog?.accommodation?.lockedOptions?.length || 0) > 0
@@ -735,6 +816,9 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
                                   {isFood && (
                                     mealMode === 'cook' ? '🍳 ' :
                                     mealMode === 'picnic' ? '🥪 ' : '🍽️ '
+                                  )}
+                                  {isTransport && (
+                                    isFlightOrTicket ? '✈️ ' : '🚗 '
                                   )}
                                   <span>{opt.option_text}</span>
                                   {kitchenMissing && (
@@ -832,7 +916,13 @@ export function GanttTimeline({ trip, options = [], activePolls = {}, roster = [
               {emptyCategories.map(cat => {
                 const catKey = cat.toLowerCase()
                 const style = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.other
-                const totalCount = options.filter(o => o.category?.toLowerCase() === catKey).length
+                const totalCount = options.filter(o => {
+                  const oCat = (o.category || '').toLowerCase().trim()
+                  if (catKey === 'transport') {
+                    return oCat === 'transport' || oCat === 'flights' || oCat === 'flight'
+                  }
+                  return oCat === catKey
+                }).length
 
                 return (
                   <button

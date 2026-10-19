@@ -27,7 +27,7 @@ import { AddExpenseModal } from '../components/modals/AddExpenseModal'
 import { EditTripModal } from '../components/modals/EditTripModal'
 import { PrintableItineraryModal, PollRecapModal } from '../components/modals/PrintableItineraryModal'
 
-const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
+const CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
 
 function TripDetails() {
   const { id } = useParams()
@@ -445,14 +445,76 @@ function TripDetails() {
     }
   }
 
-  const handleDeleteOption = async (optionId) => {
+  const handleDeleteOption = async (optionOrId) => {
+    const optObj = typeof optionOrId === 'object' && optionOrId !== null
+      ? optionOrId
+      : (allTripOptions.find((o) => String(o.id) === String(optionOrId)) || options.find((o) => String(o.id) === String(optionOrId)) || { id: optionOrId, category: activeTab })
+    const optId = optObj.id
+    const optCategory = optObj.category || activeTab
+
+    // Optimistically remove option from local options state
+    const prevAllTripOptions = allTripOptions
+    const prevOptions = options
+    const prevActivePoll = activePoll
+    const prevPollsMap = allActivePollsMap
+
+    setAllTripOptions((prev) => prev.filter((o) => String(o.id) !== String(optId)))
+    setOptions((prev) => prev.filter((o) => String(o.id) !== String(optId)))
+
+    // Optimistically update poll state
+    const optIdStr = String(optId)
+    const catKey = String(optCategory || '').trim().toLowerCase()
+    const targetPoll = allActivePollsMap[catKey] || (activeTab.toLowerCase() === catKey ? activePoll : null)
+
+    if (targetPoll) {
+      const selections = { ...(targetPoll.voter_selections || {}) }
+      Object.keys(selections).forEach((key) => {
+        if (!key.startsWith('_') && Array.isArray(selections[key])) {
+          const filtered = selections[key].filter((id) => String(id) !== optIdStr)
+          if (filtered.length > 0) selections[key] = filtered
+          else delete selections[key]
+        }
+      })
+      if (selections._locked_option_id && String(selections._locked_option_id) === optIdStr) {
+        delete selections._locked_option_id
+      }
+      if (Array.isArray(selections._locked_option_ids)) {
+        selections._locked_option_ids = selections._locked_option_ids.filter((id) => String(id) !== optIdStr)
+      }
+      const newVotesByOpt = {}
+      Object.entries(selections).forEach(([key, opts]) => {
+        if (!key.startsWith('_') && Array.isArray(opts)) {
+          opts.forEach((id) => {
+            const idS = String(id)
+            newVotesByOpt[idS] = (newVotesByOpt[idS] || 0) + 1
+          })
+        }
+      })
+      const optimisticPoll = {
+        ...targetPoll,
+        voter_selections: selections,
+        votes_by_option: newVotesByOpt,
+        locked_option_id: selections._locked_option_id || null,
+        locked_option_ids: selections._locked_option_ids || []
+      }
+      if (catKey === activeTab.toLowerCase()) {
+        setActivePoll(optimisticPoll)
+      }
+      setAllActivePollsMap((prev) => ({ ...(prev || {}), [catKey]: optimisticPoll }))
+    }
+
     try {
-      await deleteOption(optionId, id, activeUser?.id)
+      await deleteOption(id, optId, optCategory, activeUser?.id)
       await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to delete option:', err)
-      alert('Failed to delete option: ' + (err.message || err))
+      // Restore previous state
+      setAllTripOptions(prevAllTripOptions)
+      setOptions(prevOptions)
+      setAllActivePollsMap(prevPollsMap)
+      if (prevActivePoll) setActivePoll(prevActivePoll)
+      setVoteError(err.message || 'Failed to delete option. Please try again.')
     }
   }
 

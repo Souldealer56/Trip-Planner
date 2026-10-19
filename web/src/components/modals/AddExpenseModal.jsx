@@ -26,7 +26,7 @@ export function AddExpenseModal({
 
   const committedRoster = roster.filter(m => m.status === 'Committed')
 
-  const CATEGORIES = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other']
+  const CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
 
   useEffect(() => {
     if (isOpen) {
@@ -34,18 +34,19 @@ export function AddExpenseModal({
       if (optionToPreFill) {
         const optionTitle = optionToPreFill.option_text || optionToPreFill.text || 'Locked Option'
         let rawCat = (optionToPreFill.category || optionToPreFill.poll_category || '').toLowerCase().trim()
+        if (rawCat === 'flights' || rawCat === 'flight') {
+          rawCat = 'transport'
+        }
         if (!rawCat || rawCat === 'other') {
           const titleLower = optionTitle.toLowerCase()
           if (/hotel|h[oô]tel|h[eé]bergement|stay|airbnb|lodging|auberge|villa|resort|machiya|ryokan|cabin|cottage|chalet|apartment|suite/i.test(titleLower)) {
             rawCat = 'accommodation'
-          } else if (/flight|vol|avion|airline|airfare|plane/i.test(titleLower)) {
-            rawCat = 'flights'
+          } else if (/transport|flight|vol|avion|airline|airfare|plane|car|voiture|uber|taxi|train|toll|gas|fuel|bus|ferry|boat/i.test(titleLower)) {
+            rawCat = 'transport'
           } else if (/activity|activit[eé]|tour|ticket|billet|visite|excursion|mus[eé]e|museum/i.test(titleLower)) {
             rawCat = 'activities'
           } else if (/dinner|d[iî]ner|lunch|d[eé]jeuner|food|resto|restaurant|courses|repas|meal|breakfast/i.test(titleLower)) {
             rawCat = 'food'
-          } else if (/transport|car|voiture|uber|taxi|train|toll|gas|fuel|bus/i.test(titleLower)) {
-            rawCat = 'transport'
           } else {
             rawCat = 'accommodation'
           }

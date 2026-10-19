@@ -247,9 +247,8 @@ describe('Currency & Expense Utilities', () => {
       ]
 
       const analytics = calculateTripBudgetAnalytics(expensesWithCategories, [], dummyRoster, rates, 'USD')
-      expect(analytics.categoryActuals.Transport).toBe(50)
+      expect(analytics.categoryActuals.Transport).toBe(350)
       expect(analytics.categoryActuals.Food).toBe(80)
-      expect(analytics.categoryActuals.Flights).toBe(300)
     })
 
     it('respects frozen exchange_rate column stored on expense record', () => {

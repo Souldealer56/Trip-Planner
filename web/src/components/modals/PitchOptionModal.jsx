@@ -9,7 +9,7 @@ export function PitchOptionModal({
   onSubmit,
   loading = false,
   error = '',
-  categories = ['Accommodation', 'Flights', 'Activities', 'Food', 'Transport', 'Other'],
+  categories = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other'],
   initialCategory = 'Accommodation',
   initialStartDate = '',
   initialEndDate = '',
@@ -17,7 +17,8 @@ export function PitchOptionModal({
   roster = EMPTY_ROSTER,
   activeUserId = ''
 }) {
-  const [pitchCategory, setPitchCategory] = useState(initialCategory)
+  const normInitCat = (initialCategory || '').toLowerCase() === 'flights' ? 'Transport' : (initialCategory || 'Accommodation')
+  const [pitchCategory, setPitchCategory] = useState(normInitCat)
   const [pitchName, setPitchName] = useState('')
   const [pitchCost, setPitchCost] = useState('')
   const [pitchCurrency, setPitchCurrency] = useState(baseCurrency)
@@ -34,9 +35,8 @@ export function PitchOptionModal({
   const getDefaultCostType = (cat, mode) => {
     const c = (cat || '').toLowerCase()
     if (c === 'accommodation') return 'split_total'
-    if (c === 'flights') return 'per_person'
     if (c === 'activities') return 'per_person'
-    if (c === 'transport') return mode === 'ticket' ? 'per_person' : 'split_total'
+    if (c === 'transport' || c === 'flights') return mode === 'ticket' ? 'per_person' : 'split_total'
     return 'split_total'
   }
 
@@ -53,13 +53,14 @@ export function PitchOptionModal({
 
   useEffect(() => {
     if (isOpen) {
-      const cat = initialCategory || 'Accommodation'
+      const isInitFlight = (initialCategory || '').toLowerCase() === 'flights'
+      const cat = isInitFlight ? 'Transport' : (initialCategory || 'Accommodation')
       setPitchCategory(cat)
       setPitchStartDate(initialStartDate || '')
       setPitchEndDate(initialEndDate || '')
       setPitchCurrency(baseCurrency || 'USD')
 
-      const initialMode = cat.toLowerCase() === 'flights' ? 'ticket' : 'vehicle'
+      const initialMode = isInitFlight ? 'ticket' : (cat.toLowerCase() === 'transport' ? 'vehicle' : 'vehicle')
       setPitchCostType(getDefaultCostType(cat, initialMode))
 
       setPitchName('')
@@ -83,6 +84,7 @@ export function PitchOptionModal({
         driver_user_id: '',
         estimated_fuel_cost: '',
         route_code: '',
+        transit_times: '',
         baggage_included: true,
         max_participants: '',
         difficulty_or_duration: '',
@@ -94,9 +96,10 @@ export function PitchOptionModal({
   if (!isOpen) return null
 
   const handleCategoryChange = (newCat) => {
-    setPitchCategory(newCat)
-    const mode = newCat.toLowerCase() === 'flights' ? 'ticket' : (pitchMetadata.transport_mode || 'vehicle')
-    setPitchCostType(getDefaultCostType(newCat, mode))
+    const normalized = newCat.toLowerCase() === 'flights' ? 'Transport' : newCat
+    setPitchCategory(normalized)
+    const mode = pitchMetadata.transport_mode || 'vehicle'
+    setPitchCostType(getDefaultCostType(normalized, mode))
     setPitchMetadata(prev => ({
       ...prev,
       transport_mode: mode
@@ -105,7 +108,7 @@ export function PitchOptionModal({
 
   const handleTransportModeChange = (mode) => {
     setPitchMetadata(prev => ({ ...prev, transport_mode: mode }))
-    setPitchCostType(getDefaultCostType(pitchCategory, mode))
+    setPitchCostType(mode === 'ticket' ? 'per_person' : 'split_total')
   }
 
   const toggleParticipantPill = (userId) => {
@@ -160,6 +163,7 @@ export function PitchOptionModal({
         cleanMeta.estimated_fuel_cost = cleanMeta.estimated_fuel_cost ? parseFloat(cleanMeta.estimated_fuel_cost) : null
       } else {
         cleanMeta.route_code = cleanMeta.route_code?.trim() || ''
+        cleanMeta.transit_times = cleanMeta.transit_times?.trim() || ''
         cleanMeta.baggage_included = Boolean(cleanMeta.baggage_included)
       }
     } else if (catLower === 'activities') {
@@ -223,8 +227,7 @@ export function PitchOptionModal({
                   type="text"
                   placeholder={
                     catLower === 'accommodation' ? 'e.g. Modern Ocean View Villa' :
-                    catLower === 'transport' ? 'e.g. 7-Seater Minivan Rental' :
-                    catLower === 'flights' ? 'e.g. SATA AZ412 Flight to Ponta Delgada' :
+                    catLower === 'transport' ? 'e.g. 7-Seater Minivan or Flight SATA AZ412' :
                     catLower === 'activities' ? 'e.g. Canyon Waterfall Rappelling Tour' :
                     'e.g. Group Dinner at Seaside Bistro'
                   }
@@ -411,38 +414,40 @@ export function PitchOptionModal({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
-                    🚗 Transport & Transit Specs
+                    🚗✈️ Transport & Transit Mode
                   </span>
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       onClick={() => handleTransportModeChange('vehicle')}
                       style={{
-                        padding: '0.25rem 0.6rem',
+                        padding: '0.35rem 0.65rem',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
+                        fontWeight: pitchMetadata.transport_mode === 'vehicle' ? '700' : '500',
                         cursor: 'pointer',
                         border: pitchMetadata.transport_mode === 'vehicle' ? '1px solid #60a5fa' : '1px solid var(--border-light)',
-                        background: pitchMetadata.transport_mode === 'vehicle' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                        background: pitchMetadata.transport_mode === 'vehicle' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
                         color: pitchMetadata.transport_mode === 'vehicle' ? '#60a5fa' : 'var(--text-muted)'
                       }}
                     >
-                      🚙 Shared Vehicle (Car/Van/Boat)
+                      🚗 Shared Vehicle (Rental Car / Van / Boat)
                     </button>
                     <button
                       type="button"
                       onClick={() => handleTransportModeChange('ticket')}
                       style={{
-                        padding: '0.25rem 0.6rem',
+                        padding: '0.35rem 0.65rem',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
+                        fontWeight: pitchMetadata.transport_mode === 'ticket' ? '700' : '500',
                         cursor: 'pointer',
                         border: pitchMetadata.transport_mode === 'ticket' ? '1px solid #60a5fa' : '1px solid var(--border-light)',
-                        background: pitchMetadata.transport_mode === 'ticket' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                        background: pitchMetadata.transport_mode === 'ticket' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
                         color: pitchMetadata.transport_mode === 'ticket' ? '#60a5fa' : 'var(--text-muted)'
                       }}
                     >
-                      ✈️ Public / Ticket (Flight/Train)
+                      ✈️🚆 Transit Ticket (Flight / Train / Ferry / Bus)
                     </button>
                   </div>
                 </div>
@@ -494,13 +499,25 @@ export function PitchOptionModal({
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ flex: 1, minWidth: '220px' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Flight / Train # & Route</label>
+                    <div style={{ flex: 1, minWidth: '180px' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Flight / Route Number</label>
                       <input
                         type="text"
                         placeholder="e.g. SATA AZ412 · YUL → PDL"
                         value={pitchMetadata.route_code || ''}
                         onChange={(e) => setPitchMetadata(prev => ({ ...prev, route_code: e.target.value }))}
+                        className="input-field"
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                      />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: '180px' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Departure / Arrival Times</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Dep 08:30 · Arr 14:15"
+                        value={pitchMetadata.transit_times || ''}
+                        onChange={(e) => setPitchMetadata(prev => ({ ...prev, transit_times: e.target.value }))}
                         className="input-field"
                         style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
                       />
