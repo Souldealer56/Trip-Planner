@@ -494,7 +494,7 @@ describe('Pitched Options & Expense Conversion Redesign', () => {
       expect(voteBtn?.textContent).toContain('✓ Voted (1)')
 
       fireEvent.click(voteBtn)
-      expect(onVoteToggleMock).toHaveBeenCalledWith(2, true)
+      expect(onVoteToggleMock).toHaveBeenCalledWith(2, true, 'Accommodation')
     })
 
     it('displays Logged in Expenses badge instead of button when option is already converted', () => {

@@ -97,6 +97,7 @@ function TripDetails() {
   const [allTripOptions, setAllTripOptions] = useState([])
   const [allActivePollsMap, setAllActivePollsMap] = useState({})
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('itinerary')
+  const [voteError, setVoteError] = useState('')
 
   const loadOptionsAndPoll = useCallback(async (silent = false) => {
     if (!silent) setOptionsLoading(true)
@@ -114,6 +115,9 @@ function TripDetails() {
 
       const poll = await fetchActivePoll(id, activeTab)
       setActivePoll(poll)
+      if (poll) {
+        setAllActivePollsMap((prev) => ({ ...(prev || {}), [activeTab.toLowerCase()]: poll }))
+      }
       saveTripOfflineSnapshot(id, { options: unifiedCategoryOpts })
     } catch (err) {
       console.warn('Failed to load options/poll, falling back to cache:', err)
@@ -341,15 +345,91 @@ function TripDetails() {
     }
   }
 
-  const handleVoteToggle = async (optionId, hasVoted) => {
-    if (!activeUser) return
+  const handleVoteToggle = async (optionId, hasVoted, optionCategory) => {
+    if (!activeUser || !activeUser.id) {
+      setVoteError('Please sign in or join the crew to vote on options.')
+      return
+    }
+    setVoteError('')
+    const targetCategory = (optionCategory || activeTab || 'Accommodation').toLowerCase()
+    const optIdStr = String(optionId)
+    const userKey = String(activeUser.id)
+
+    // 1. Snapshot previous state for rollback
+    const prevActivePoll = activePoll ? JSON.parse(JSON.stringify(activePoll)) : null
+    const prevPollsMap = allActivePollsMap ? JSON.parse(JSON.stringify(allActivePollsMap)) : {}
+
+    // 2. Perform optimistic state update
+    const currentPoll = (allActivePollsMap && allActivePollsMap[targetCategory]) || (targetCategory === activeTab.toLowerCase() ? activePoll : null) || {
+      trip_id: id,
+      category: targetCategory,
+      voter_selections: {},
+      votes_by_option: {}
+    }
+
+    const newSelections = { ...(currentPoll.voter_selections || {}) }
+    let currentUserVotes = Array.isArray(newSelections[userKey]) ? [...newSelections[userKey]] : []
+
+    if (!hasVoted) {
+      if (!currentUserVotes.some((v) => String(v) === optIdStr)) {
+        currentUserVotes.push(optIdStr)
+      }
+      newSelections[userKey] = currentUserVotes
+    } else {
+      currentUserVotes = currentUserVotes.filter((v) => String(v) !== optIdStr)
+      if (currentUserVotes.length > 0) {
+        newSelections[userKey] = currentUserVotes
+      } else {
+        delete newSelections[userKey]
+      }
+    }
+
+    // Recalculate votes_by_option totals (ignoring keys starting with '_')
+    const newVotesByOpt = {}
+    Object.entries(newSelections).forEach(([key, opts]) => {
+      if (!key.startsWith('_') && Array.isArray(opts)) {
+        opts.forEach((vId) => {
+          const vIdStr = String(vId)
+          newVotesByOpt[vIdStr] = (newVotesByOpt[vIdStr] || 0) + 1
+        })
+      }
+    })
+
+    const optimisticPoll = {
+      ...currentPoll,
+      voter_selections: newSelections,
+      votes_by_option: newVotesByOpt
+    }
+
+    // Immediately update UI
+    if (targetCategory === activeTab.toLowerCase()) {
+      setActivePoll(optimisticPoll)
+    }
+    setAllActivePollsMap((prev) => ({
+      ...(prev || {}),
+      [targetCategory]: optimisticPoll
+    }))
+
+    // 3. Persist to database
     try {
-      const updatedPoll = await toggleVote(id, activeTab, optionId, activeUser.id, !hasVoted)
-      setActivePoll(updatedPoll)
-      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
+      const updatedPoll = await toggleVote(id, targetCategory, optionId, activeUser.id, !hasVoted)
+      if (targetCategory === activeTab.toLowerCase()) {
+        setActivePoll(updatedPoll)
+      }
+      setAllActivePollsMap((prev) => ({
+        ...(prev || {}),
+        [targetCategory]: updatedPoll
+      }))
+      loadOptionsAndPoll(true).catch((err) => console.warn('Background sync failed:', err))
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to toggle vote:', err)
+      // Revert optimistic update
+      if (prevActivePoll && targetCategory === activeTab.toLowerCase()) {
+        setActivePoll(prevActivePoll)
+      }
+      setAllActivePollsMap(prevPollsMap)
+      setVoteError(err.message || 'Failed to submit vote. Please try again.')
     }
   }
 
@@ -805,6 +885,40 @@ function TripDetails() {
 
       {/* Full-Width Workspace Active Content (100% width, non-overlapping) */}
       <main className="workspace-content-pane">
+        {voteError && (
+          <div
+            className="alert-banner alert-banner-danger animate-fade-in"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '10px 16px',
+              marginBottom: '1rem',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#fca5a5'
+            }}
+          >
+            <span>⚠️ {voteError}</span>
+            <button
+              type="button"
+              onClick={() => setVoteError('')}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#fca5a5',
+                fontSize: '1.2rem',
+                cursor: 'pointer',
+                lineHeight: 1
+              }}
+              title="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {activeWorkspaceTab === 'itinerary' && (
           <div id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary" className="animate-fade-in">
             <OptionsTab

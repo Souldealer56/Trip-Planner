@@ -34,6 +34,7 @@ export function MealPlannerMatrix({
   roster = [],
   activeUser,
   foodOptions = [],
+  activePoll = null,
   onOpenPitchModal,
   onVoteToggle,
   onLockToggle,
@@ -325,6 +326,18 @@ export function MealPlannerMatrix({
                             meal.assigned_users.map(String).includes(String(activeUser.id))
                           )
 
+                          const mealIdStr = String(meal.id)
+                          const userVotes = (
+                            activePoll?.voter_selections?.[String(activeUser?.id)] ||
+                            activePoll?.voter_selections?.[activeUser?.id] ||
+                            []
+                          )
+                          const hasVoted = Array.isArray(userVotes) && userVotes.map(String).includes(mealIdStr)
+                          const pollVotes = activePoll?.votes_by_option || {}
+                          const votesCount = pollVotes[meal.id] !== undefined
+                            ? pollVotes[meal.id]
+                            : (pollVotes[mealIdStr] !== undefined ? pollVotes[mealIdStr] : 0)
+
                           return (
                             <div key={meal.id} className={`meal-item-card ${isLocked ? 'locked-meal' : ''}`}>
                               <div className="meal-item-title-row">
@@ -378,6 +391,17 @@ export function MealPlannerMatrix({
                                 </span>
 
                                 <div className="meal-mini-actions">
+                                  {onVoteToggle && activeUser && (
+                                    <button
+                                      type="button"
+                                      className={`mini-join-btn ${hasVoted ? 'joined' : 'not-joined'}`}
+                                      onClick={() => onVoteToggle(meal.id, hasVoted, 'food')}
+                                      title={hasVoted ? 'Remove vote' : 'Vote for this meal'}
+                                    >
+                                      {hasVoted ? `✓ ${votesCount}` : `👍 ${votesCount}`}
+                                    </button>
+                                  )}
+
                                   {onToggleParticipant && activeUser && (
                                     <button
                                       type="button"

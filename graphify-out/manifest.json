@@ -1985,8 +1985,8 @@
     "semantic_hash": ""
   },
   "GEMINI.md": {
-    "mtime": 1792090646.7868364,
-    "ast_hash": "0ec69f87479f7d72a293fe11a13e0d4f",
+    "mtime": 1792193305.1799338,
+    "ast_hash": "82c560220a6818feec449e6352e2e5d2",
     "semantic_hash": ""
   },
   ".agents/gsd-core/references/edge-probe.md": {
@@ -2030,8 +2030,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/currency.test.js": {
-    "mtime": 1792038286.5016348,
-    "ast_hash": "8e73ba0effc2641208a6bacb501fc77c",
+    "mtime": 1792193234.2246451,
+    "ast_hash": "f49d2c04530ad0b6ffc71b3f91d82933",
     "semantic_hash": ""
   },
   "web/src/__tests__/format.test.js": {
@@ -2060,18 +2060,18 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/schedule.test.js": {
-    "mtime": 1792022660.658192,
-    "ast_hash": "9cfa3b45e4bf6e490cec1e5122fcd941",
+    "mtime": 1792193211.842247,
+    "ast_hash": "0c38d5af4786f1525d7b3bb8b925081d",
     "semantic_hash": ""
   },
   "web/src/components/GanttTimeline.jsx": {
-    "mtime": 1792021093.6356137,
-    "ast_hash": "5dc7230e3a6ffa8cc63cd6eb2c494899",
+    "mtime": 1792335509.9659956,
+    "ast_hash": "1a3878e64d670244bed38e912750e1f7",
     "semantic_hash": ""
   },
   "web/src/components/modals/AddExpenseModal.jsx": {
-    "mtime": 1792101344.2188144,
-    "ast_hash": "e0aa821607c23ecdfdbad53fbc6b522d",
+    "mtime": 1792168166.6125183,
+    "ast_hash": "fa529be319e851365bc45f026e2121ca",
     "semantic_hash": ""
   },
   "web/src/components/modals/EditTripModal.jsx": {
@@ -2080,8 +2080,8 @@
     "semantic_hash": ""
   },
   "web/src/components/modals/PitchOptionModal.jsx": {
-    "mtime": 1792025366.7163548,
-    "ast_hash": "107cbf2cdcdd5a50057dd76d8899703b",
+    "mtime": 1792169794.1219075,
+    "ast_hash": "ccdf91821e0af3711f80a4f487245672",
     "semantic_hash": ""
   },
   "web/src/components/modals/PrintableItineraryModal.jsx": {
@@ -2095,23 +2095,23 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/BudgetAnalyticsTab.jsx": {
-    "mtime": 1792025532.9469757,
-    "ast_hash": "67ecf9e87adc510203de1a9522050070",
+    "mtime": 1792193007.317806,
+    "ast_hash": "ed8405920475c9343f2719169e1c785c",
     "semantic_hash": ""
   },
   "web/src/components/trip/LedgerAndSettleTab.jsx": {
-    "mtime": 1792101377.314868,
-    "ast_hash": "e28583844175fa484b4816fbebfcd0fc",
+    "mtime": 1792193054.8005588,
+    "ast_hash": "820b5346b00de0dcdc1fc3ad6fa8a4ff",
     "semantic_hash": ""
   },
   "web/src/components/trip/OptionsTab.jsx": {
-    "mtime": 1792101580.6134288,
-    "ast_hash": "cb9b827f80566e3c4402368ffb3d4c6d",
+    "mtime": 1792374749.3523908,
+    "ast_hash": "a3ae79d100b139fb8d85319dfeb2ff64",
     "semantic_hash": ""
   },
   "web/src/components/trip/RosterSection.jsx": {
-    "mtime": 1792025468.5192032,
-    "ast_hash": "6b0ce1c8ee0079809f199f4aa89eee03",
+    "mtime": 1792167755.3023708,
+    "ast_hash": "b9029a7149eb43bce9046354ff3ecbc1",
     "semantic_hash": ""
   },
   "web/src/components/trip/TripHeader.jsx": {
@@ -2165,18 +2165,18 @@
     "semantic_hash": ""
   },
   "web/src/services/expenses.js": {
-    "mtime": 1792101309.7616515,
-    "ast_hash": "9ba8bed01a837896897ac0c0adbc99d3",
+    "mtime": 1792167576.7179,
+    "ast_hash": "6ed36af54cd1952cd33ffaf38d9b403d",
     "semantic_hash": ""
   },
   "web/src/services/options.js": {
-    "mtime": 1792099833.539421,
-    "ast_hash": "d6fff74cf73111d8ecf4c6453d777189",
+    "mtime": 1792374607.0882428,
+    "ast_hash": "92d4e8dbe734bd17d03fdc7f008dc30f",
     "semantic_hash": ""
   },
   "web/src/services/rsvps.js": {
-    "mtime": 1792020420.1214814,
-    "ast_hash": "65a5fca1e553440e967b29349dcd784e",
+    "mtime": 1792167419.516168,
+    "ast_hash": "62af44f3d9a994cdbf51bb5b67354717",
     "semantic_hash": ""
   },
   "web/src/services/supabase.js": {
@@ -2195,8 +2195,8 @@
     "semantic_hash": ""
   },
   "web/src/utils/currency.js": {
-    "mtime": 1792101324.2873,
-    "ast_hash": "ef176e8d11e07ef5cc0df2e82ae55d2e",
+    "mtime": 1792192514.8810365,
+    "ast_hash": "9a86d7d4fc09ff3ffc018b484fb64b77",
     "semantic_hash": ""
   },
   "web/src/utils/format.js": {
@@ -2215,8 +2215,8 @@
     "semantic_hash": ""
   },
   "web/src/utils/schedule.js": {
-    "mtime": 1792021041.5902312,
-    "ast_hash": "f914e8cd688eb849049227643cdbe983",
+    "mtime": 1792193598.9240682,
+    "ast_hash": "acac1963c5f5b05b6d77fce49c3ba25a",
     "semantic_hash": ""
   },
   "web/src/views/JoinTrip.jsx": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": ""
   },
   "web/src/views/TripDetails.jsx": {
-    "mtime": 1792101386.6978831,
-    "ast_hash": "83cde6466c4af55ba07462607613a180",
+    "mtime": 1792374706.5009544,
+    "ast_hash": "5310cb86bd645fd12f4494ce8e1db2f2",
     "semantic_hash": ""
   },
   "web/src/views/TripsList.jsx": {
@@ -2255,8 +2255,8 @@
     "semantic_hash": ""
   },
   ".agents/GEMINI.md": {
-    "mtime": 1792090677.687946,
-    "ast_hash": "0ec69f87479f7d72a293fe11a13e0d4f",
+    "mtime": 1792193375.61533,
+    "ast_hash": "82c560220a6818feec449e6352e2e5d2",
     "semantic_hash": ""
   },
   ".agents/rules/github.md": {
@@ -2315,8 +2315,48 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/pitchedOptions.test.jsx": {
-    "mtime": 1792101562.422251,
-    "ast_hash": "3627b7c430d595de1936c58f9e06499b",
+    "mtime": 1792374768.8062265,
+    "ast_hash": "f2c856d19e1da64cc2ad0c675c242c0c",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260727000000_smart_trip_os_schema.sql": {
+    "mtime": 1792193804.714589,
+    "ast_hash": "d294bf8b56bff1e5552e5dd6bbe70b71",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/categorySpecialization.test.js": {
+    "mtime": 1792169574.9127374,
+    "ast_hash": "82d52dd00b16b757cd7e55c471761d75",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/mealsAndGroceries.test.js": {
+    "mtime": 1792191586.3539028,
+    "ast_hash": "534b198e67bea72cb48f67b7efb52f44",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/tripDetailsRegression.test.jsx": {
+    "mtime": 1792335533.7616217,
+    "ast_hash": "497c7c7ca2d0944f0ffbb7d12d8512ba",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/votingRegression.test.jsx": {
+    "mtime": 1792374919.937538,
+    "ast_hash": "2c5ef97d07f54ff18761725d5a4cd5ef",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/GroceryListPanel.jsx": {
+    "mtime": 1792170343.8350165,
+    "ast_hash": "0b694ba6eef61fb37ed2824b3e4a3d00",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/MealPlannerMatrix.jsx": {
+    "mtime": 1792374676.6536295,
+    "ast_hash": "e5a2fd92782ea167f2c448ee927046d9",
+    "semantic_hash": ""
+  },
+  "web/src/services/groceries.js": {
+    "mtime": 1792191639.1170118,
+    "ast_hash": "8dad6439fe0cd3d8d28d2ab3786a705f",
     "semantic_hash": ""
   }
 }

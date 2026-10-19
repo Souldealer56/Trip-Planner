@@ -107,18 +107,25 @@ export async function pitchOption(
 
 /**
  * Fetches or initializes the active poll record for a trip and category.
+ * Uses .order().limit(1) instead of .maybeSingle() to prevent PGRST116 crashes
+ * if duplicate rows exist for the same trip and category.
  */
 export async function fetchActivePoll(tripId, category) {
-  const { data: existing, error: fetchError } = await supabase
+  const cat = String(category || '').trim().toLowerCase()
+  const { data, error: fetchError } = await supabase
     .from('active_polls')
     .select('*')
     .eq('trip_id', tripId)
-    .eq('category', category.toLowerCase())
-    .maybeSingle()
+    .eq('category', cat)
+    .order('id', { ascending: true })
+    .limit(1)
 
   if (fetchError) {
     throw fetchError
   }
+
+  const existing = Array.isArray(data) && data.length > 0 ? data[0] : null
+
   if (existing) {
     const lockedId = existing.voter_selections?._locked_option_ids?.[0] || existing.voter_selections?._locked_option_id || existing.locked_option_id || null
     existing.locked_option_id = lockedId
@@ -131,7 +138,7 @@ export async function fetchActivePoll(tripId, category) {
     .from('active_polls')
     .insert({
       trip_id: tripId,
-      category: category.toLowerCase(),
+      category: cat,
       telegram_poll_id: null,
       poll_options_json: [],
       voter_selections: {},
@@ -141,28 +148,60 @@ export async function fetchActivePoll(tripId, category) {
     .single()
 
   if (insertError) {
+    // If a concurrent insert occurred or constraint conflict, query one more time
+    const { data: retryData, error: retryError } = await supabase
+      .from('active_polls')
+      .select('*')
+      .eq('trip_id', tripId)
+      .eq('category', cat)
+      .order('id', { ascending: true })
+      .limit(1)
+
+    if (!retryError && Array.isArray(retryData) && retryData.length > 0) {
+      const poll = retryData[0]
+      const lockedId = poll.voter_selections?._locked_option_ids?.[0] || poll.voter_selections?._locked_option_id || poll.locked_option_id || null
+      poll.locked_option_id = lockedId
+      poll.locked_option_ids = poll.voter_selections?._locked_option_ids || (lockedId ? [lockedId] : [])
+      return poll
+    }
+
     throw insertError
   }
+
   if (created) {
-    created.locked_option_id = null
-    created.locked_option_ids = []
+    const lockedId = created.voter_selections?._locked_option_ids?.[0] || created.voter_selections?._locked_option_id || created.locked_option_id || null
+    created.locked_option_id = lockedId
+    created.locked_option_ids = created.voter_selections?._locked_option_ids || (lockedId ? [lockedId] : [])
   }
   return created
 }
 
 /**
  * Toggles a user's vote on a specific option. Recalculates tallies.
+ * Guarantees that metadata keys (like _locked_option_ids) are preserved and NEVER counted as votes.
  */
 export async function toggleVote(tripId, category, optionId, userId, cast) {
-  const poll = await fetchActivePoll(tripId, category)
+  if (!userId) {
+    throw new Error('User ID is required to toggle vote')
+  }
+  if (!tripId || !category || optionId === undefined || optionId === null) {
+    throw new Error('Missing required parameters for toggleVote')
+  }
+
+  const userKey = String(userId)
+  const optIdStr = String(optionId)
+  const cat = String(category).trim().toLowerCase()
+
+  const poll = await fetchActivePoll(tripId, cat)
+  if (!poll) {
+    throw new Error(`Active poll not found for category: ${category}`)
+  }
 
   const voterSelections = { ...(poll.voter_selections || {}) }
-  let userVotes = Array.isArray(voterSelections[userId]) ? [...voterSelections[userId]] : []
-
-  const optIdStr = String(optionId)
+  let userVotes = Array.isArray(voterSelections[userKey]) ? [...voterSelections[userKey]] : []
 
   if (cast) {
-    if (!userVotes.includes(optIdStr)) {
+    if (!userVotes.some(id => String(id) === optIdStr)) {
       userVotes.push(optIdStr)
     }
   } else {
@@ -170,15 +209,16 @@ export async function toggleVote(tripId, category, optionId, userId, cast) {
   }
 
   if (userVotes.length > 0) {
-    voterSelections[userId] = userVotes
+    voterSelections[userKey] = userVotes
   } else {
-    delete voterSelections[userId]
+    delete voterSelections[userKey]
   }
 
   // Recalculate votes_by_option totals from updated selections to maintain consistency
+  // CRITICAL: ignore keys starting with '_' (e.g. _locked_option_ids, _locked_option_id)
   const votesByOption = {}
-  Object.values(voterSelections).forEach(opts => {
-    if (Array.isArray(opts)) {
+  Object.entries(voterSelections).forEach(([key, opts]) => {
+    if (!key.startsWith('_') && Array.isArray(opts)) {
       opts.forEach(id => {
         const idStr = String(id)
         votesByOption[idStr] = (votesByOption[idStr] || 0) + 1
@@ -198,6 +238,12 @@ export async function toggleVote(tripId, category, optionId, userId, cast) {
 
   if (error) {
     throw error
+  }
+
+  if (data) {
+    const lockedId = data.voter_selections?._locked_option_ids?.[0] || data.voter_selections?._locked_option_id || data.locked_option_id || null
+    data.locked_option_id = lockedId
+    data.locked_option_ids = data.voter_selections?._locked_option_ids || (lockedId ? [lockedId] : [])
   }
 
   // Insert activity log entry

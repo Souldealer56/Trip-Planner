@@ -279,20 +279,32 @@ export function OptionsTab({
   }
 
   // Voter mapping and tallies
-  const voterSelections = activePoll?.voter_selections || {}
-  const votesByOpt = activePoll?.votes_by_option || {}
+  const currentCategoryPoll = useMemo(() => {
+    const cat = (activeTab || '').toLowerCase()
+    if (activePoll && (!activePoll.category || activePoll.category.toLowerCase() === cat)) {
+      return activePoll
+    }
+    return allActivePollsMap?.[cat] || activePoll || null
+  }, [activePoll, allActivePollsMap, activeTab])
 
-  const getVotersForOption = (optionId) => {
+  const voterSelections = currentCategoryPoll?.voter_selections || {}
+  const votesByOpt = currentCategoryPoll?.votes_by_option || {}
+
+  const getVotersForOption = (optionId, poll = currentCategoryPoll) => {
     const optIdStr = String(optionId)
-    return Object.entries(voterSelections)
-      .filter(([_, opts]) => Array.isArray(opts) && opts.map(String).includes(optIdStr))
+    const selections = poll?.voter_selections || {}
+    return Object.entries(selections)
+      .filter(([key, opts]) => !key.startsWith('_') && Array.isArray(opts) && opts.map(String).includes(optIdStr))
       .map(([uId]) => {
         const member = roster.find(
-          (m) => String(m.user_id) === String(uId) || String(m.users?.id) === String(uId)
+          (m) =>
+            (m.user_id && String(m.user_id) === String(uId)) ||
+            (m.users?.id && String(m.users.id) === String(uId)) ||
+            (m.id && String(m.id) === String(uId))
         )
         return {
           id: uId,
-          name: member?.users?.first_name || member?.username || 'Traveler'
+          name: member?.users?.first_name || member?.username || member?.full_name || 'Traveler'
         }
       })
   }
@@ -409,19 +421,27 @@ export function OptionsTab({
 
   // Render individual option card
   const renderOptionCard = (opt, isSectionLocked = false) => {
+    const optCategory = (opt.category || activeTab || '').toLowerCase()
+    const optPoll = (allActivePollsMap && allActivePollsMap[optCategory]) || currentCategoryPoll
     const optIdStr = String(opt.id)
-    const voters = getVotersForOption(opt.id)
-    const votesCount = votesByOpt[opt.id] !== undefined ? votesByOpt[opt.id] : voters.length
-    const userVotes = activePoll?.voter_selections?.[activeUser?.id] || []
-    const hasVoted = userVotes.map(String).includes(optIdStr)
-    const isLockedChoice = isSectionLocked || isOptionLocked(opt, activePoll)
+    const voters = getVotersForOption(opt.id, optPoll)
+    const pollVotes = optPoll?.votes_by_option || {}
+    const votesCount = pollVotes[opt.id] !== undefined
+      ? pollVotes[opt.id]
+      : (pollVotes[optIdStr] !== undefined ? pollVotes[optIdStr] : voters.length)
+    const userVotes = (
+      optPoll?.voter_selections?.[String(activeUser?.id)] ||
+      optPoll?.voter_selections?.[activeUser?.id] ||
+      []
+    )
+    const hasVoted = Array.isArray(userVotes) && userVotes.map(String).includes(optIdStr)
+    const isLockedChoice = isSectionLocked || isOptionLocked(opt, optPoll)
     const isConflict = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
     const isLogged = isOptionLogged(opt)
     const costDetails = getCostDetails(opt)
 
     const votePercent = Math.min(100, Math.round((votesCount / Math.max(1, committedCount)) * 100))
 
-    const optCategory = (opt.category || activeTab || '').toLowerCase()
     const metadata = opt.metadata || {}
 
     const presentTravelers = getPresentTravelers(committedMembers, opt.start_date, opt.end_date)
@@ -963,7 +983,7 @@ export function OptionsTab({
         {/* Card Footer Actions */}
         <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
           <button
-            onClick={() => onVoteToggle(opt.id, hasVoted)}
+            onClick={() => onVoteToggle(opt.id, hasVoted, opt.category || activeTab)}
             className={`btn ${hasVoted ? 'btn-voted' : 'btn-vote'}`}
             type="button"
             style={{ flex: 1, minHeight: '38px' }}
@@ -1198,6 +1218,7 @@ export function OptionsTab({
               roster={roster}
               activeUser={activeUser}
               foodOptions={effectiveOptions}
+              activePoll={currentCategoryPoll}
               onOpenPitchModal={onOpenPitchModal}
               onVoteToggle={onVoteToggle}
               onLockToggle={onLockToggle}
