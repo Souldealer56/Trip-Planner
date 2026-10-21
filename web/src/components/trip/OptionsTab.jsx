@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { GanttTimeline } from '../GanttTimeline'
-import { formatDateTimeRange, formatDateRange } from '../../utils/format'
+import { formatDateTimeRange, formatDateRange, formatMoney } from '../../utils/format'
 import { checkOptionDateConflict, isOptionLocked, calculateVehicleCostPerPassenger, checkAccommodationCapacity, checkActivitySpots } from '../../services/options'
 import { getPresentTravelers } from '../../services/rsvps'
 import { convertCurrency, calculateOptionCostBreakdown } from '../../utils/currency'
@@ -282,11 +282,6 @@ export function OptionsTab({
     }
   }
 
-  const formatMoney = (val, curr) => {
-    if (val === undefined || val === null || isNaN(val)) return `0 ${curr}`
-    return `${Math.round(val).toLocaleString('en-US')} ${curr}`
-  }
-
   // Voter mapping and tallies
   const currentCategoryPoll = useMemo(() => {
     const cat = (activeTab || '').toLowerCase()
@@ -318,6 +313,70 @@ export function OptionsTab({
       })
   }
 
+  // Resolve reactive poll for any category (ensuring activePoll and allActivePollsMap stay in sync)
+  const getPollForCategory = useCallback((category) => {
+    const cat = (category || activeTab || '').toLowerCase()
+    const activeTabLower = (activeTab || '').toLowerCase()
+    if (cat === activeTabLower && activePoll && (!activePoll.category || activePoll.category.toLowerCase() === activeTabLower)) {
+      return activePoll
+    }
+    if (allActivePollsMap && allActivePollsMap[cat]) {
+      return allActivePollsMap[cat]
+    }
+    return currentCategoryPoll || activePoll || null
+  }, [activePoll, allActivePollsMap, activeTab, currentCategoryPoll])
+
+  // Uniform option vote count calculation across all viewports
+  const getOptionVoteCount = useCallback((opt) => {
+    if (!opt) return 0
+    const cat = (opt.category || activeTab || '').toLowerCase()
+    const poll = getPollForCategory(cat)
+    const optIdStr = String(opt.id)
+    const voters = getVotersForOption(opt.id, poll)
+    const pollVotes = poll?.votes_by_option || {}
+    const selections = poll?.voter_selections || {}
+    const userVotes = selections[String(activeUser?.id)] || selections[activeUser?.id] || []
+    const hasVoted = Array.isArray(userVotes) && userVotes.map(String).includes(optIdStr)
+    const recordedVotes = pollVotes[opt.id] !== undefined
+      ? Number(pollVotes[opt.id])
+      : (pollVotes[optIdStr] !== undefined ? Number(pollVotes[optIdStr]) : undefined)
+    return Math.max(
+      recordedVotes !== undefined && !isNaN(recordedVotes) ? recordedVotes : 0,
+      voters.length,
+      hasVoted ? 1 : 0
+    )
+  }, [activeTab, activeUser, getPollForCategory, getVotersForOption])
+
+  // Category pill label helper with icon
+  const getCategoryLabelWithIcon = (cat) => {
+    const raw = (cat || activeTab || 'Other').trim().toLowerCase()
+    if (raw === 'accommodation') return '🏠 Accommodation'
+    if (raw === 'transport') return '🚗 Transport'
+    if (raw === 'flights' || raw === 'flight') return '✈️ Flight'
+    if (raw === 'activities') return '🎟️ Activity'
+    if (raw === 'food') return '🍴 Food'
+    return `✨ ${cat || 'Other'}`
+  }
+
+  // Duration or date range formatting helper
+  const formatCardDurationOrDates = (opt, isInsideDateGroup) => {
+    if (!opt.start_date && !opt.end_date) {
+      return '📌 Flexible'
+    }
+    if (isInsideDateGroup && opt.start_date && opt.end_date) {
+      const start = new Date(opt.start_date)
+      const end = new Date(opt.end_date)
+      const diffTime = end.getTime() - start.getTime()
+      const diffDays = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)))
+      const isAccom = (opt.category || activeTab || '').toLowerCase() === 'accommodation'
+      if (isAccom) {
+        return `🌙 ${diffDays} night${diffDays !== 1 ? 's' : ''}`
+      }
+      return `⏱️ ${diffDays} day${diffDays !== 1 ? 's' : ''}`
+    }
+    return `📅 ${formatDateTimeRange(opt.start_date, opt.end_date)}`
+  }
+
   // Sorting function
   const sortOptionList = (list) => {
     return [...list].sort((a, b) => {
@@ -340,12 +399,14 @@ export function OptionsTab({
         return (Number(a.id) || 0) - (Number(b.id) || 0)
       }
       // 'recommended': Locked first, then votes descending, then ID
-      const isLockedA = isOptionLocked(a, activePoll) ? 1 : 0
-      const isLockedB = isOptionLocked(b, activePoll) ? 1 : 0
+      const pollA = getPollForCategory(a.category)
+      const pollB = getPollForCategory(b.category)
+      const isLockedA = isOptionLocked(a, pollA) ? 1 : 0
+      const isLockedB = isOptionLocked(b, pollB) ? 1 : 0
       if (isLockedB !== isLockedA) return isLockedB - isLockedA
 
-      const votesA = votesByOpt[a.id] !== undefined ? votesByOpt[a.id] : getVotersForOption(a.id).length
-      const votesB = votesByOpt[b.id] !== undefined ? votesByOpt[b.id] : getVotersForOption(b.id).length
+      const votesA = getOptionVoteCount(a)
+      const votesB = getOptionVoteCount(b)
       if (votesB !== votesA) return votesB - votesA
 
       return (Number(a.id) || 0) - (Number(b.id) || 0)
@@ -361,9 +422,11 @@ export function OptionsTab({
     const topVoted = []
 
     effectiveOptions.forEach((opt) => {
-      const isLocked = isOptionLocked(opt, activePoll)
+      const optCat = (opt.category || activeTab || '').toLowerCase()
+      const poll = getPollForCategory(optCat)
+      const isLocked = isOptionLocked(opt, poll)
       const isConflict = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
-      const optVotes = votesByOpt[opt.id] !== undefined ? votesByOpt[opt.id] : (activePoll?.voter_selections ? Object.values(activePoll.voter_selections).filter(arr => Array.isArray(arr) && arr.map(String).includes(String(opt.id))).length : 0)
+      const optVotes = getOptionVoteCount(opt)
 
       if (optVotes > 0) {
         topVoted.push(opt)
@@ -418,30 +481,40 @@ export function OptionsTab({
       outsideSection: outside,
       topVotedList: topVoted
     }
-  }, [effectiveOptions, activePoll, trip, votesByOpt])
+  }, [effectiveOptions, getPollForCategory, trip, getOptionVoteCount])
 
-  // Render individual option card
-  const renderOptionCard = (opt, isSectionLocked = false) => {
+  // Render individual option card using Redesign Proposal B (3-Zone layout)
+  const renderOptionCard = (opt, isSectionLocked = false, isInsideDateGroup = false) => {
     const optCategory = (opt.category || activeTab || '').toLowerCase()
-    const optPoll = (allActivePollsMap && allActivePollsMap[optCategory]) || currentCategoryPoll
+    const optPoll = getPollForCategory(optCategory)
     const optIdStr = String(opt.id)
     const voters = getVotersForOption(opt.id, optPoll)
     const pollVotes = optPoll?.votes_by_option || {}
-    const votesCount = pollVotes[opt.id] !== undefined
-      ? pollVotes[opt.id]
-      : (pollVotes[optIdStr] !== undefined ? pollVotes[optIdStr] : voters.length)
+    const selections = optPoll?.voter_selections || {}
+
     const userVotes = (
-      optPoll?.voter_selections?.[String(activeUser?.id)] ||
-      optPoll?.voter_selections?.[activeUser?.id] ||
+      selections[String(activeUser?.id)] ||
+      selections[activeUser?.id] ||
       []
     )
     const hasVoted = Array.isArray(userVotes) && userVotes.map(String).includes(optIdStr)
+
+    const recordedVotes = pollVotes[opt.id] !== undefined
+      ? Number(pollVotes[opt.id])
+      : (pollVotes[optIdStr] !== undefined ? Number(pollVotes[optIdStr]) : undefined)
+
+    const votesCount = Math.max(
+      recordedVotes !== undefined && !isNaN(recordedVotes) ? recordedVotes : 0,
+      voters.length,
+      hasVoted ? 1 : 0
+    )
+
+    const votePercent = Math.min(100, Math.round((votesCount / Math.max(1, committedCount)) * 100))
+
     const isLockedChoice = isSectionLocked || isOptionLocked(opt, optPoll)
     const isConflict = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
     const isLogged = isOptionLogged(opt)
     const costDetails = getCostDetails(opt)
-
-    const votePercent = Math.min(100, Math.round((votesCount / Math.max(1, committedCount)) * 100))
 
     const metadata = opt.metadata || {}
 
@@ -479,43 +552,50 @@ export function OptionsTab({
         className={`option-card ${isLockedChoice ? 'locked-card' : ''} ${hasVoted ? 'voted' : ''}`}
         style={{
           border: isLockedChoice
-            ? '1px solid rgba(16, 185, 129, 0.5)'
+            ? '1px solid rgba(16, 185, 129, 0.4)'
             : isConflict
             ? '1px solid rgba(245, 158, 11, 0.35)'
             : hasVoted
             ? '1px solid var(--accent)'
             : '1px solid var(--border-light)',
           background: isLockedChoice
-            ? 'rgba(16, 185, 129, 0.04)'
+            ? 'rgba(16, 185, 129, 0.03)'
             : 'rgba(255, 255, 255, 0.02)'
         }}
       >
         <div>
-          {/* Card Title & Top Badges */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-            <h4 style={{ margin: 0, fontSize: '1.15rem', color: isLockedChoice ? '#10b981' : 'var(--text-main)', lineHeight: 1.25 }}>
-              {opt.option_text}
-            </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              {isLockedChoice && (
-                <span
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16, 185, 129, 0.4)',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontSize: '0.75rem',
-                    fontWeight: '700',
-                    whiteSpace: 'nowrap',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  🔒 Locked Choice
+          {/* Zone 1: Header Row — Category Pill + Date Range / Duration + Status Badge */}
+          <div className="option-card-header-row">
+            <div className="option-header-left">
+              <span className="option-category-pill">
+                {getCategoryLabelWithIcon(opt.category)}
+              </span>
+              <span className="option-duration-pill">
+                {formatCardDurationOrDates(opt, isInsideDateGroup)}
+              </span>
+              {isConflict && (
+                <span className="option-conflict-pill">
+                  ⚠️ Outside Trip Dates
                 </span>
               )}
+            </div>
+
+            <div className="option-header-right">
+              {isLogged ? (
+                <span className="badge-logged-expense">
+                  ✓ Logged in Expenses
+                </span>
+              ) : isLockedChoice && (
+                <button
+                  onClick={() => onOpenExpenseModal({ ...opt, category: opt.category || activeTab || 'Accommodation' })}
+                  className="btn btn-secondary log-expense-btn"
+                  title="Convert locked option directly into a shared expense"
+                  type="button"
+                >
+                  💸 Log as Expense
+                </button>
+              )}
+
               {onDeleteOption && (
                 confirmingDeleteId === opt.id ? (
                   <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
@@ -558,94 +638,40 @@ export function OptionsTab({
             </div>
           </div>
 
-          {/* Badges Bar: Logged in Ledger vs Log as Expense */}
-          {(isLockedChoice || isLogged) && (
-            <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {isLogged ? (
-                <span className="badge-logged-expense">
-                  ✓ Logged in Expenses
-                </span>
+          {/* Zone 2: Title & Pricing Row */}
+          <div className="option-card-title-pricing-row">
+            <h4 className="option-card-title">
+              {opt.option_text}
+            </h4>
+
+            <div className="option-card-pricing-block">
+              {costDetails ? (
+                <>
+                  <div className="option-total-price">
+                    {formatMoney(costDetails.rawCost, costDetails.currency, { maximumFractionDigits: 0 })}
+                    {costDetails.isDiff && rates && (
+                      <span className="cost-converted option-converted-price">
+                        (≈ {formatMoney(costDetails.converted, costDetails.baseCurrency, { maximumFractionDigits: 0 })})
+                      </span>
+                    )}
+                  </div>
+                  <div className="option-per-person">
+                    {costDetails.costType === 'per_person' && (
+                      <span title="Priced per ticket/person">🎟️ {formatMoney(costDetails.rawCost, costDetails.currency, { maximumFractionDigits: 0 })} / person</span>
+                    )}
+                    {costDetails.costType === 'per_night' && (
+                      <span title="Priced per night and prorated by stay dates">🌙 ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency, { maximumFractionDigits: 0 })} / person</span>
+                    )}
+                    {(!costDetails.costType || costDetails.costType === 'split_total') && (
+                      <span>~{formatMoney(costDetails.perPerson, costDetails.baseCurrency, { maximumFractionDigits: 0 })} / person</span>
+                    )}
+                  </div>
+                </>
               ) : (
-                <button
-                  onClick={() => onOpenExpenseModal({ ...opt, category: opt.category || activeTab || 'Accommodation' })}
-                  className="btn btn-secondary log-expense-btn"
-                  title="Convert locked option directly into a shared expense"
-                  type="button"
-                >
-                  💸 Log as Expense
-                </button>
+                <span className="price-tbd-badge">Price TBD</span>
               )}
             </div>
-          )}
-
-          {/* Out of bounds badge */}
-          {isConflict && (
-            <div style={{ marginBottom: '8px' }}>
-              <span
-                style={{
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                ⚠️ Outside Trip Dates
-              </span>
-            </div>
-          )}
-
-          {/* Dates Display */}
-          {(opt.start_date || opt.end_date) ? (
-            <div
-              style={{
-                fontSize: '0.85rem',
-                color: '#60a5fa',
-                fontWeight: '600',
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>📅</span>
-              <span>{formatDateTimeRange(opt.start_date, opt.end_date)}</span>
-            </div>
-          ) : (
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)',
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>📌</span>
-              <span>Flexible / Dates TBD</span>
-              <button
-                type="button"
-                onClick={() => setDateModalOption(opt)}
-                style={{
-                  background: 'transparent',
-                  border: '1px dashed var(--border-light)',
-                  color: 'var(--primary-light)',
-                  borderRadius: '6px',
-                  padding: '1px 6px',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer'
-                }}
-              >
-                + Set Dates
-              </button>
-            </div>
-          )}
+          </div>
 
           {/* Category-Specific Metadata Spec Box */}
           {optCategory === 'accommodation' && (metadata.max_capacity || metadata.beds_summary || metadata.has_kitchen || metadata.check_in_out) && (
@@ -745,10 +771,10 @@ export function OptionsTab({
                 )
                 return (
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
-                    <strong>Cost per passenger: {formatMoney(veh.costPerPassenger, costDetails?.currency || opt.currency || baseCurrency)}</strong>
+                    <strong>Cost per passenger: {formatMoney(veh.costPerPassenger, costDetails?.currency || opt.currency || baseCurrency, { maximumFractionDigits: 0 })}</strong>
                     {metadata.seats_capacity > assignedCount && (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                        (If all {metadata.seats_capacity} seats fill: ~{formatMoney(veh.costIfFull, costDetails?.currency || opt.currency || baseCurrency)} / person)
+                        (If all {metadata.seats_capacity} seats fill: ~{formatMoney(veh.costIfFull, costDetails?.currency || opt.currency || baseCurrency, { maximumFractionDigits: 0 })} / person)
                       </span>
                     )}
                   </div>
@@ -899,69 +925,6 @@ export function OptionsTab({
             </div>
           )}
 
-          {/* Dual Currency and Per-Person Cost Display */}
-          {costDetails && (
-            <div className="option-cost-container">
-              <div className="option-total-cost">
-                <span className="cost-main">
-                  {formatMoney(costDetails.rawCost, costDetails.currency)}
-                </span>
-                {costDetails.isDiff && rates && (
-                  <span className="cost-converted">
-                    (≈ {formatMoney(costDetails.converted, costDetails.baseCurrency)})
-                  </span>
-                )}
-                <span className="option-per-person">
-                  {costDetails.costType === 'per_person' && (
-                    <span title="Priced per ticket/person">🎟️ {formatMoney(costDetails.rawCost, costDetails.currency)} / person</span>
-                  )}
-                  {costDetails.costType === 'per_night' && (
-                    <span title="Priced per night and prorated by stay dates">🌙 ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person</span>
-                  )}
-                  {(!costDetails.costType || costDetails.costType === 'split_total') && (
-                    <span>~{formatMoney(costDetails.perPerson, costDetails.baseCurrency)} / person</span>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Interactive Participant Bar on Every Card */}
-          <div className="participant-bar-row">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
-                👥 {assignedCount} traveler{assignedCount !== 1 ? 's' : ''}
-              </span>
-              {assignedMembers.length > 0 && (
-                <div className="voter-avatars-row" style={{ margin: 0 }}>
-                  {assignedMembers.slice(0, 5).map((m, i) => (
-                    <div
-                      key={i}
-                      className="voter-avatar-chip"
-                      style={{ backgroundColor: getAvatarColor(m.name) }}
-                      title={m.name}
-                    >
-                      {getInitials(m.name)}
-                    </div>
-                  ))}
-                  {assignedMembers.length > 5 && (
-                    <span className="voter-more-chip">+{assignedMembers.length - 5}</span>
-                  )}
-                </div>
-              )}
-            </div>
-            {onToggleParticipant && activeUser && (
-              <button
-                type="button"
-                className={`one-tap-join-btn ${isUserJoined ? 'joined' : 'not-joined'}`}
-                onClick={() => onToggleParticipant(opt.id, opt.assigned_users || [], presentTravelerIds)}
-                title={isUserJoined ? 'Click to leave this option' : 'Click to join this option'}
-              >
-                {isUserJoined ? '✓ Joined (Leave)' : `✋ Join (${assignedCount}${capacity ? '/' + capacity : ''})`}
-              </button>
-            )}
-          </div>
-
           {/* Description */}
           {opt.description && (
             <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineBreak: 'anywhere' }}>
@@ -988,6 +951,46 @@ export function OptionsTab({
               <span>🔗</span> View Pitch Link
             </a>
           )}
+        </div>
+
+        {/* Zone 3: Participation & Decision Footer */}
+        <div className="option-card-footer">
+          {/* Attendance Row */}
+          <div className="option-attendance-row">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
+              <span className="attendance-label">
+                Going ({assignedCount}):
+              </span>
+              {assignedMembers.length > 0 && (
+                <div className="voter-avatars-row attendance-avatars" style={{ margin: 0 }}>
+                  {assignedMembers.slice(0, 5).map((m, i) => (
+                    <div
+                      key={i}
+                      className="voter-avatar-chip"
+                      style={{ backgroundColor: getAvatarColor(m.name) }}
+                      title={m.name}
+                    >
+                      {getInitials(m.name)}
+                    </div>
+                  ))}
+                  {assignedMembers.length > 5 && (
+                    <span className="voter-more-chip">+{assignedMembers.length - 5}</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {onToggleParticipant && activeUser && (
+              <button
+                type="button"
+                className={`one-tap-join-btn ${isUserJoined ? 'joined' : 'not-joined'}`}
+                onClick={() => onToggleParticipant(opt.id, opt.assigned_users || [], presentTravelerIds)}
+                title={isUserJoined ? 'Click to leave this option' : 'Click to join this option'}
+              >
+                {isUserJoined ? "✓ I'm In" : '+ Join'}
+              </button>
+            )}
+          </div>
 
           {/* Visual Vote Progress Bar & Voter Avatar Chips */}
           <div className="option-voting-section">
@@ -1030,97 +1033,96 @@ export function OptionsTab({
               />
             </div>
           </div>
-        </div>
 
-        {/* Card Footer Actions */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => onVoteToggle && onVoteToggle(opt.id, hasVoted, opt.category || activeTab)}
-            className={`btn ${hasVoted ? 'btn-voted' : 'btn-vote'}`}
-            type="button"
-            style={{ flex: 1, minHeight: '38px' }}
-          >
-            {hasVoted ? `✓ Voted (${votesCount})` : `👍 Vote (${votesCount})`}
-          </button>
+          {/* Action Row */}
+          <div className="option-action-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => onVoteToggle && onVoteToggle(opt.id, hasVoted, opt.category || activeTab)}
+              className={`btn ${hasVoted ? 'btn-voted' : 'btn-vote'}`}
+              type="button"
+              style={{ flex: 1, minHeight: '38px' }}
+            >
+              {hasVoted ? `✓ Voted (${votesCount}) (${votePercent}%)` : `👍 ${votesCount} Vote${votesCount === 1 ? '' : 's'} (${votePercent}%)`}
+            </button>
 
-          <button
-            onClick={() => onLockToggle && onLockToggle(opt.id)}
-            className="btn btn-secondary"
-            style={{
-              padding: '6px 12px',
-              fontSize: '0.85rem',
-              borderColor: isLockedChoice ? '#10b981' : 'var(--border-light)',
-              color: isLockedChoice ? '#10b981' : 'var(--text-muted)',
-              minHeight: '38px'
-            }}
-            title={isLockedChoice ? 'Unlock this choice' : 'Lock as winning choice'}
-            type="button"
-          >
-            {isLockedChoice ? '🏆 Locked' : '🔒 Lock'}
-          </button>
+            <button
+              onClick={() => onLockToggle && onLockToggle(opt.id)}
+              className={`btn ${isLockedChoice ? 'btn-locked-choice' : 'btn-secondary'}`}
+              style={{
+                padding: '6px 14px',
+                fontSize: '0.85rem',
+                minHeight: '38px',
+                whiteSpace: 'nowrap'
+              }}
+              title={isLockedChoice ? 'Unlock this choice' : 'Lock as winning choice'}
+              type="button"
+            >
+              {isLockedChoice ? '🔒 Locked · Undo' : '🔒 Lock'}
+            </button>
 
-          {/* Extra tools for flexible or out-of-bounds options */}
-          {isConflict && (
-            <>
+            {/* Extra tools for flexible or out-of-bounds options */}
+            {isConflict && (
+              <>
+                <button
+                  onClick={() => setDateModalOption(opt)}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
+                  title="Fix option dates to fall within the trip"
+                  type="button"
+                >
+                  ✏️ Fix Dates
+                </button>
+                {onDeleteOption && (
+                  confirmingDeleteId === opt.id ? (
+                    <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
+                      <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
+                        onClick={() => {
+                          setConfirmingDeleteId(null)
+                          onDeleteOption(opt)
+                        }}
+                      >
+                        Yes, Delete
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
+                        onClick={() => setConfirmingDeleteId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingDeleteId(opt.id)}
+                      className="btn btn-secondary btn-danger-soft"
+                      style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
+                      title="Delete this out-of-bounds option"
+                      type="button"
+                    >
+                      🗑️ Delete
+                    </button>
+                  )
+                )}
+              </>
+            )}
+
+            {!isConflict && !opt.start_date && !opt.end_date && (
               <button
                 onClick={() => setDateModalOption(opt)}
                 className="btn btn-secondary"
                 style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-                title="Fix option dates to fall within the trip"
+                title="Set scheduled dates for this option"
                 type="button"
               >
-                ✏️ Fix Dates
+                📅 Set Dates
               </button>
-              {onDeleteOption && (
-                confirmingDeleteId === opt.id ? (
-                  <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
-                    <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
-                      onClick={() => {
-                        setConfirmingDeleteId(null)
-                        onDeleteOption(opt)
-                      }}
-                    >
-                      Yes, Delete
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
-                      onClick={() => setConfirmingDeleteId(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmingDeleteId(opt.id)}
-                    className="btn btn-secondary btn-danger-soft"
-                    style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-                    title="Delete this out-of-bounds option"
-                    type="button"
-                  >
-                    🗑️ Delete
-                  </button>
-                )
-              )}
-            </>
-          )}
-
-          {!isConflict && !opt.start_date && !opt.end_date && (
-            <button
-              onClick={() => setDateModalOption(opt)}
-              className="btn btn-secondary"
-              style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-              title="Set scheduled dates for this option"
-              type="button"
-            >
-              📅 Set Dates
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     )
@@ -1226,7 +1228,7 @@ export function OptionsTab({
         <>
           {/* Horizontal Category Tabs */}
           <div
-            className="tabs-container"
+            className="tabs-container category-tabs-container"
             style={{
               display: 'flex',
               gap: '8px',
@@ -1236,6 +1238,7 @@ export function OptionsTab({
             }}
           >
             {categories.map((cat) => {
+              const count = categoryCounts[cat] || 0
               const labelWithIcon = {
                 Accommodation: '🏠 Accommodation',
                 Transport: '🚗✈️ Transport',
@@ -1248,9 +1251,10 @@ export function OptionsTab({
                 <button
                   key={cat}
                   onClick={() => onTabChange(cat)}
-                  className={`tab-btn ${activeTab === cat ? 'active' : ''}`}
+                  className={`tab-btn ${activeTab === cat ? 'active' : ''} ${count === 0 ? 'tab-empty' : ''}`}
                 >
-                  {labelWithIcon} ({categoryCounts[cat] || 0})
+                  <span className="tab-label">{labelWithIcon}</span>{' '}
+                  <span className="tab-count">({count})</span>
                 </button>
               )
             })}
@@ -1447,7 +1451,7 @@ export function OptionsTab({
                             </div>
                           </div>
                           <div className="options-grid">
-                            {sortOptionList(group.options).map((opt) => renderOptionCard(opt))}
+                            {sortOptionList(group.options).map((opt) => renderOptionCard(opt, false, true))}
                           </div>
                         </div>
                       ))}

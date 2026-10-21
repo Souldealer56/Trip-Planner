@@ -105,6 +105,41 @@ export function formatCurrency(amount, currencyCode) {
 }
 
 /**
+ * Standardizes monetary displays using Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
+ * or up to 2 decimals when cents are non-zero.
+ * E.g., 6563, 'CAD' -> '6,563 CAD'
+ * E.g., 6563.5, 'CAD' -> '6,563.50 CAD'
+ * E.g., 0, 'USD' -> '0 USD'
+ * @param {number|string} amount Monetary amount to format.
+ * @param {string} [currencyCode] ISO currency code.
+ * @param {Object} [options] Optional Intl formatting options (e.g. { maximumFractionDigits: 0 }).
+ * @returns {string} Standardized price string.
+ */
+export function formatMoney(amount, currencyCode = '', options = {}) {
+  if (amount === undefined || amount === null || amount === '') {
+    return currencyCode ? `0 ${currencyCode}` : '0'
+  }
+  const num = typeof amount === 'number' ? amount : parseFloat(amount)
+  if (isNaN(num)) {
+    return currencyCode ? `0 ${currencyCode}` : '0'
+  }
+
+  const maxDigits = options?.maximumFractionDigits
+  const hasCents = maxDigits !== undefined ? maxDigits > 0 : (Math.abs(num % 1) > 0.005)
+  const minDigits = options?.minimumFractionDigits !== undefined 
+    ? options.minimumFractionDigits 
+    : (hasCents ? 2 : 0)
+
+  const formatter = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: maxDigits !== undefined ? maxDigits : (hasCents ? 2 : 0)
+  })
+
+  const formattedNum = formatter.format(num)
+  return currencyCode ? `${formattedNum} ${currencyCode}` : formattedNum
+}
+
+/**
  * Formats an ISO timestamp into a relative time string (e.g. "5m ago", "2h ago", "1d ago").
  * @param {string} isoString ISO date string.
  * @returns {string} The formatted relative time string.

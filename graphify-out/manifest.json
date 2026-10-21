@@ -2015,13 +2015,13 @@
     "semantic_hash": ""
   },
   "web/package.json": {
-    "mtime": 1792038248.1326058,
-    "ast_hash": "5474b27653d5f1f46782472255830df6",
+    "mtime": 1792375580.9830952,
+    "ast_hash": "e26cfcf9230274d3bce0a903e01bfeaf",
     "semantic_hash": ""
   },
   "web/src/App.jsx": {
-    "mtime": 1784597648.2022426,
-    "ast_hash": "eabfcd72431bcb105961d4b29bfa1c47",
+    "mtime": 1792537824.9513202,
+    "ast_hash": "ac4edff557aba52148f7cddd78a5e776",
     "semantic_hash": ""
   },
   "web/src/__tests__/components.smoke.test.jsx": {
@@ -2030,13 +2030,13 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/currency.test.js": {
-    "mtime": 1792193234.2246451,
-    "ast_hash": "f49d2c04530ad0b6ffc71b3f91d82933",
+    "mtime": 1792421106.510461,
+    "ast_hash": "ff3b510cb852794382a0efb3322cc81b",
     "semantic_hash": ""
   },
   "web/src/__tests__/format.test.js": {
-    "mtime": 1792022686.3610816,
-    "ast_hash": "693514808e9936c88866f5678d2d9025",
+    "mtime": 1792537879.6444082,
+    "ast_hash": "047f2ff1da343462de0613e5406418f9",
     "semantic_hash": ""
   },
   "web/src/__tests__/ical.test.js": {
@@ -2065,13 +2065,13 @@
     "semantic_hash": ""
   },
   "web/src/components/GanttTimeline.jsx": {
-    "mtime": 1792335509.9659956,
-    "ast_hash": "1a3878e64d670244bed38e912750e1f7",
+    "mtime": 1792556261.733067,
+    "ast_hash": "127282ee50af718cb4c6a577ad38537c",
     "semantic_hash": ""
   },
   "web/src/components/modals/AddExpenseModal.jsx": {
-    "mtime": 1792168166.6125183,
-    "ast_hash": "fa529be319e851365bc45f026e2121ca",
+    "mtime": 1792556957.551117,
+    "ast_hash": "06679751f4dc832bee565a24bdc66a0e",
     "semantic_hash": ""
   },
   "web/src/components/modals/EditTripModal.jsx": {
@@ -2080,8 +2080,8 @@
     "semantic_hash": ""
   },
   "web/src/components/modals/PitchOptionModal.jsx": {
-    "mtime": 1792169794.1219075,
-    "ast_hash": "ccdf91821e0af3711f80a4f487245672",
+    "mtime": 1792420329.2057025,
+    "ast_hash": "0809370fcfdbeb8b3dcfd0cb4f8f7a47",
     "semantic_hash": ""
   },
   "web/src/components/modals/PrintableItineraryModal.jsx": {
@@ -2095,28 +2095,28 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/BudgetAnalyticsTab.jsx": {
-    "mtime": 1792193007.317806,
-    "ast_hash": "ed8405920475c9343f2719169e1c785c",
+    "mtime": 1792538008.2457,
+    "ast_hash": "c54a138c43d1e127c8c9bb25cf928be0",
     "semantic_hash": ""
   },
   "web/src/components/trip/LedgerAndSettleTab.jsx": {
-    "mtime": 1792193054.8005588,
-    "ast_hash": "820b5346b00de0dcdc1fc3ad6fa8a4ff",
+    "mtime": 1792557019.9477694,
+    "ast_hash": "33afdcbb8e14a547b41125d276140844",
     "semantic_hash": ""
   },
   "web/src/components/trip/OptionsTab.jsx": {
-    "mtime": 1792374749.3523908,
-    "ast_hash": "a3ae79d100b139fb8d85319dfeb2ff64",
+    "mtime": 1792549232.5062063,
+    "ast_hash": "9516e5066800fe5133492bd52993d5c8",
     "semantic_hash": ""
   },
   "web/src/components/trip/RosterSection.jsx": {
-    "mtime": 1792167755.3023708,
-    "ast_hash": "b9029a7149eb43bce9046354ff3ecbc1",
+    "mtime": 1792557217.131348,
+    "ast_hash": "4511ae4b95ccdc66ea571d9ab533c680",
     "semantic_hash": ""
   },
   "web/src/components/trip/TripHeader.jsx": {
-    "mtime": 1792099167.5166478,
-    "ast_hash": "4a58730ed747de43db416b00a55cd9b6",
+    "mtime": 1792540407.0468764,
+    "ast_hash": "b9dc6bd42ef5feb74166ce348201220a",
     "semantic_hash": ""
   },
   "web/src/hooks/useAddParticipant.js": {
@@ -2155,53 +2155,53 @@
     "semantic_hash": ""
   },
   "web/src/services/activity.js": {
-    "mtime": 1784558285.0357864,
-    "ast_hash": "17410cf708ff5f0dd31f651534308850",
+    "mtime": 1792375730.5355668,
+    "ast_hash": "65e28606d1edff6e42041ed607ac1b1e",
     "semantic_hash": ""
   },
   "web/src/services/auth.js": {
-    "mtime": 1792091349.7491875,
-    "ast_hash": "f1b09bc0ef5f238acda38a97a32017a4",
+    "mtime": 1792375724.4468095,
+    "ast_hash": "68d55fe9f68356fe59898fb639f4030d",
     "semantic_hash": ""
   },
   "web/src/services/expenses.js": {
-    "mtime": 1792167576.7179,
-    "ast_hash": "6ed36af54cd1952cd33ffaf38d9b403d",
+    "mtime": 1792556891.8321218,
+    "ast_hash": "89ba4527ea889c1b728ba7fe436c8f02",
     "semantic_hash": ""
   },
   "web/src/services/options.js": {
-    "mtime": 1792374607.0882428,
-    "ast_hash": "92d4e8dbe734bd17d03fdc7f008dc30f",
+    "mtime": 1792419955.9321084,
+    "ast_hash": "1412dcae941b4a77f115a6d769faa6ce",
     "semantic_hash": ""
   },
   "web/src/services/rsvps.js": {
-    "mtime": 1792167419.516168,
-    "ast_hash": "62af44f3d9a994cdbf51bb5b67354717",
+    "mtime": 1792380285.4166875,
+    "ast_hash": "c4cb79cea29c7b887f34071c5ed94607",
     "semantic_hash": ""
   },
   "web/src/services/supabase.js": {
-    "mtime": 1792020391.7719295,
-    "ast_hash": "879aaaa75131b2744e8756eb1287fa65",
+    "mtime": 1792375600.372725,
+    "ast_hash": "3cb824f3eb7aac01cb9a07179b00e0c3",
     "semantic_hash": ""
   },
   "web/src/services/trips.js": {
-    "mtime": 1792020437.5529244,
-    "ast_hash": "ed129000992270438fb01ce5ab483727",
+    "mtime": 1792375688.9437637,
+    "ast_hash": "858c066213d3f7b9f012f9310bc2d097",
     "semantic_hash": ""
   },
   "web/src/services/users.js": {
-    "mtime": 1792039995.8251166,
-    "ast_hash": "4940cdf96bcfb224d28bbb1b6d4fbd53",
+    "mtime": 1792375682.4901707,
+    "ast_hash": "df3cd497d7535817511fffe2c9cf105f",
     "semantic_hash": ""
   },
   "web/src/utils/currency.js": {
-    "mtime": 1792192514.8810365,
-    "ast_hash": "9a86d7d4fc09ff3ffc018b484fb64b77",
+    "mtime": 1792420048.7492456,
+    "ast_hash": "6cbf08f9245ad86a5fc18580cab81b02",
     "semantic_hash": ""
   },
   "web/src/utils/format.js": {
-    "mtime": 1792021020.3356042,
-    "ast_hash": "87e82a701c29ffb6589bde4a6c9251f6",
+    "mtime": 1792538280.1645596,
+    "ast_hash": "191c674da0f503a8fcb922ea0fd58b79",
     "semantic_hash": ""
   },
   "web/src/utils/ical.js": {
@@ -2215,8 +2215,8 @@
     "semantic_hash": ""
   },
   "web/src/utils/schedule.js": {
-    "mtime": 1792193598.9240682,
-    "ast_hash": "acac1963c5f5b05b6d77fce49c3ba25a",
+    "mtime": 1792375737.282519,
+    "ast_hash": "40e1ebaccca3b4612fe49e5245717335",
     "semantic_hash": ""
   },
   "web/src/views/JoinTrip.jsx": {
@@ -2230,13 +2230,13 @@
     "semantic_hash": ""
   },
   "web/src/views/TripDetails.jsx": {
-    "mtime": 1792374706.5009544,
-    "ast_hash": "5310cb86bd645fd12f4494ce8e1db2f2",
+    "mtime": 1792557066.0945072,
+    "ast_hash": "135f890fc90f58222009a81574b9b425",
     "semantic_hash": ""
   },
   "web/src/views/TripsList.jsx": {
-    "mtime": 1792090834.9359772,
-    "ast_hash": "0883e5c1d751a642373acdb8d4b7ef36",
+    "mtime": 1792538084.1851301,
+    "ast_hash": "311550ccc01ace7acacb5c5f5d415b16",
     "semantic_hash": ""
   },
   "web/src/views/VerifyLogin.jsx": {
@@ -2315,8 +2315,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/pitchedOptions.test.jsx": {
-    "mtime": 1792374768.8062265,
-    "ast_hash": "f2c856d19e1da64cc2ad0c675c242c0c",
+    "mtime": 1792419287.053091,
+    "ast_hash": "0f47ebb32bc1287a3309adfde5efd089",
     "semantic_hash": ""
   },
   "supabase/migrations/20260727000000_smart_trip_os_schema.sql": {
@@ -2325,8 +2325,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/categorySpecialization.test.js": {
-    "mtime": 1792169574.9127374,
-    "ast_hash": "82d52dd00b16b757cd7e55c471761d75",
+    "mtime": 1792549409.8448822,
+    "ast_hash": "d16edef14fa06bd0394495f73dcd73c5",
     "semantic_hash": ""
   },
   "web/src/__tests__/mealsAndGroceries.test.js": {
@@ -2340,8 +2340,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/votingRegression.test.jsx": {
-    "mtime": 1792374919.937538,
-    "ast_hash": "2c5ef97d07f54ff18761725d5a4cd5ef",
+    "mtime": 1792421178.9374895,
+    "ast_hash": "1e1b12068a35f95553e395c42ba62cee",
     "semantic_hash": ""
   },
   "web/src/components/trip/GroceryListPanel.jsx": {
@@ -2350,13 +2350,53 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/MealPlannerMatrix.jsx": {
-    "mtime": 1792374676.6536295,
-    "ast_hash": "e5a2fd92782ea167f2c448ee927046d9",
+    "mtime": 1792419272.3457046,
+    "ast_hash": "8474d4e2c0a85af1601b776df5427cc1",
     "semantic_hash": ""
   },
   "web/src/services/groceries.js": {
-    "mtime": 1792191639.1170118,
-    "ast_hash": "8dad6439fe0cd3d8d28d2ab3786a705f",
+    "mtime": 1792376040.7543485,
+    "ast_hash": "83391b8e2bf257f6abada7d731b7ef45",
+    "semantic_hash": ""
+  },
+  "web/qa-live-scenario.js": {
+    "mtime": 1792376052.3022194,
+    "ast_hash": "dad4bd041dea744a5005348edd8bfeef",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/deleteOption.test.js": {
+    "mtime": 1792419413.9084406,
+    "ast_hash": "be24e1016f3f26029f2fa4f2139003ff",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/qa_e2e_scenario.test.jsx": {
+    "mtime": 1792380795.195388,
+    "ast_hash": "d62e9434c445a13607d24373e4ffc119",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/theme.test.jsx": {
+    "mtime": 1792538578.3294096,
+    "ast_hash": "831e51dedb34e1a69a52fd4e88c223f0",
+    "semantic_hash": ""
+  },
+  "web/src/hooks/useTheme.jsx": {
+    "mtime": 1792537818.9566915,
+    "ast_hash": "b7138a815cbf939cfef317cef3458a6f",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/mobileNavigationAndHeader.test.jsx": {
+    "mtime": 1792540503.6932373,
+    "ast_hash": "e19e23364553309c42600cf985c1738b",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/ganttRedesignProposalC.test.jsx": {
+    "mtime": 1792556484.3016825,
+    "ast_hash": "e6118828d881023fbb586c97d11ac1c9",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/redesignDAndExpensesPolish.test.jsx": {
+    "mtime": 1792557291.7336972,
+    "ast_hash": "8260f82c9539e4a5d07fa094f25e38ac",
     "semantic_hash": ""
   }
 }

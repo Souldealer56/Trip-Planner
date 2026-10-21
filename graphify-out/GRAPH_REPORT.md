@@ -1,16 +1,16 @@
-# Graph Report - Trip Planner  (2026-10-18)
+# Graph Report - Trip Planner  (2026-10-20)
 
 ## Corpus Check
-- 463 files · ~519,136 words
+- 471 files · ~531,375 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2699 nodes · 2794 edges · 389 communities (333 shown, 56 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.5)
+- 2732 nodes · 2940 edges · 389 communities (332 shown, 57 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 20 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `349c8ad0`
+- Built from commit: `f728a829`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -268,50 +268,50 @@
 - format.js
 - App.jsx
 - devDependencies
-- components.smoke.test.jsx
+- format.js
 - ✨ Key Features
-- TripsList.jsx
+- components.smoke.test.jsx
 - rules
-- useTripDetails.js
+- groceries.js
 - Trip Planner — Project Context & Architectural Guidelines
 - React + Vite
 - Agent Rules & Integration Guidelines
 - github.md
-- currency.js
-- ical.js
+- qa_e2e_scenario.test.jsx
+- useTripRealtime.js
 
 ## God Nodes (most connected - your core abstractions)
-1. `TripDetails()` - 39 edges
-2. `OptionsTab()` - 21 edges
-3. `Core Workflow` - 18 edges
-4. `Planner Guidance: Philosophy, Task Calibration, and Output Formats` - 17 edges
-5. `supabase` - 16 edges
+1. `TripDetails()` - 41 edges
+2. `OptionsTab()` - 23 edges
+3. `supabase` - 19 edges
+4. `Core Workflow` - 18 edges
+5. `Planner Guidance: Philosophy, Task Calibration, and Output Formats` - 17 edges
 6. `Gate Prompt Patterns` - 16 edges
 7. `parseLocalDate()` - 14 edges
 8. `formatDateRange()` - 13 edges
-9. `Common Bug Patterns` - 13 edges
-10. `Complete Field Reference` - 13 edges
+9. `TripsList()` - 13 edges
+10. `Common Bug Patterns` - 13 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `OptionsTab()` --references--> `react`  [EXTRACTED]
+  web/src/components/trip/OptionsTab.jsx → web/package.json
 - `SplashLogin()` --references--> `react`  [EXTRACTED]
   web/src/views/TripsList.jsx → web/package.json
+- `ThemeTestComponent()` --calls--> `useTheme()`  [EXTRACTED]
+  web/src/__tests__/theme.test.jsx → web/src/hooks/useTheme.jsx
+- `AddExpenseModal()` --calls--> `calculateOptionCostBreakdown()`  [EXTRACTED]
+  web/src/components/modals/AddExpenseModal.jsx → web/src/utils/currency.js
 - `PollRecapModal()` --calls--> `isOptionLocked()`  [EXTRACTED]
   web/src/components/modals/PrintableItineraryModal.jsx → web/src/services/options.js
-- `MealPlannerMatrix()` --calls--> `getPresentTravelers()`  [EXTRACTED]
-  web/src/components/trip/MealPlannerMatrix.jsx → web/src/services/rsvps.js
-- `OptionsTab()` --calls--> `fetchGroceryItems()`  [EXTRACTED]
-  web/src/components/trip/OptionsTab.jsx → web/src/services/groceries.js
-- `OptionsTab()` --calls--> `getMealDietaryAlerts()`  [EXTRACTED]
-  web/src/components/trip/OptionsTab.jsx → web/src/services/groceries.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (389 total, 56 thin omitted)
+## Communities (389 total, 57 thin omitted)
 
 ### Community 0 - "main.py"
 Cohesion: 0.13
-Nodes (32): useAddParticipant(), useRsvpRoster(), useTripDetails(), fetchActivityLogs(), fetchExpenses(), deleteOption(), fetchActivePoll(), fetchAllTripOptions() (+24 more)
+Nodes (28): RFC-5545, useRsvpRoster(), useTripDetails(), useTrips(), fetchActivityLogs(), updateOptionDates(), demoteCoOrganizer(), fetchRsvpRoster() (+20 more)
 
 ### Community 1 - "gsd-debugger.md"
 Cohesion: 0.03
@@ -1094,36 +1094,36 @@ Cohesion: 0.67
 Nodes (3): 8.5.1 Outline Phase (outline-only mode, ~2 min), 8.5.2 Per-Plan Tasks (single-plan mode, ~3-5 min each), 8.5. Chunked Planning Mode
 
 ### Community 374 - "format.js"
-Cohesion: 0.22
-Nodes (18): CATEGORIES, CATEGORY_COLORS, GanttTimeline(), EditTripModal(), PollRecapModal(), PrintableItineraryModal(), ActivityFeedDrawer(), TripHeader() (+10 more)
+Cohesion: 0.29
+Nodes (5): colors, __dirname, __filename, isConfigured, printHeader()
 
 ### Community 375 - "App.jsx"
-Cohesion: 0.13
-Nodes (31): App(), useTrips(), UserSessionContext, UserSessionProvider(), useUserSession(), generateToken(), getPendingTokens(), loginOrRegisterByEmail() (+23 more)
+Cohesion: 0.07
+Nodes (55): App(), CATEGORIES, CATEGORY_COLORS, GanttTimeline(), SHORT_CATEGORY_NAMES, EditTripModal(), PollRecapModal(), PrintableItineraryModal() (+47 more)
 
 ### Community 376 - "devDependencies"
-Cohesion: 0.08
-Nodes (24): dependencies, react-dom, react-router-dom, @supabase/supabase-js, devDependencies, jsdom, oxlint, @testing-library/react (+16 more)
+Cohesion: 0.07
+Nodes (27): dependencies, react, react-dom, react-router-dom, @supabase/supabase-js, devDependencies, jsdom, oxlint (+19 more)
 
-### Community 377 - "components.smoke.test.jsx"
-Cohesion: 0.14
-Nodes (21): AddExpenseModal(), BudgetAnalyticsTab(), getResolvedCategory(), LedgerAndSettleTab(), DIETARY_OPTIONS, formatStayDates(), RosterSection(), getPresentTravelers() (+13 more)
+### Community 377 - "format.js"
+Cohesion: 0.19
+Nodes (21): getAvatarColor(), getInitials(), OptionsTab(), calculateVehicleCostPerPassenger(), checkAccommodationCapacity(), checkActivitySpots(), checkOptionDateConflict(), deleteOption() (+13 more)
 
 ### Community 378 - "✨ Key Features"
 Cohesion: 0.12
 Nodes (16): 🔔 Activity Feed, Notifications & Real-Time Sync, 🤖 Automated Continuous Integration (CI), Development & CI Workflow, Environment Setup, 🚀 Getting Started, ✨ Key Features, 📄 License, 🔐 Native Supabase Auth & Security (+8 more)
 
-### Community 379 - "TripsList.jsx"
-Cohesion: 0.26
-Nodes (17): GroceryListPanel(), MEAL_SLOTS, MealPlannerMatrix(), addGroceryItem(), computeKitchenCrewFairness(), deleteGroceryItem(), DIETARY_EMOJIS, fetchGroceryItems() (+9 more)
+### Community 379 - "components.smoke.test.jsx"
+Cohesion: 0.15
+Nodes (19): AddExpenseModal(), BudgetAnalyticsTab(), getResolvedCategory(), LedgerAndSettleTab(), stripCategoryPrefix(), DIETARY_OPTIONS, formatStayDates(), getAvatarColor() (+11 more)
 
 ### Community 380 - "rules"
 Cohesion: 0.25
 Nodes (7): plugins, rules, no-unused-vars, react-hooks/exhaustive-deps, react/only-export-components, react/rules-of-hooks, $schema
 
-### Community 381 - "useTripDetails.js"
-Cohesion: 0.30
-Nodes (12): react, getAvatarColor(), getInitials(), OptionsTab(), SetOptionDatesModal(), calculateVehicleCostPerPassenger(), checkAccommodationCapacity(), checkActivitySpots() (+4 more)
+### Community 381 - "groceries.js"
+Cohesion: 0.26
+Nodes (17): GroceryListPanel(), MEAL_SLOTS, MealPlannerMatrix(), addGroceryItem(), computeKitchenCrewFairness(), deleteGroceryItem(), DIETARY_EMOJIS, fetchGroceryItems() (+9 more)
 
 ### Community 382 - "Trip Planner — Project Context & Architectural Guidelines"
 Cohesion: 0.29
@@ -1133,33 +1133,29 @@ Nodes (6): Architecture & Directory Structure, Core Coding & Architectural Rules
 Cohesion: 0.50
 Nodes (3): Expanding the Oxlint configuration, React Compiler, React + Vite
 
-### Community 387 - "currency.js"
-Cohesion: 0.33
-Nodes (6): createTripRealtimeController(), useTripRealtime(), convertOptionToExpense(), logExpense(), parseOptionCost(), supabase
-
-### Community 388 - "ical.js"
-Cohesion: 0.70
-Nodes (3): RFC-5545, formatICalDateTime(), generateICalContent()
+### Community 387 - "qa_e2e_scenario.test.jsx"
+Cohesion: 0.27
+Nodes (14): runLiveQA(), convertOptionToExpense(), fetchExpenses(), logExpense(), parseOptionCost(), getPresentTravelers(), supabase, calculateExpenseParticipantShares() (+6 more)
 
 ## Knowledge Gaps
-- **1841 isolated node(s):** `_runtime-launcher.snippet.sh script`, `fs`, `path`, `{ isSemverNewer }`, `{ checkLatestVersion }` (+1836 more)
+- **1852 isolated node(s):** `_runtime-launcher.snippet.sh script`, `fs`, `path`, `{ isSemverNewer }`, `{ checkLatestVersion }` (+1847 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **56 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **57 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `useTripDetails.js` to `devDependencies`, `App.jsx`?**
-  _High betweenness centrality (0.001) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `devDependencies` to `useTripDetails.js`?**
-  _High betweenness centrality (0.001) - this node is a cross-community bridge._
-- **Why does `OptionsTab()` connect `useTripDetails.js` to `main.py`, `currency.js`, `format.js`, `components.smoke.test.jsx`, `TripsList.jsx`?**
-  _High betweenness centrality (0.001) - this node is a cross-community bridge._
+- **Why does `react` connect `devDependencies` to `format.js`, `App.jsx`?**
+  _High betweenness centrality (0.002) - this node is a cross-community bridge._
+- **Why does `OptionsTab()` connect `format.js` to `main.py`, `qa_e2e_scenario.test.jsx`, `App.jsx`, `devDependencies`, `components.smoke.test.jsx`, `groceries.js`?**
+  _High betweenness centrality (0.002) - this node is a cross-community bridge._
 - **What connects `_runtime-launcher.snippet.sh script`, `fs`, `path` to the rest of the system?**
-  _1842 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1853 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `main.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.1289198606271777 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
 - **Should `gsd-debugger.md` be split into smaller, more focused modules?**
   _Cohesion score 0.034482758620689655 - nodes in this community are weakly interconnected._
 - **Should `plan-phase.md` be split into smaller, more focused modules?**
   _Cohesion score 0.05128205128205128 - nodes in this community are weakly interconnected._
+- **Should `gsd-plan-checker.md` be split into smaller, more focused modules?**
+  _Cohesion score 0.05263157894736842 - nodes in this community are weakly interconnected._

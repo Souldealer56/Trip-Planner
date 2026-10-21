@@ -11,23 +11,42 @@
   --accent-light: hsl(160, 85%, 55%);
   
   /* Slate Dark Theme Baseline (Default) */
-  --bg-main: hsl(var(--primary-hue), 25%, 8%);
+  --bg-app: hsl(var(--primary-hue), 25%, 8%);
+  --bg-main: var(--bg-app);
   --bg-surface: hsl(var(--primary-hue), 22%, 12%);
   --bg-surface-elevated: hsl(var(--primary-hue), 20%, 16%);
   
-  --text-main: hsl(var(--primary-hue), 15%, 94%);
-  --text-muted: hsl(var(--primary-hue), 12%, 65%);
+  --text-primary: hsl(var(--primary-hue), 15%, 94%);
+  --text-main: var(--text-primary);
+  --text-secondary: hsl(var(--primary-hue), 12%, 65%);
+  --text-muted: var(--text-secondary);
   --text-inverse: hsl(var(--primary-hue), 25%, 8%);
   
-  --border-light: hsl(var(--primary-hue), 20%, 18%);
+  --border-subtle: hsl(var(--primary-hue), 20%, 18%);
+  --border-light: var(--border-subtle);
   --border-focus: hsl(var(--primary-hue), 70%, 45%);
   
   /* Glassmorphism & Shadow Tokens */
-  --glass-bg: rgba(22, 28, 45, 0.65);
+  --bg-glass: rgba(22, 28, 45, 0.65);
+  --glass-bg: var(--bg-glass);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   --shadow-premium: 0 4px 20px 0 rgba(0, 0, 0, 0.25);
   --shadow-hover: 0 10px 30px 0 rgba(0, 0, 0, 0.4);
+
+  /* Semantic UI Tokens */
+  --input-bg: rgba(13, 17, 28, 0.7);
+  --modal-overlay-bg: rgba(7, 10, 19, 0.75);
+  --hover-surface: rgba(255, 255, 255, 0.08);
+  --badge-border: rgba(255, 255, 255, 0.1);
+  --tooltip-bg: #1e293b;
+  --tooltip-text: #f8fafc;
+  --gantt-locked-text: #fef08a;
+  --gantt-conflict-text: #fda4af;
+  
+  /* Scrollbar Tokens */
+  --scrollbar-thumb: hsl(var(--primary-hue), 20%, 25%);
+  --scrollbar-track: transparent;
   
   /* Typography & Layout spacing */
   --font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -44,4 +63,52 @@
   /* Animations */
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: all 0.15s ease;
+}
+
+/* High-contrast Light Glassmorphism theme inspired by Linear/Airbnb */
+[data-theme="light"] {
+  --primary-hue: 220;
+  --primary: hsl(var(--primary-hue), 85%, 52%);
+  --primary-light: hsl(var(--primary-hue), 85%, 45%);
+  --primary-dark: hsl(var(--primary-hue), 85%, 38%);
+  
+  --accent: hsl(160, 80%, 36%);
+  --accent-light: hsl(160, 80%, 42%);
+
+  /* Light Theme Surface & Text */
+  --bg-app: #f8fafc;
+  --bg-main: var(--bg-app);
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: rgba(255, 255, 255, 0.95);
+  
+  --text-primary: #0f172a;
+  --text-main: var(--text-primary);
+  --text-secondary: #475569;
+  --text-muted: var(--text-secondary);
+  --text-inverse: #ffffff;
+  
+  --border-subtle: #e2e8f0;
+  --border-light: var(--border-subtle);
+  --border-focus: #3b82f6;
+  
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --glass-bg: var(--bg-glass);
+  --glass-border: #e2e8f0;
+  --glass-shadow: 0 8px 30px 0 rgba(15, 23, 42, 0.08);
+  --shadow-premium: 0 4px 16px 0 rgba(15, 23, 42, 0.06);
+  --shadow-hover: 0 10px 25px 0 rgba(15, 23, 42, 0.12);
+
+  /* Semantic UI Tokens */
+  --input-bg: #ffffff;
+  --modal-overlay-bg: rgba(15, 23, 42, 0.45);
+  --hover-surface: rgba(15, 23, 42, 0.06);
+  --badge-border: #cbd5e1;
+  --tooltip-bg: #0f172a;
+  --tooltip-text: #ffffff;
+  --gantt-locked-text: #854d0e;
+  --gantt-conflict-text: #9f1239;
+
+  /* Scrollbar Tokens */
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-track: transparent;
 }

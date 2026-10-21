@@ -10,7 +10,8 @@ export function AddExpenseModal({
   roster = [],
   baseCurrency = 'USD',
   activeUserId = '',
-  optionToPreFill = null
+  optionToPreFill = null,
+  expenseToEdit = null
 }) {
   const [expenseDesc, setExpenseDesc] = useState('')
   const [expenseAmount, setExpenseAmount] = useState('')
@@ -31,7 +32,66 @@ export function AddExpenseModal({
   useEffect(() => {
     if (isOpen) {
       setValidationError('')
-      if (optionToPreFill) {
+      if (expenseToEdit) {
+        // Strip any existing category prefix
+        const cleanDesc = (expenseToEdit.description || '').replace(/^\[[^\]]+\]\s*/, '').trim()
+        setExpenseDesc(cleanDesc)
+        setExpenseAmount(expenseToEdit.amount ? String(expenseToEdit.amount) : '')
+        setExpenseCurrency(expenseToEdit.currency || baseCurrency || 'USD')
+
+        const rawCat = (expenseToEdit.category || 'other').toLowerCase().trim()
+        const normalizedCat = (rawCat === 'flights' || rawCat === 'flight')
+          ? 'Transport'
+          : (rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase())
+        const validCat = CATEGORIES.includes(normalizedCat) ? normalizedCat : 'Other'
+        setExpenseCategory(validCat)
+
+        setExpensePaidBy(expenseToEdit.paid_by || activeUserId || (committedRoster[0]?.user_id || ''))
+
+        // Inspect existing split_users
+        const splits = expenseToEdit.split_users || []
+        const initialSplits = {}
+        const customAmounts = {}
+        const customPercents = {}
+
+        const hasObjects = Array.isArray(splits) && splits.length > 0 && typeof splits[0] === 'object' && splits[0] !== null
+        const hasAmounts = hasObjects && splits.some(s => s.amount !== undefined)
+        const hasPercents = hasObjects && splits.some(s => s.percent !== undefined)
+
+        if (hasAmounts) {
+          setExpenseSplitMode('custom_amount')
+          setExpenseSplitEqually(false)
+          committedRoster.forEach(m => {
+            const splitObj = splits.find(s => String(s.user_id) === String(m.user_id))
+            initialSplits[m.user_id] = !!splitObj
+            if (splitObj) {
+              customAmounts[m.user_id] = String(splitObj.amount || 0)
+            }
+          })
+        } else if (hasPercents) {
+          setExpenseSplitMode('custom_percent')
+          setExpenseSplitEqually(false)
+          committedRoster.forEach(m => {
+            const splitObj = splits.find(s => String(s.user_id) === String(m.user_id))
+            initialSplits[m.user_id] = !!splitObj
+            if (splitObj) {
+              customPercents[m.user_id] = String(splitObj.percent || 0)
+            }
+          })
+        } else {
+          setExpenseSplitMode('equal')
+          const splitIds = splits.map(s => (typeof s === 'object' && s !== null ? String(s.user_id) : String(s)))
+          const isAllCommitted = splitIds.length === 0 || splitIds.length === committedRoster.length
+          setExpenseSplitEqually(isAllCommitted)
+          committedRoster.forEach(m => {
+            initialSplits[m.user_id] = isAllCommitted || splitIds.includes(String(m.user_id))
+          })
+        }
+
+        setExpenseSplitUsers(initialSplits)
+        setCustomSplitAmounts(customAmounts)
+        setCustomSplitPercents(customPercents)
+      } else if (optionToPreFill) {
         const optionTitle = optionToPreFill.option_text || optionToPreFill.text || 'Locked Option'
         let rawCat = (optionToPreFill.category || optionToPreFill.poll_category || '').toLowerCase().trim()
         if (rawCat === 'flights' || rawCat === 'flight') {
@@ -54,7 +114,7 @@ export function AddExpenseModal({
         const optCat = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase()
         const validCat = CATEGORIES.includes(optCat) ? optCat : 'Accommodation'
         setExpenseCategory(validCat)
-        setExpenseDesc(`[${validCat.toUpperCase()}] ${optionTitle}`.trim())
+        setExpenseDesc(optionTitle.trim())
         const optCurrency = optionToPreFill.currency || baseCurrency || 'USD'
         setExpenseCurrency(optCurrency)
         setExpensePaidBy(optionToPreFill.added_by || activeUserId || (committedRoster[0]?.user_id || ''))
@@ -106,7 +166,7 @@ export function AddExpenseModal({
         setExpenseSplitUsers(initialSplits)
       }
     }
-  }, [isOpen, optionToPreFill, baseCurrency, activeUserId, roster])
+  }, [isOpen, expenseToEdit, optionToPreFill, baseCurrency, activeUserId, roster])
 
   if (!isOpen) return null
 
@@ -183,7 +243,8 @@ export function AddExpenseModal({
       category: expenseCategory.toLowerCase(),
       paidBy: expensePaidBy,
       splitUsers: splitsList,
-      optionId: optionToPreFill?.id || null
+      optionId: optionToPreFill?.id || expenseToEdit?.option_id || null,
+      expenseId: expenseToEdit?.id || null
     })
   }
 
@@ -192,10 +253,10 @@ export function AddExpenseModal({
       <div className="modal-content glass-card animate-fade-in" style={{ maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
         <div>
           <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem', textAlign: 'center' }}>
-            Add Expense
+            {expenseToEdit ? 'Edit Expense' : 'Add Expense'}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-            Log a new shared trip expense and specify who splits it.
+            {expenseToEdit ? 'Update shared trip expense details and split configuration.' : 'Log a new shared trip expense and specify who splits it.'}
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -483,7 +544,7 @@ export function AddExpenseModal({
 
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
               <button type="submit" disabled={loading} className="btn" style={{ flex: 1 }}>
-                {loading ? 'Saving...' : 'Add Expense'}
+                {loading ? 'Saving...' : (expenseToEdit ? 'Save Changes' : 'Add Expense')}
               </button>
               <button
                 type="button"

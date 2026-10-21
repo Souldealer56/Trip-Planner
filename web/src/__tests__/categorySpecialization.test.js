@@ -268,7 +268,7 @@ describe('Category Specialization & Dynamic Calculations', () => {
       expect(container.textContent).toContain('2 left')
       expect(container.textContent).toContain('🍳 Kitchen available')
       expect(container.textContent).toContain('2 Queen Beds')
-      expect(container.textContent).toContain('✓ Joined (Leave)')
+      expect(container.textContent).toContain("✓ I'm In")
     })
 
     it('renders transport rental vehicle card with seats gauge, driver, and dynamic passenger cost', () => {
@@ -339,7 +339,7 @@ describe('Category Specialization & Dynamic Calculations', () => {
       expect(container.textContent).toContain('🧳 Baggage included')
       expect(container.textContent).toContain('Total for 2 travelers: 700 EUR')
       // User 3 is not joined
-      expect(container.textContent).toContain('✋ Join (2)')
+      expect(container.textContent).toContain('+ Join')
     })
 
     it('renders activity card with spot quota and gear requirements', () => {
@@ -373,7 +373,7 @@ describe('Category Specialization & Dynamic Calculations', () => {
       expect(container.textContent).toContain('1/6 spots')
       expect(container.textContent).toContain('⏱️ 3.5h · Moderate')
       expect(container.textContent).toContain('Neoprene booties, Swimsuit, Waterproof camera')
-      expect(container.textContent).toContain('✋ Join (1/6)')
+      expect(container.textContent).toContain('+ Join')
     })
 
     it('calls onToggleParticipant when one-tap join button is clicked', () => {
@@ -391,7 +391,7 @@ describe('Category Specialization & Dynamic Calculations', () => {
         }
       }
 
-      render(
+      const { container } = render(
         React.createElement(OptionsTab, {
           trip: dummyTrip,
           roster: dummyRoster,
@@ -402,7 +402,7 @@ describe('Category Specialization & Dynamic Calculations', () => {
         })
       )
 
-      const joinBtn = screen.getByText('✋ Join (1/4)')
+      const joinBtn = container.querySelector('.one-tap-join-btn')
       fireEvent.click(joinBtn)
 
       expect(onToggleParticipantMock).toHaveBeenCalledWith(

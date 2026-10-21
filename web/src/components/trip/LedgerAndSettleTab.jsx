@@ -1,5 +1,6 @@
 import React from 'react'
 import { BudgetAnalyticsTab } from './BudgetAnalyticsTab'
+import { formatMoney } from '../../utils/format'
 
 function getResolvedCategory(exp) {
   if (exp.category && exp.category.toLowerCase() !== 'other') {
@@ -29,6 +30,11 @@ function getResolvedCategory(exp) {
   return 'Other'
 }
 
+export function stripCategoryPrefix(description = '') {
+  if (!description) return ''
+  return description.replace(/^\[[^\]]+\]\s*/, '').trim()
+}
+
 export function LedgerAndSettleTab({
   ledgerTab = 'ledger',
   onLedgerTabChange,
@@ -42,6 +48,8 @@ export function LedgerAndSettleTab({
   perPersonSplit = 0,
   baseCurrency = 'USD',
   onOpenExpenseModal,
+  onEditExpense,
+  onDeleteExpense,
   allTripOptions = [],
   rates = null,
   activeUser = null
@@ -86,10 +94,13 @@ export function LedgerAndSettleTab({
                 border: 'none',
                 minWidth: 'auto',
                 cursor: 'pointer',
-                fontWeight: '600'
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              Ledger List
+              <span>🧾</span> <span>Ledger List</span>
             </button>
             <button
               onClick={() => onLedgerTabChange('settle')}
@@ -103,10 +114,13 @@ export function LedgerAndSettleTab({
                 border: 'none',
                 minWidth: 'auto',
                 cursor: 'pointer',
-                fontWeight: '600'
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              Settle Up
+              <span>🤝</span> <span>Settle Up</span>
             </button>
             <button
               onClick={() => onLedgerTabChange('analytics')}
@@ -120,10 +134,13 @@ export function LedgerAndSettleTab({
                 border: 'none',
                 minWidth: 'auto',
                 cursor: 'pointer',
-                fontWeight: '600'
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              📊 Budget Analytics
+              <span>📊</span> <span>Budget Analytics</span>
             </button>
           </div>
         </div>
@@ -162,6 +179,7 @@ export function LedgerAndSettleTab({
                     <th>Amount</th>
                     <th>Date</th>
                     <th>Splits</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -180,10 +198,11 @@ export function LedgerAndSettleTab({
                     }
 
                     const catLabel = getResolvedCategory(exp)
+                    const cleanDesc = stripCategoryPrefix(exp.description)
 
                     return (
                       <tr key={exp.id}>
-                        <td style={{ fontWeight: '500' }}>{exp.description}</td>
+                        <td style={{ fontWeight: '500' }}>{cleanDesc}</td>
                         <td>
                           <span
                             style={{
@@ -199,7 +218,7 @@ export function LedgerAndSettleTab({
                         </td>
                         <td>{payerName}</td>
                         <td style={{ color: 'var(--primary-light)', fontWeight: '600' }}>
-                          {Number(exp.amount).toFixed(2)} {exp.currency || 'USD'}
+                          {formatMoney(exp.amount, exp.currency || 'USD')}
                         </td>
                         <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                           {new Date(exp.created_at).toLocaleDateString()}
@@ -216,6 +235,36 @@ export function LedgerAndSettleTab({
                           title={splitsText}
                         >
                           {splitsText}
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => onEditExpense && onEditExpense(exp)}
+                              className="btn btn-secondary"
+                              style={{ padding: '3px 8px', fontSize: '0.75rem', borderRadius: '4px' }}
+                              title="Edit expense and splits"
+                              aria-label={`Edit ${cleanDesc}`}
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteExpense && onDeleteExpense(exp.id)}
+                              className="btn btn-secondary"
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '0.75rem',
+                                borderRadius: '4px',
+                                color: '#f87171',
+                                borderColor: 'rgba(248, 113, 113, 0.3)'
+                              }}
+                              title="Delete expense"
+                              aria-label={`Delete ${cleanDesc}`}
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -241,13 +290,14 @@ export function LedgerAndSettleTab({
                 }
 
                 const catLabel = getResolvedCategory(exp)
+                const cleanDesc = stripCategoryPrefix(exp.description)
 
                 return (
                   <div key={exp.id} className="ledger-card">
                     <div className="ledger-card-header">
-                      <span className="ledger-card-desc">{exp.description}</span>
+                      <span className="ledger-card-desc">{cleanDesc}</span>
                       <span className="ledger-card-amount">
-                        {Number(exp.amount).toFixed(2)} {exp.currency || 'USD'}
+                        {formatMoney(exp.amount, exp.currency || 'USD')}
                       </span>
                     </div>
                     <div className="ledger-card-meta">
@@ -261,6 +311,32 @@ export function LedgerAndSettleTab({
                     </div>
                     <div className="ledger-card-splits">
                       Split with: <span style={{ color: 'var(--text-main)', fontWeight: '500' }}>{splitsText}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <button
+                        type="button"
+                        onClick={() => onEditExpense && onEditExpense(exp)}
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '4px' }}
+                        aria-label={`Edit ${cleanDesc}`}
+                      >
+                        ✏️ Edit Splits
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteExpense && onDeleteExpense(exp.id)}
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '0.75rem',
+                          borderRadius: '4px',
+                          color: '#f87171',
+                          borderColor: 'rgba(248, 113, 113, 0.3)'
+                        }}
+                        aria-label={`Delete ${cleanDesc}`}
+                      >
+                        🗑️ Delete
+                      </button>
                     </div>
                   </div>
                 )
@@ -277,13 +353,13 @@ export function LedgerAndSettleTab({
             <div className="glass-card" style={{ padding: '12px var(--spacing-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>TOTAL GROUP SPEND</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--primary-light)' }}>
-                {totalGroupSpend.toFixed(2)} {baseCurrency}
+                {formatMoney(totalGroupSpend, baseCurrency)}
               </div>
             </div>
             <div className="glass-card" style={{ padding: '12px var(--spacing-md)', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>PER PERSON SPLIT</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--text-main)' }}>
-                {perPersonSplit.toFixed(2)} {baseCurrency}
+                {formatMoney(perPersonSplit, baseCurrency)}
               </div>
             </div>
           </div>
@@ -304,10 +380,10 @@ export function LedgerAndSettleTab({
                   let netText = 'Even'
                   if (isCredit) {
                     netClass = 'credit'
-                    netText = `+${net.toFixed(2)} ${baseCurrency}`
+                    netText = `+${formatMoney(net, baseCurrency)}`
                   } else if (isDebit) {
                     netClass = 'debit'
-                    netText = `-${Math.abs(net).toFixed(2)} ${baseCurrency}`
+                    netText = `-${formatMoney(Math.abs(net), baseCurrency)}`
                   }
 
                   return (
@@ -355,7 +431,7 @@ export function LedgerAndSettleTab({
                         <span style={{ fontWeight: '600' }}>{tx.toName}</span>
                       </div>
                       <span style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '0.95rem' }}>
-                        {tx.amount.toFixed(2)} {baseCurrency}
+                        {formatMoney(tx.amount, baseCurrency)}
                       </span>
                     </div>
                   ))}

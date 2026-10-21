@@ -8,7 +8,7 @@ import { useTripRealtime } from '../hooks/useTripRealtime'
 import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer, updateRsvpDetails } from '../services/rsvps'
 import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption, deleteOption, updateOptionDates, toggleOptionParticipant } from '../services/options'
 import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
-import { fetchExpenses, logExpense } from '../services/expenses'
+import { fetchExpenses, logExpense, updateExpense, deleteExpense } from '../services/expenses'
 import { fetchExchangeRates, convertCurrency, calculateSettlements, calculateExpenseParticipantShares } from '../utils/currency'
 import { fetchActivityLogs } from '../services/activity'
 import { generateICalContent, downloadICalFile } from '../utils/ical'
@@ -143,7 +143,7 @@ function TripDetails() {
         const poll = await fetchActivePoll(id, cat)
         if (poll) map[cat.toLowerCase()] = poll
       }
-      setAllActivePollsMap(map)
+      setAllActivePollsMap((prev) => ({ ...(prev || {}), ...map }))
     } catch (err) {
       console.warn('Failed to load Gantt data:', err)
     }
@@ -219,6 +219,7 @@ function TripDetails() {
 
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [expenseOptionToPreFill, setExpenseOptionToPreFill] = useState(null)
+  const [expenseToEdit, setExpenseToEdit] = useState(null)
   const [expenseLoading, setExpenseLoading] = useState(false)
   const [expenseError, setExpenseError] = useState('')
 
@@ -581,26 +582,54 @@ function TripDetails() {
     }
   }
 
-  const handleExpenseSubmit = async ({ description, amount, currency, category, paidBy, splitUsers, optionId }) => {
+  const handleExpenseSubmit = async ({ description, amount, currency, category, paidBy, splitUsers, optionId, expenseId }) => {
     setExpenseLoading(true)
     setExpenseError('')
     try {
-      await logExpense(
-        id,
-        paidBy,
-        amount,
-        currency,
-        description,
-        splitUsers,
-        category,
-        optionId
-      )
+      if (expenseId) {
+        await updateExpense(expenseId, {
+          description,
+          amount,
+          currency,
+          category,
+          paidBy,
+          splitUsers
+        })
+      } else {
+        await logExpense(
+          id,
+          paidBy,
+          amount,
+          currency,
+          description,
+          splitUsers,
+          category,
+          optionId
+        )
+      }
       setShowExpenseModal(false)
+      setExpenseToEdit(null)
+      setExpenseOptionToPreFill(null)
       loadExpenses()
       loadActivityLogs()
     } catch (err) {
       console.error('Failed to log expense:', err)
-      setExpenseError(err.message || 'Failed to log expense.')
+      setExpenseError(err.message || 'Failed to save expense.')
+    } finally {
+      setExpenseLoading(false)
+    }
+  }
+
+  const handleDeleteExpense = async (expenseId) => {
+    if (!window.confirm('Are you sure you want to remove this expense?')) return
+    setExpenseLoading(true)
+    try {
+      await deleteExpense(expenseId)
+      loadExpenses()
+      loadActivityLogs()
+    } catch (err) {
+      console.error('Failed to delete expense:', err)
+      alert(err.message || 'Failed to delete expense.')
     } finally {
       setExpenseLoading(false)
     }
@@ -854,7 +883,7 @@ function TripDetails() {
   }
 
   return (
-    <div className="trip-details-container animate-fade-in">
+    <div className="trip-details-container">
       {/* Blocking Modal strictly if user is confirmed NOT in roster after loading completes */}
       {!tripLoading && !rosterLoading && trip !== null && activeUser && !activeUserInRoster && (
         <div className="modal-overlay">
@@ -1043,9 +1072,16 @@ function TripDetails() {
               perPersonSplit={perPersonSplit}
               baseCurrency={baseCurrency}
               onOpenExpenseModal={() => {
+                setExpenseToEdit(null)
                 setExpenseOptionToPreFill(null)
                 setShowExpenseModal(true)
               }}
+              onEditExpense={(exp) => {
+                setExpenseOptionToPreFill(null)
+                setExpenseToEdit(exp)
+                setShowExpenseModal(true)
+              }}
+              onDeleteExpense={handleDeleteExpense}
               allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
               rates={rates}
               activeUser={activeUser}
@@ -1093,7 +1129,11 @@ function TripDetails() {
 
       <AddExpenseModal
         isOpen={showExpenseModal}
-        onClose={() => setShowExpenseModal(false)}
+        onClose={() => {
+          setShowExpenseModal(false)
+          setExpenseToEdit(null)
+          setExpenseOptionToPreFill(null)
+        }}
         onSubmit={handleExpenseSubmit}
         loading={expenseLoading}
         error={expenseError}
@@ -1101,6 +1141,7 @@ function TripDetails() {
         baseCurrency={baseCurrency}
         activeUserId={activeUser?.id}
         optionToPreFill={expenseOptionToPreFill}
+        expenseToEdit={expenseToEdit}
       />
 
       <EditTripModal

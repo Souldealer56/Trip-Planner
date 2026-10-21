@@ -103,6 +103,68 @@ export async function logExpense(
 }
 
 /**
+ * Updates an existing expense in the database.
+ * @param {string} expenseId UUID of the expense record.
+ * @param {Object} updates Fields to update (description, amount, currency, category, paidBy, splitUsers).
+ * @returns {Promise<Object>} The updated expense record.
+ */
+export async function updateExpense(
+  expenseId,
+  {
+    description,
+    amount,
+    currency,
+    category,
+    paidBy,
+    splitUsers
+  }
+) {
+  const rawCat = (category || 'other').toLowerCase().trim()
+  const normalizedCategory = (rawCat === 'flights' || rawCat === 'flight') ? 'transport' : rawCat
+  const validCategory = ['accommodation', 'activities', 'food', 'transport', 'other'].includes(normalizedCategory)
+    ? normalizedCategory
+    : 'other'
+
+  const payload = {
+    paid_by: paidBy,
+    amount: parseFloat(amount),
+    currency: currency || 'USD',
+    description: description || '',
+    split_users: splitUsers || [],
+    category: validCategory
+  }
+
+  const { data, error } = await supabase
+    .from('expenses')
+    .update(payload)
+    .eq('id', expenseId)
+    .select('*, users!expenses_paid_by_fkey(first_name, username)')
+    .single()
+
+  if (error) {
+    throw error
+  }
+  return data
+}
+
+/**
+ * Deletes an expense by its UUID.
+ * @param {string} expenseId UUID of the expense to delete.
+ * @returns {Promise<boolean>} True if successfully deleted.
+ */
+export async function deleteExpense(expenseId) {
+  const { error } = await supabase
+    .from('expenses')
+    .delete()
+    .eq('id', expenseId)
+
+  if (error) {
+    throw error
+  }
+  return true
+}
+
+/**
  * Helper to parse numerical cost and currency from option text or option properties.
  */
 export function parseOptionCost(option, baseCurrency = 'USD') {

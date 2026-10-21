@@ -4,6 +4,7 @@ import {
   formatLocalDateStr,
   formatDateRange,
   formatCurrency,
+  formatMoney,
   formatRelativeTime,
   formatDateTimeRange
 } from '../utils/format'
@@ -83,6 +84,25 @@ describe('Formatting Utilities', () => {
 
     it('falls back to currency code prefix when symbol is unknown', () => {
       expect(formatCurrency(100, 'XYZ')).toBe('XYZ100')
+    })
+  })
+
+  describe('formatMoney', () => {
+    it('formats integer amounts without decimal zeroes', () => {
+      expect(formatMoney(6563, 'CAD')).toBe('6,563 CAD')
+      expect(formatMoney(6563.00, 'CAD')).toBe('6,563 CAD')
+      expect(formatMoney(0, 'USD')).toBe('0 USD')
+    })
+
+    it('formats amounts with cents up to 2 decimal places', () => {
+      expect(formatMoney(6563.5, 'CAD')).toBe('6,563.50 CAD')
+      expect(formatMoney(6563.25, 'USD')).toBe('6,563.25 USD')
+    })
+
+    it('handles missing or zero currency code properly', () => {
+      expect(formatMoney(1200)).toBe('1,200')
+      expect(formatMoney(null, 'CAD')).toBe('0 CAD')
+      expect(formatMoney(undefined)).toBe('0')
     })
   })
 

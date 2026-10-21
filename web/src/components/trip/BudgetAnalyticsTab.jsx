@@ -1,5 +1,6 @@
 import React from 'react'
 import { calculateTripBudgetAnalytics } from '../../utils/currency'
+import { formatMoney } from '../../utils/format'
 
 export function BudgetAnalyticsTab({
   expenses = [],
@@ -45,8 +46,8 @@ export function BudgetAnalyticsTab({
                 <span style={{ fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', color: '#c4b5fd', letterSpacing: '0.5px' }}>
                   🎯 My Personal Trip Cost Forecast
                 </span>
-                <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#ffffff', marginTop: '4px' }}>
-                  {activeUserStats.totalProjectedPersonalCost.toFixed(2)} {baseCurrency}
+                <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: '4px' }}>
+                  {formatMoney(activeUserStats.totalProjectedPersonalCost, baseCurrency)}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -60,7 +61,7 @@ export function BudgetAnalyticsTab({
                     border: '1px solid rgba(255, 255, 255, 0.12)'
                   }}
                 >
-                  🧾 <strong>{activeUserStats.actualLoggedShare.toFixed(2)} {baseCurrency}</strong> Logged
+                  🧾 <strong>{formatMoney(activeUserStats.actualLoggedShare, baseCurrency)}</strong> Logged
                 </span>
                 <span
                   style={{
@@ -72,7 +73,7 @@ export function BudgetAnalyticsTab({
                     border: '1px solid rgba(168, 85, 247, 0.3)'
                   }}
                 >
-                  🔒 <strong>{activeUserStats.projectedFromLockedOptions.toFixed(2)} {baseCurrency}</strong> Pending Choices
+                  🔒 <strong>{formatMoney(activeUserStats.projectedFromLockedOptions, baseCurrency)}</strong> Pending Choices
                 </span>
                 <span
                   style={{
@@ -85,7 +86,7 @@ export function BudgetAnalyticsTab({
                     fontWeight: 'bold'
                   }}
                 >
-                  💳 {activeUserStats.netBalance >= 0 ? '+' : ''}{activeUserStats.netBalance.toFixed(2)} {baseCurrency} Net
+                  💳 {activeUserStats.netBalance >= 0 ? '+' : ''}{formatMoney(activeUserStats.netBalance, baseCurrency)} Net
                 </span>
               </div>
             </div>
@@ -99,7 +100,7 @@ export function BudgetAnalyticsTab({
               Total Estimated Budget
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary-light)', marginTop: '4px' }}>
-              {analytics.totalEstimatedBudget.toFixed(2)} {baseCurrency}
+              {formatMoney(analytics.totalEstimatedBudget, baseCurrency)}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               From locked itinerary choices
@@ -111,7 +112,7 @@ export function BudgetAnalyticsTab({
               Total Actual Logged
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: '4px' }}>
-              {analytics.totalActualSpend.toFixed(2)} {baseCurrency}
+              {formatMoney(analytics.totalActualSpend, baseCurrency)}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               From {expenses.length} logged expense{expenses.length !== 1 ? 's' : ''}
@@ -131,7 +132,7 @@ export function BudgetAnalyticsTab({
               }}
             >
               {analytics.variance > 0 ? '+' : ''}
-              {analytics.variance.toFixed(2)} {baseCurrency} ({analytics.variancePercent > 0 ? '+' : ''}
+              {formatMoney(analytics.variance, baseCurrency)} ({analytics.variancePercent > 0 ? '+' : ''}
               {analytics.variancePercent.toFixed(1)}%)
             </div>
             <div
@@ -164,8 +165,8 @@ export function BudgetAnalyticsTab({
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                     <span style={{ fontWeight: '600' }}>{cat}</span>
                     <span style={{ color: 'var(--text-muted)' }}>
-                      Actual: <strong>{act.toFixed(2)} {baseCurrency}</strong>{' '}
-                      {est > 0 ? `/ Est: ${est.toFixed(2)} ${baseCurrency}` : ''}
+                      Actual: <strong>{formatMoney(act, baseCurrency)}</strong>{' '}
+                      {est > 0 ? `/ Est: ${formatMoney(est, baseCurrency)}` : ''}
                     </span>
                   </div>
                   <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -235,16 +236,16 @@ export function BudgetAnalyticsTab({
                         )}
                       </td>
                       <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-muted)' }}>
-                        {t.owed.toFixed(2)} {baseCurrency}
+                        {formatMoney(t.owed, baseCurrency)}
                       </td>
                       <td style={{ padding: '10px 8px', textAlign: 'right', color: '#c4b5fd' }}>
-                        {t.projectedFromLockedOptions.toFixed(2)} {baseCurrency}
+                        {formatMoney(t.projectedFromLockedOptions, baseCurrency)}
                       </td>
-                      <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold', color: '#ffffff' }}>
-                        {t.totalProjectedPersonalCost.toFixed(2)} {baseCurrency}
+                      <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold', color: 'var(--text-main)' }}>
+                        {formatMoney(t.totalProjectedPersonalCost, baseCurrency)}
                       </td>
                       <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-main)' }}>
-                        {t.paid.toFixed(2)} {baseCurrency}
+                        {formatMoney(t.paid, baseCurrency)}
                       </td>
                       <td
                         style={{
@@ -255,7 +256,7 @@ export function BudgetAnalyticsTab({
                         }}
                       >
                         {isCredit ? '+' : ''}
-                        {t.netBalance.toFixed(2)} {baseCurrency}
+                        {formatMoney(t.netBalance, baseCurrency)}
                       </td>
                       <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '600' }}>
                         {t.sharePercent.toFixed(1)}%
