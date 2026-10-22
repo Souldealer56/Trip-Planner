@@ -11,6 +11,73 @@ export const GROCERY_AISLES = [
 
 const VALID_AISLE_IDS = new Set(GROCERY_AISLES.map((a) => a.id))
 
+/**
+ * Lightweight UUID validator.
+ * Matches standard 8-4-4-4-12 hex UUID pattern.
+ * @param {*} val
+ * @returns {boolean}
+ */
+export function isValidUuid(val) {
+  if (typeof val !== 'string') return false
+  const trimmed = val.trim()
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(trimmed)
+}
+
+/**
+ * Sanitizes an input value to a valid UUID string or null.
+ * Rejects empty strings, malformed strings, or non-UUID values (e.g. datetimes).
+ * @param {*} val
+ * @returns {string|null}
+ */
+export function sanitizeUuidOrNull(val) {
+  if (!val || typeof val !== 'string') return null
+  const trimmed = val.trim()
+  return isValidUuid(trimmed) ? trimmed : null
+}
+
+/**
+ * Sanitizes an array of values, returning only valid UUID / identifier strings.
+ * Filters out empty values, nulls, and date/time strings.
+ * @param {Array} arr
+ * @returns {Array<string>}
+ */
+export function sanitizeUuidArray(arr) {
+  if (!Array.isArray(arr)) return []
+  return arr.filter((item) => {
+    if (!item || typeof item !== 'string') return false
+    const trimmed = item.trim()
+    if (!trimmed) return false
+    if (sanitizeDateTimeOrNull(trimmed) !== null) return false
+    if (isValidUuid(trimmed)) return true
+    if (/^[a-zA-Z0-9_-]+$/.test(trimmed) && !trimmed.includes(':') && !trimmed.includes('T')) {
+      return true
+    }
+    return false
+  })
+}
+
+/**
+ * Validates and normalizes date/datetime strings (e.g. "2026-12-24T19:30" or ISO timestamps).
+ * @param {*} val
+ * @returns {string|null}
+ */
+export function sanitizeDateTimeOrNull(val) {
+  if (!val) return null
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? null : val.toISOString()
+  }
+  if (typeof val !== 'string') return null
+  const trimmed = val.trim()
+  if (!trimmed) return null
+  // Strictly match date patterns: YYYY-MM-DD or YYYY-MM-DDTHH:mm(:ss)(Z|offset)
+  if (!/^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(trimmed)) {
+    return null
+  }
+  const parsed = new Date(trimmed)
+  if (isNaN(parsed.getTime())) return null
+  return trimmed
+}
+
 function getFallbackKey(tripId) {
   return `trip_groceries_fallback_${tripId}`
 }
@@ -32,6 +99,140 @@ function saveLocalGroceries(tripId, items) {
     localStorage.setItem(getFallbackKey(tripId), JSON.stringify(items))
   } catch (err) {
     console.warn('Failed to persist local groceries cache:', err)
+  }
+}
+
+/**
+ * Saves a pitched meal plan option into the poll_options table with validated UUIDs
+ * and normalized date/timestamp payloads.
+ *
+ * @param {Object} mealData Structured meal plan object
+ * @returns {Promise<Object>} Created or updated option record
+ */
+export async function saveMealPlan(mealData) {
+  if (!mealData || typeof mealData !== 'object') {
+    throw new Error('Meal plan payload must be an object')
+  }
+
+  const tripId = mealData.trip_id || mealData.tripId
+  if (!tripId) {
+    throw new Error('Trip ID is required to save a meal plan.')
+  }
+  if (!isValidUuid(tripId)) {
+    throw new Error(`Invalid trip_id: expected a valid UUID, got "${tripId}"`)
+  }
+
+  const mealTitle = (mealData.option_text || mealData.title || mealData.name || '').trim()
+  if (!mealTitle) {
+    throw new Error('Meal plan title is required')
+  }
+
+  const rawStart = mealData.start_date || mealData.startDate
+  const rawEnd = mealData.end_date || mealData.endDate
+  const startDateTime = sanitizeDateTimeOrNull(rawStart)
+  const endDateTime = sanitizeDateTimeOrNull(rawEnd) || startDateTime
+
+  const addedBy = sanitizeUuidOrNull(mealData.added_by || mealData.addedBy || mealData.userId || mealData.user_id)
+
+  const rawMetadata = mealData.metadata && typeof mealData.metadata === 'object' ? mealData.metadata : {}
+  const chefIds = sanitizeUuidArray(mealData.chef_ids || rawMetadata.chef_ids || [])
+  const cleanupIds = sanitizeUuidArray(mealData.cleanup_ids || rawMetadata.cleanup_ids || [])
+  const ingredients = Array.isArray(mealData.ingredients)
+    ? mealData.ingredients
+    : (Array.isArray(rawMetadata.ingredients) ? rawMetadata.ingredients : [])
+
+  const metadata = {
+    ...rawMetadata,
+    meal_slot: mealData.meal_slot || rawMetadata.meal_slot || 'dinner',
+    meal_mode: mealData.meal_mode || rawMetadata.meal_mode || 'cook',
+    chef_ids: chefIds,
+    cleanup_ids: cleanupIds,
+    ingredients
+  }
+
+  let sanitizedLink = (mealData.link || '').trim() || null
+  if (sanitizedLink && !/^https?:\/\//i.test(sanitizedLink)) {
+    sanitizedLink = `https://${sanitizedLink}`
+  }
+
+  const estimatedCost = mealData.estimated_cost ?? mealData.cost ?? mealData.estimatedCost
+  const numericCost = estimatedCost !== undefined && estimatedCost !== null && !isNaN(Number(estimatedCost))
+    ? Number(estimatedCost)
+    : null
+
+  const assignedUsers = sanitizeUuidArray(mealData.assigned_users || mealData.assignedUsers || [])
+
+  const optionPayload = {
+    trip_id: tripId,
+    category: 'food',
+    option_text: mealTitle,
+    estimated_cost: numericCost,
+    currency: numericCost !== null ? (mealData.currency || 'USD') : null,
+    link: sanitizedLink,
+    description: mealData.description ? String(mealData.description).trim() : null,
+    start_date: startDateTime,
+    end_date: endDateTime,
+    added_by: addedBy,
+    is_locked: Boolean(mealData.is_locked),
+    cost_type: mealData.cost_type || mealData.costType || 'split_total',
+    assigned_users: assignedUsers,
+    metadata
+  }
+
+  const existingOptionId = mealData.id || mealData.option_id || mealData.optionId
+  const cleanOptionId = existingOptionId !== null && existingOptionId !== undefined && !isNaN(Number(existingOptionId)) && String(existingOptionId).trim() !== ''
+    ? Number(existingOptionId)
+    : null
+
+  try {
+    const q = supabase?.from?.('poll_options')
+    if (q) {
+      if (cleanOptionId && typeof q.update === 'function') {
+        const { data, error } = await q
+          .update(optionPayload)
+          .eq('id', cleanOptionId)
+          .select()
+          .single()
+
+        if (!error && data) return data
+        if (error) throw error
+      } else if (typeof q.insert === 'function') {
+        const { data, error } = await q
+          .insert(optionPayload)
+          .select()
+          .single()
+
+        if (!error && data) return data
+        if (error) {
+          // Fallback if schema does not support new columns
+          const fallbackPayload = {
+            trip_id: tripId,
+            category: 'food',
+            option_text: mealTitle,
+            estimated_cost: numericCost,
+            currency: numericCost !== null ? (mealData.currency || 'USD') : null,
+            link: sanitizedLink,
+            description: mealData.description ? String(mealData.description).trim() : null,
+            start_date: startDateTime,
+            end_date: endDateTime,
+            added_by: addedBy,
+            is_locked: false
+          }
+          const fallbackRes = await q.insert(fallbackPayload).select().single()
+          if (fallbackRes.error) throw fallbackRes.error
+          return fallbackRes.data
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase meal option operation failed:', err)
+    throw err
+  }
+
+  return {
+    id: cleanOptionId || Date.now(),
+    ...optionPayload,
+    created_at: new Date().toISOString()
   }
 }
 
@@ -77,14 +278,18 @@ export async function addGroceryItem(tripId, { name, quantity = '', aisle = 'oth
 
   const cleanName = name.trim()
   const cleanAisle = VALID_AISLE_IDS.has(aisle) ? aisle : 'other'
+  const cleanMealOptionId = meal_option_id !== null && meal_option_id !== undefined && !isNaN(Number(meal_option_id)) && String(meal_option_id).trim() !== ''
+    ? Number(meal_option_id)
+    : null
+  const cleanAddedBy = sanitizeUuidOrNull(added_by)
 
   const payload = {
     trip_id: tripId,
     name: cleanName,
     quantity: quantity ? String(quantity).trim() : '',
     aisle: cleanAisle,
-    meal_option_id: meal_option_id || null,
-    added_by: added_by || null,
+    meal_option_id: cleanMealOptionId,
+    added_by: cleanAddedBy,
     is_checked: false
   }
 

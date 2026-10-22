@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { computeKitchenCrewFairness, getMealDietaryAlerts, GROCERY_AISLES } from '../../services/groceries'
 import { getPresentTravelers } from '../../services/rsvps'
+import { getTripDaysList, parseLocalDate } from '../../utils/format'
 
 const MEAL_SLOTS = [
   { id: 'breakfast', label: 'Breakfast', icon: '🌅', defaultTime: '08:30' },
@@ -39,6 +40,7 @@ export function MealPlannerMatrix({
   onVoteToggle,
   onLockToggle,
   onDeleteOption,
+  onEditOption,
   onToggleParticipant,
   onOpenGroceryList,
   uncheckedGroceryCount = 0,
@@ -82,28 +84,16 @@ export function MealPlannerMatrix({
       })
     }
 
-    const [sYear, sMonth, sDay] = trip.start_date.split('-').map(Number)
-    const [eYear, eMonth, eDay] = trip.end_date.split('-').map(Number)
-    const cur = new Date(sYear, sMonth - 1, sDay, 12, 0, 0)
-    const end = new Date(eYear, eMonth - 1, eDay, 12, 0, 0)
-    const days = []
-    let idx = 1
-
-    while (cur <= end) {
-      const y = cur.getFullYear()
-      const m = String(cur.getMonth() + 1).padStart(2, '0')
-      const d = String(cur.getDate()).padStart(2, '0')
-      const dateStr = `${y}-${m}-${d}`
-      days.push({
-        dayIndex: idx,
-        dateStr,
-        label: `Day ${idx}`,
-        subLabel: cur.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-      })
-      cur.setDate(cur.getDate() + 1)
-      idx++
-    }
-    return days
+    const list = getTripDaysList(trip.start_date, trip.end_date)
+    return list.map((item) => {
+      const d = parseLocalDate(item.dateStr)
+      return {
+        dayIndex: item.dayNumber,
+        dateStr: item.dateStr,
+        label: `Day ${item.dayNumber}`,
+        subLabel: d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : item.shortDate
+      }
+    })
   }, [trip?.start_date, trip?.end_date])
 
   // Open planning modal for a slot
@@ -422,6 +412,17 @@ export function MealPlannerMatrix({
                                       title={isLocked ? 'Unlock menu' : 'Lock as winning menu'}
                                     >
                                       {isLocked ? '🏆' : '🔒'}
+                                    </button>
+                                  )}
+
+                                  {onEditOption && (
+                                    <button
+                                      type="button"
+                                      className="btn-icon-soft"
+                                      onClick={() => onEditOption(meal)}
+                                      title="Edit this meal plan"
+                                    >
+                                      ✏️
                                     </button>
                                   )}
 

@@ -3,7 +3,8 @@ import {
   detectScheduleGaps,
   detectScheduleConflicts,
   packOptionsIntoSubTracks,
-  analyzeDailyLogisticsCoverage
+  analyzeDailyLogisticsCoverage,
+  isVehicleCoverage
 } from '../utils/schedule'
 import { parseLocalDate, formatLocalDateStr } from '../utils/format'
 
@@ -222,6 +223,129 @@ describe('Schedule Engine Utilities', () => {
       expect(res2.conflictingOptionIds.has('optA')).toBe(true)
       expect(res2.conflictingOptionIds.has('optB')).toBe(true)
     })
+
+    it('produces 0 schedule conflicts for a shared car spanning Days 1 to 7 alongside 5 timed activities', () => {
+      // Rental car / vehicle coverage spanning the entire 7-day trip
+      const sharedCar = {
+        id: 'car-1',
+        category: 'transport',
+        option_text: 'Rental Minivan (Hertz)',
+        start_date: '2026-07-24T09:00',
+        end_date: '2026-07-31T18:00',
+        is_locked: true,
+        metadata: {
+          transport_mode: 'vehicle_pool',
+          seats_capacity: 7
+        }
+      }
+
+      // 5 timed daily activities during Days 1 to 7
+      const activities = [
+        { id: 'act-1', category: 'activities', option_text: 'Surfing Day 1', start_date: '2026-07-24T10:00', end_date: '2026-07-24T12:00', is_locked: true },
+        { id: 'act-2', category: 'activities', option_text: 'Mountain Hike Day 2', start_date: '2026-07-25T09:00', end_date: '2026-07-25T14:00', is_locked: true },
+        { id: 'act-3', category: 'activities', option_text: 'Museum Tour Day 3', start_date: '2026-07-26T15:00', end_date: '2026-07-26T17:00', is_locked: true },
+        { id: 'act-4', category: 'activities', option_text: 'Wine Tasting Day 4', start_date: '2026-07-27T18:00', end_date: '2026-07-27T20:00', is_locked: true },
+        { id: 'act-5', category: 'activities', option_text: 'Kayaking Day 5', start_date: '2026-07-28T11:00', end_date: '2026-07-28T13:00', is_locked: true }
+      ]
+
+      const { conflictingOptionIds, conflictPairs } = detectScheduleConflicts([sharedCar, ...activities])
+      expect(conflictingOptionIds.size).toBe(0)
+      expect(conflictPairs).toHaveLength(0)
+    })
+
+    it('still produces a schedule conflict when two timed activities overlap', () => {
+      const options = [
+        { id: 'act-a', category: 'activities', option_text: 'Surf Lesson', start_date: '2026-07-25T10:00', end_date: '2026-07-25T13:00', is_locked: true },
+        { id: 'act-b', category: 'activities', option_text: 'Cooking Class', start_date: '2026-07-25T12:00', end_date: '2026-07-25T14:00', is_locked: true }
+      ]
+
+      const { conflictingOptionIds, conflictPairs } = detectScheduleConflicts(options)
+      expect(conflictingOptionIds.has('act-a')).toBe(true)
+      expect(conflictingOptionIds.has('act-b')).toBe(true)
+      expect(conflictPairs).toHaveLength(1)
+    })
+
+    it('still produces a schedule conflict when a point-to-point transit leg (e.g. flight) overlaps an activity', () => {
+      const flight = {
+        id: 'flight-101',
+        category: 'transport',
+        option_text: 'Flight SFO to CDG',
+        start_date: '2026-07-24T14:00',
+        end_date: '2026-07-24T18:00',
+        is_locked: true,
+        metadata: {
+          transport_mode: 'transit',
+          route_code: 'AF083'
+        }
+      }
+
+      const activity = {
+        id: 'act-clash',
+        category: 'activities',
+        option_text: 'Welcome Walking Tour',
+        start_date: '2026-07-24T16:00',
+        end_date: '2026-07-24T19:00',
+        is_locked: true
+      }
+
+      const { conflictingOptionIds, conflictPairs } = detectScheduleConflicts([flight, activity])
+      expect(conflictingOptionIds.has('flight-101')).toBe(true)
+      expect(conflictingOptionIds.has('act-clash')).toBe(true)
+      expect(conflictPairs).toHaveLength(1)
+    })
+
+    it('does NOT conflict if two overlapping activities have disjoint assigned participants', () => {
+      const options = [
+        {
+          id: 'scuba',
+          category: 'activities',
+          option_text: 'Scuba Diving',
+          start_date: '2026-07-25T10:00',
+          end_date: '2026-07-25T13:00',
+          is_locked: true,
+          assigned_users: ['user-alice', 'user-bob']
+        },
+        {
+          id: 'spa',
+          category: 'activities',
+          option_text: 'Thermal Spa & Massage',
+          start_date: '2026-07-25T11:00',
+          end_date: '2026-07-25T14:00',
+          is_locked: true,
+          assigned_users: ['user-charlie', 'user-dave']
+        }
+      ]
+
+      const { conflictingOptionIds } = detectScheduleConflicts(options)
+      expect(conflictingOptionIds.size).toBe(0)
+    })
+
+    it('flags conflict when overlapping activities share at least one traveler', () => {
+      const options = [
+        {
+          id: 'scuba',
+          category: 'activities',
+          option_text: 'Scuba Diving',
+          start_date: '2026-07-25T10:00',
+          end_date: '2026-07-25T13:00',
+          is_locked: true,
+          assigned_users: ['user-alice', 'user-bob']
+        },
+        {
+          id: 'spa',
+          category: 'activities',
+          option_text: 'Thermal Spa & Massage',
+          start_date: '2026-07-25T11:00',
+          end_date: '2026-07-25T14:00',
+          is_locked: true,
+          assigned_users: ['user-bob', 'user-charlie'] // Bob cannot be in two places at once!
+        }
+      ]
+
+      const { conflictingOptionIds } = detectScheduleConflicts(options)
+      expect(conflictingOptionIds.has('scuba')).toBe(true)
+      expect(conflictingOptionIds.has('spa')).toBe(true)
+    })
   })
 
   describe('packOptionsIntoSubTracks multi-lane track packing', () => {
@@ -389,6 +513,71 @@ describe('Schedule Engine Utilities', () => {
       expect(departureDay.isDepartureDay).toBe(true)
       expect(departureDay.accommodation.status).toBe('departure')
       expect(coverage.totalNights).toBe(3)
+    })
+
+    it('tracks vehicle coverage, seat capacity, and assigned passengers in daily logistics coverage', () => {
+      const options = [
+        {
+          id: 'suv-1',
+          category: 'transport',
+          option_text: '7-Seater Rental SUV',
+          start_date: '2026-09-01',
+          end_date: '2026-09-04',
+          is_locked: true,
+          assigned_users: ['u1', 'u2', 'u3', 'u4', 'u5'],
+          metadata: {
+            transport_mode: 'vehicle_pool',
+            seats_capacity: 7,
+            driver_user_id: 'u1'
+          }
+        }
+      ]
+
+      const coverage = analyzeDailyLogisticsCoverage(trip, options, roster)
+      expect(coverage.totalVehiclesCount).toBe(1)
+
+      const day1 = coverage.days[0]
+      expect(day1.transport.seatsLocked).toBe(7)
+      expect(day1.transport.status).toBe('partial') // 7 seats locked for 8 present members
+      expect(day1.transport.availableVehicles).toHaveLength(1)
+      expect(day1.transport.lockedVehicles).toHaveLength(1)
+
+      const veh = day1.transport.availableVehicles[0]
+      expect(veh.capacity).toBe(7)
+      expect(veh.assignedCount).toBe(5)
+      expect(veh.driverUserId).toBe('u1')
+      expect(veh.assignedMembers.map(m => m.user_id)).toEqual(['u1', 'u2', 'u3', 'u4', 'u5'])
+    })
+  })
+
+  describe('isVehicleCoverage semantics', () => {
+    it('identifies explicit vehicle_pool and vehicle transport_mode', () => {
+      expect(isVehicleCoverage({ category: 'transport', metadata: { transport_mode: 'vehicle_pool' } })).toBe(true)
+      expect(isVehicleCoverage({ category: 'transport', metadata: { transport_mode: 'vehicle' } })).toBe(true)
+    })
+
+    it('identifies transit and ticket as point-to-point transit (not vehicle coverage)', () => {
+      expect(isVehicleCoverage({ category: 'transport', metadata: { transport_mode: 'transit' } })).toBe(false)
+      expect(isVehicleCoverage({ category: 'transport', metadata: { transport_mode: 'ticket' } })).toBe(false)
+      expect(isVehicleCoverage({ category: 'flights', metadata: { transport_mode: 'ticket' } })).toBe(false)
+    })
+
+    it('identifies multi-day car rental by text or duration heuristics', () => {
+      expect(isVehicleCoverage({
+        category: 'transport',
+        option_text: 'Avis Car Rental',
+        start_date: '2026-07-24T09:00',
+        end_date: '2026-07-31T18:00'
+      })).toBe(true)
+    })
+
+    it('rejects flights or tickets by text even if multi-day', () => {
+      expect(isVehicleCoverage({
+        category: 'transport',
+        option_text: 'Roundtrip Flight to Paris (Air France)',
+        start_date: '2026-07-24T09:00',
+        end_date: '2026-07-31T18:00'
+      })).toBe(false)
     })
   })
 })

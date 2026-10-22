@@ -376,16 +376,17 @@
   "374": "format.js",
   "375": "App.jsx",
   "376": "devDependencies",
-  "377": "format.js",
+  "377": "TripDetails.jsx",
   "378": "✨ Key Features",
-  "379": "components.smoke.test.jsx",
+  "379": "options.js",
   "380": "rules",
-  "381": "groceries.js",
+  "381": "qa_e2e_scenario.test.jsx",
   "382": "Trip Planner — Project Context & Architectural Guidelines",
   "383": "React + Vite",
   "384": "Agent Rules & Integration Guidelines",
   "385": "github.md",
   "386": "vite.config.js",
   "387": "qa_e2e_scenario.test.jsx",
-  "388": "useTripRealtime.js"
+  "388": "components.smoke.test.jsx",
+  "389": "supabase.js"
 }

@@ -1985,8 +1985,8 @@
     "semantic_hash": ""
   },
   "GEMINI.md": {
-    "mtime": 1792193305.1799338,
-    "ast_hash": "82c560220a6818feec449e6352e2e5d2",
+    "mtime": 1792595749.582213,
+    "ast_hash": "99b1e9f0db77157a26ae94d69bc5a722",
     "semantic_hash": ""
   },
   ".agents/gsd-core/references/edge-probe.md": {
@@ -2025,8 +2025,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/components.smoke.test.jsx": {
-    "mtime": 1792099376.9912548,
-    "ast_hash": "c16419ada2d2cef9bd496543bc443615",
+    "mtime": 1792629951.7935112,
+    "ast_hash": "7c508b7e0bffc134518ce4a22da34c4e",
     "semantic_hash": ""
   },
   "web/src/__tests__/currency.test.js": {
@@ -2035,8 +2035,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/format.test.js": {
-    "mtime": 1792537879.6444082,
-    "ast_hash": "047f2ff1da343462de0613e5406418f9",
+    "mtime": 1792629672.8971493,
+    "ast_hash": "90cc0c9f78752e0da74a752dd4a98b07",
     "semantic_hash": ""
   },
   "web/src/__tests__/ical.test.js": {
@@ -2060,13 +2060,13 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/schedule.test.js": {
-    "mtime": 1792193211.842247,
-    "ast_hash": "0c38d5af4786f1525d7b3bb8b925081d",
+    "mtime": 1792613915.8997853,
+    "ast_hash": "71369cca8ad43118341bb31c2d70711b",
     "semantic_hash": ""
   },
   "web/src/components/GanttTimeline.jsx": {
-    "mtime": 1792556261.733067,
-    "ast_hash": "127282ee50af718cb4c6a577ad38537c",
+    "mtime": 1792615044.5919397,
+    "ast_hash": "432038cbd2a4be32e6e4210c4a90d3ba",
     "semantic_hash": ""
   },
   "web/src/components/modals/AddExpenseModal.jsx": {
@@ -2080,8 +2080,8 @@
     "semantic_hash": ""
   },
   "web/src/components/modals/PitchOptionModal.jsx": {
-    "mtime": 1792420329.2057025,
-    "ast_hash": "0809370fcfdbeb8b3dcfd0cb4f8f7a47",
+    "mtime": 1792630516.525359,
+    "ast_hash": "d1366e1df60b5021ca8289f0bf159112",
     "semantic_hash": ""
   },
   "web/src/components/modals/PrintableItineraryModal.jsx": {
@@ -2105,8 +2105,8 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/OptionsTab.jsx": {
-    "mtime": 1792549232.5062063,
-    "ast_hash": "9516e5066800fe5133492bd52993d5c8",
+    "mtime": 1792630650.4040892,
+    "ast_hash": "1a59f371099be0ef021b3d1cb1d71f7c",
     "semantic_hash": ""
   },
   "web/src/components/trip/RosterSection.jsx": {
@@ -2170,8 +2170,8 @@
     "semantic_hash": ""
   },
   "web/src/services/options.js": {
-    "mtime": 1792419955.9321084,
-    "ast_hash": "1412dcae941b4a77f115a6d769faa6ce",
+    "mtime": 1792613151.002952,
+    "ast_hash": "d939a789a322d7594ffd9fbda1a6f53c",
     "semantic_hash": ""
   },
   "web/src/services/rsvps.js": {
@@ -2200,8 +2200,8 @@
     "semantic_hash": ""
   },
   "web/src/utils/format.js": {
-    "mtime": 1792538280.1645596,
-    "ast_hash": "191c674da0f503a8fcb922ea0fd58b79",
+    "mtime": 1792629653.9789608,
+    "ast_hash": "e4a47297530c1906d3c1d5d23259a5a8",
     "semantic_hash": ""
   },
   "web/src/utils/ical.js": {
@@ -2215,8 +2215,8 @@
     "semantic_hash": ""
   },
   "web/src/utils/schedule.js": {
-    "mtime": 1792375737.282519,
-    "ast_hash": "40e1ebaccca3b4612fe49e5245717335",
+    "mtime": 1792614868.8878894,
+    "ast_hash": "b75479a425ebbb007121806462f39c73",
     "semantic_hash": ""
   },
   "web/src/views/JoinTrip.jsx": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": ""
   },
   "web/src/views/TripDetails.jsx": {
-    "mtime": 1792557066.0945072,
-    "ast_hash": "135f890fc90f58222009a81574b9b425",
+    "mtime": 1792631446.5878117,
+    "ast_hash": "08659049f1d5483d1f71c395387ab472",
     "semantic_hash": ""
   },
   "web/src/views/TripsList.jsx": {
@@ -2255,8 +2255,8 @@
     "semantic_hash": ""
   },
   ".agents/GEMINI.md": {
-    "mtime": 1792193375.61533,
-    "ast_hash": "82c560220a6818feec449e6352e2e5d2",
+    "mtime": 1792595770.09155,
+    "ast_hash": "99b1e9f0db77157a26ae94d69bc5a722",
     "semantic_hash": ""
   },
   ".agents/rules/github.md": {
@@ -2270,8 +2270,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792038476.3724482,
-    "ast_hash": "e83e03e52d90afae1a14ab1d5c1f3159",
+    "mtime": 1792595726.141144,
+    "ast_hash": "f69cab80151764a3f2281fa161a905cc",
     "semantic_hash": ""
   },
   "web/README.md": {
@@ -2330,8 +2330,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/mealsAndGroceries.test.js": {
-    "mtime": 1792191586.3539028,
-    "ast_hash": "534b198e67bea72cb48f67b7efb52f44",
+    "mtime": 1792603456.8379295,
+    "ast_hash": "246f68c49b0d6ae2ce40111bc4e6afb8",
     "semantic_hash": ""
   },
   "web/src/__tests__/tripDetailsRegression.test.jsx": {
@@ -2350,13 +2350,13 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/MealPlannerMatrix.jsx": {
-    "mtime": 1792419272.3457046,
-    "ast_hash": "8474d4e2c0a85af1601b776df5427cc1",
+    "mtime": 1792629881.9342377,
+    "ast_hash": "65bf615ccce6114684fa4883fdab63e9",
     "semantic_hash": ""
   },
   "web/src/services/groceries.js": {
-    "mtime": 1792376040.7543485,
-    "ast_hash": "83391b8e2bf257f6abada7d731b7ef45",
+    "mtime": 1792603342.0845826,
+    "ast_hash": "3bcb13a4263f57c30292d11baa39ba67",
     "semantic_hash": ""
   },
   "web/qa-live-scenario.js": {
@@ -2397,6 +2397,96 @@
   "web/src/__tests__/redesignDAndExpensesPolish.test.jsx": {
     "mtime": 1792557291.7336972,
     "ast_hash": "8260f82c9539e4a5d07fa094f25e38ac",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/options.test.js": {
+    "mtime": 1792611789.1367557,
+    "ast_hash": "b4838075352ebf794294c9b04b189eb0",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/ganttVisualLayersAndReadability.test.jsx": {
+    "mtime": 1792615087.2110195,
+    "ast_hash": "6c32ed212fc51d628d96172adb323cae",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/tripDetailsArchitectureRefactor.test.jsx": {
+    "mtime": 1792631111.9212506,
+    "ast_hash": "2c9eac4dcdde426b22e0ea9e47e767e1",
+    "semantic_hash": ""
+  },
+  "web/src/components/OptionCard.jsx": {
+    "mtime": 1792630555.1624742,
+    "ast_hash": "c2f0012cd99a4c729e9af2e92823b9ab",
+    "semantic_hash": ""
+  },
+  "web/src/components/OptionPitchModal.jsx": {
+    "mtime": 1792630501.6587038,
+    "ast_hash": "059935573658b6da89a3516f4de4bf5f",
+    "semantic_hash": ""
+  },
+  "web/src/components/TripDateTimePicker.jsx": {
+    "mtime": 1792629731.2916899,
+    "ast_hash": "dc7b1aff844bacba572aee3933213ddc",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/MealPlanSection.jsx": {
+    "mtime": 1792630448.5467927,
+    "ast_hash": "42601d4f073c0880ef57411db520782c",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/NotOnRosterModal.jsx": {
+    "mtime": 1792630706.985979,
+    "ast_hash": "53cfd5b2c80929460fe2ae8996934932",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/OptionCard.jsx": {
+    "mtime": 1792630439.1692352,
+    "ast_hash": "3f45268b07b849b611ff7195576e522a",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/OptionModal.jsx": {
+    "mtime": 1792630511.3592253,
+    "ast_hash": "45c424941d5b2ff22bbf1ec994d4bb52",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/TripDateTimeSelector.jsx": {
+    "mtime": 1792629725.570652,
+    "ast_hash": "3be152e6b9bb7b2444d0a46c3d16182b",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/TripModalsContainer.jsx": {
+    "mtime": 1792631316.8621607,
+    "ast_hash": "e8563139594d2b2dc02ae092633be734",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/WorkspaceContentPane.jsx": {
+    "mtime": 1792631234.151498,
+    "ast_hash": "82b69e70170052d305d81ac7f9d7a17d",
+    "semantic_hash": ""
+  },
+  "web/src/components/trip/WorkspaceTabsNav.jsx": {
+    "mtime": 1792630697.3622901,
+    "ast_hash": "3ff270a2a6aee92653fe9f50da1edde3",
+    "semantic_hash": ""
+  },
+  "web/src/hooks/useRosterActions.js": {
+    "mtime": 1792631509.190444,
+    "ast_hash": "b3066f49eb4f84aa4ac4c7049bb0f10e",
+    "semantic_hash": ""
+  },
+  "web/src/hooks/useTripFinancials.js": {
+    "mtime": 1792630688.6321414,
+    "ast_hash": "e337b3bedae292401f21e740003a5669",
+    "semantic_hash": ""
+  },
+  "web/src/hooks/useTripManagement.js": {
+    "mtime": 1792631457.779132,
+    "ast_hash": "5fe5ecdec910f4bf7fc22929093cd823",
+    "semantic_hash": ""
+  },
+  "web/src/hooks/useTripOptionsManager.js": {
+    "mtime": 1792630803.1957693,
+    "ast_hash": "36ff0b4d29efad21151dae4758086408",
     "semantic_hash": ""
   }
 }

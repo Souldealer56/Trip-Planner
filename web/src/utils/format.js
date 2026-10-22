@@ -222,3 +222,117 @@ export function formatDateTimeRange(startStr, endStr) {
 
   return ''
 }
+
+/**
+ * Generates an array of day descriptors for a trip date range.
+ * E.g., [{ dayNumber: 1, dateStr: '2026-12-25', label: 'Day 1 (Dec 25)', shortDate: 'Dec 25', chipLabel: 'Day 1 · Dec 25' }]
+ *
+ * @param {string|Date|null|undefined} startDate Trip start date
+ * @param {string|Date|null|undefined} endDate Trip end date
+ * @returns {Array<{ dayNumber: number, dateStr: string, label: string, shortDate: string, chipLabel: string }>}
+ */
+export function getTripDaysList(startDate, endDate) {
+  if (!startDate || !endDate) return []
+  const start = parseLocalDate(startDate)
+  const end = parseLocalDate(endDate)
+  if (!start || !end) return []
+
+  start.setHours(0, 0, 0, 0)
+  end.setHours(0, 0, 0, 0)
+
+  if (start.getTime() > end.getTime()) return []
+
+  const days = []
+  const cur = new Date(start.getTime())
+
+  while (cur.getTime() <= end.getTime()) {
+    const dayNumber = days.length + 1
+    const dateStr = formatLocalDateStr(cur)
+    const shortDate = cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const label = `Day ${dayNumber} (${shortDate})`
+    const chipLabel = `Day ${dayNumber} · ${shortDate}`
+
+    days.push({
+      dayNumber,
+      dateStr,
+      label,
+      shortDate,
+      chipLabel
+    })
+
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  return days
+}
+
+/**
+ * Builds sensible default start and end datetime strings (YYYY-MM-DDTHH:mm) bounded within trip dates.
+ * - Accommodation or Shared Vehicle: full trip span
+ * - Activity: Day 1 from 09:00 to 12:00
+ * - Meal / Food: Day 1 at 19:30 (until 21:30)
+ *
+ * @param {string|Date|null|undefined} tripStartDate Trip start date
+ * @param {string|Date|null|undefined} tripEndDate Trip end date
+ * @param {string} [category] Option category (e.g., Accommodation, Transport, Activities, Food)
+ * @returns {{ start: string, end: string, startDate: string, endDate: string }}
+ */
+export function buildDefaultOptionDates(tripStartDate, tripEndDate, category = '') {
+  if (!tripStartDate) {
+    return { start: '', end: '', startDate: '', endDate: '' }
+  }
+
+  const sDate = parseLocalDate(tripStartDate)
+  if (!sDate) {
+    return { start: '', end: '', startDate: '', endDate: '' }
+  }
+
+  const eDate = tripEndDate ? (parseLocalDate(tripEndDate) || sDate) : sDate
+  const sDateStr = formatLocalDateStr(sDate)
+  const eDateStr = formatLocalDateStr(eDate)
+
+  const cat = (category || '').toLowerCase().trim()
+  let start = ''
+  let end = ''
+
+  if (cat === 'accommodation') {
+    // Full trip span: check-in 15:00, check-out 11:00
+    if (sDateStr === eDateStr) {
+      start = `${sDateStr}T15:00`
+      end = `${eDateStr}T21:00`
+    } else {
+      start = `${sDateStr}T15:00`
+      end = `${eDateStr}T11:00`
+    }
+  } else if (
+    cat === 'transport' ||
+    cat === 'flights' ||
+    cat === 'flight' ||
+    cat === 'vehicle' ||
+    cat === 'shared vehicle'
+  ) {
+    // Full trip span: 09:00 to 18:00
+    start = `${sDateStr}T09:00`
+    end = `${eDateStr}T18:00`
+  } else if (cat === 'activities' || cat === 'activity') {
+    // Day 1 from 09:00 to 12:00
+    start = `${sDateStr}T09:00`
+    end = `${sDateStr}T12:00`
+  } else if (cat === 'food' || cat === 'meal' || cat === 'meals') {
+    // Day 1 at 19:30
+    start = `${sDateStr}T19:30`
+    end = `${sDateStr}T21:30`
+  } else {
+    // Default: Day 1
+    start = `${sDateStr}T09:00`
+    end = `${sDateStr}T12:00`
+  }
+
+  return {
+    start,
+    end,
+    startDate: start,
+    endDate: end
+  }
+}
+

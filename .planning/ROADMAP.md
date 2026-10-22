@@ -14,7 +14,7 @@
 - ✅ **v1.9 Webapp Trip Archiving & Co-Organizer Administration** — Phases 31-32 (shipped 2026-07-24)
 - ✅ **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** — Phases 33-35 (shipped 2026-07-24)
 - ✅ **v3.0 Standalone Web-First Architecture, Telegram Bot Purge, Normalized SQL Schema & Modular UI Refactor** — Phases 36-37 (shipped 2026-10-14)
-- ✅ **v3.1 Native Supabase Auth (`auth.uid()` RLS), Real-Time WebSockets (`useTripRealtime`) & GitHub Actions CI Pipeline** — Phases 38-40 (shipped 2026-10-15)
+- ✅ **v3.1 Passwordless Auth & Database Security, Real-Time WebSockets (`useTripRealtime`) & GitHub Actions CI Pipeline** — Phases 38-40 (shipped 2026-10-15)
 
 ## Phases
 
@@ -36,9 +36,9 @@
 </details>
 
 <details>
-<summary>✅ v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline (Phases 38-40) — SHIPPED 2026-10-15</summary>
+<summary>✅ v3.1 Passwordless Auth & Database Security, Real-Time WebSockets & GitHub Actions CI Pipeline (Phases 38-40) — SHIPPED 2026-10-15</summary>
 
-- [x] Phase 38: Native Supabase Auth Migration & Strict Row Level Security Policies (`auth.uid()`) — completed 2026-10-15
+- [x] Phase 38: Passwordless Auth & Database Security (`login_tokens`, identity sync triggers & RLS) — completed 2026-10-15
 - [x] Phase 39: Real-Time Multi-User WebSockets & Channel Resource Debouncing (`useTripRealtime`) — completed 2026-10-15
 - [x] Phase 40: Automated GitHub Actions CI Pipeline & Offline UI Smoke Test Suite — completed 2026-10-15
 
@@ -53,7 +53,7 @@
 | 35. Budget Breakdown & Traveler Cost Distribution Analytics | v2.0 | 1/1 | Complete | 2026-07-24 |
 | 36. Telegram Bot Deprecation & Normalized Schema Migration | v3.0 | 1/1 | Complete | 2026-10-14 |
 | 37. Monolithic View Decomposition & Modular UI Sub-components | v3.0 | 1/1 | Complete | 2026-10-14 |
-| 38. Native Supabase Auth Migration & Strict RLS Policies | v3.1 | 1/1 | Complete | 2026-10-15 |
+| 38. Passwordless Auth & Database Security | v3.1 | 1/1 | Complete | 2026-10-15 |
 | 39. Real-Time Multi-User WebSockets (`useTripRealtime`) | v3.1 | 1/1 | Complete | 2026-10-15 |
 | 40. Automated GitHub Actions CI Pipeline & Offline Smoke Tests | v3.1 | 1/1 | Complete | 2026-10-15 |
 

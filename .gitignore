@@ -25,3 +25,12 @@ openapi_spec.json
 .planning/
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Temporary scratchpads & scripts
+scratch/
+web/scratch/
+
+# Graphify backups and cache
+graphify-out/20*/
+graphify-out/cache/

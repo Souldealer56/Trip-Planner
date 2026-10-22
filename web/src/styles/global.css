@@ -1640,12 +1640,16 @@ input:checked + .toggle-slider:before {
 :root {
   --gantt-cat-width: 160px;
   --gantt-day-width: 140px;
+  --gantt-day-width-zoom2: 280px;
+  --gantt-day-width-zoom4: 560px;
 }
 
 @media (max-width: 640px) {
   :root {
     --gantt-cat-width: 95px;
     --gantt-day-width: 110px;
+    --gantt-day-width-zoom2: 220px;
+    --gantt-day-width-zoom4: 420px;
   }
 }
 
@@ -1694,6 +1698,7 @@ input:checked + .toggle-slider:before {
   border-radius: var(--radius-lg, 12px);
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb, var(--border-subtle)) transparent;
+  scroll-behavior: smooth;
 }
 
 .gantt-scroll-container::-webkit-scrollbar {
@@ -1733,6 +1738,137 @@ input:checked + .toggle-slider:before {
   z-index: 15;
   background-color: var(--bg-surface, #141a29);
   border-right: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+}
+
+/* Distinct Gantt Visual Layer Headers */
+.gantt-layer-header-row {
+  display: flex;
+  align-items: center;
+  margin: 0.85rem 0 0.5rem 0;
+  position: relative;
+  z-index: 12;
+}
+
+.gantt-layer-sticky-label {
+  position: sticky;
+  left: 0;
+  z-index: 14;
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.92));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-left: 3px solid var(--primary, #3b82f6);
+  border-top: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  border-right: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  padding: 4px 12px;
+  border-radius: 0 8px 8px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.35);
+  max-width: calc(100vw - 40px);
+}
+
+.gantt-layer-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main, #f8fafc);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.gantt-layer-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .gantt-layer-subtitle {
+    display: none;
+  }
+}
+
+/* Floating External Pill Label for 1-Day & Short Activities */
+.gantt-pill-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.16));
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--text-main, #f8fafc);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+
+.gantt-pill-label.is-locked {
+  border-color: rgba(234, 179, 8, 0.7);
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.35), 0 4px 14px rgba(0, 0, 0, 0.6);
+  color: var(--gantt-locked-text, #fef08a);
+}
+
+.gantt-pill-label.has-conflict {
+  border-color: rgba(244, 63, 94, 0.7);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.35), 0 4px 14px rgba(0, 0, 0, 0.6);
+  color: var(--gantt-conflict-text, #fda4af);
+}
+
+/* Zoom Switcher Buttons */
+.btn-zoom-mode {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-zoom-mode:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.btn-zoom-mode.active {
+  background: var(--primary, #3b82f6);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Gantt Option Inspector Drawer Card */
+.gantt-inspector-card {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .gantt-empty-category-btn:hover {
@@ -2859,3 +2995,192 @@ input:checked + .toggle-slider:before {
     font-size: 0.8rem;
   }
 }
+
+/* ==========================================================================
+   Trip Date & Time Quick-Select Controls (TripDateTimeSelector)
+   ========================================================================== */
+.trip-datetime-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.trip-range-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: var(--border-radius-sm, 8px);
+  font-size: 0.82rem;
+}
+
+.trip-range-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-main);
+}
+
+.trip-range-banner-icon {
+  font-size: 1rem;
+}
+
+.trip-range-banner-text strong {
+  color: var(--primary-light, #60a5fa);
+}
+
+.trip-range-badges {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.trip-range-pill {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trip-range-pill.pre-trip {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.trip-range-pill.post-trip {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.trip-chips-section,
+.trip-time-presets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.trip-chips-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.trip-chips-scroll-row {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 2px 1px 6px 1px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.trip-chips-scroll-row::-webkit-scrollbar {
+  height: 4px;
+}
+
+.trip-chips-scroll-row::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.trip-chip-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  padding: 0.32rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.trip-chip-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--primary-light, #60a5fa);
+  color: #ffffff;
+}
+
+.trip-chip-btn.active {
+  background: rgba(59, 130, 246, 0.28);
+  border-color: var(--primary-light, #60a5fa);
+  color: var(--primary-light, #93c5fd);
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+}
+
+.time-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.time-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.time-preset-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--primary-light, #60a5fa);
+}
+
+.time-preset-btn.active {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.65);
+  color: #34d399;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.time-preset-hours {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.datetime-inputs-grid {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.datetime-input-col {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.datetime-field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.datetime-input {
+  width: 100%;
+}
+

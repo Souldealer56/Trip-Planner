@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { GanttTimeline } from '../GanttTimeline'
 import { formatDateTimeRange, formatDateRange, formatMoney } from '../../utils/format'
-import { checkOptionDateConflict, isOptionLocked, calculateVehicleCostPerPassenger, checkAccommodationCapacity, checkActivitySpots } from '../../services/options'
-import { getPresentTravelers } from '../../services/rsvps'
-import { convertCurrency, calculateOptionCostBreakdown } from '../../utils/currency'
-import { MealPlannerMatrix } from './MealPlannerMatrix'
+import { checkOptionDateConflict, isOptionLocked } from '../../services/options'
+import { calculateOptionCostBreakdown } from '../../utils/currency'
+import { OptionCard } from '../OptionCard'
+import { MealPlanSection } from './MealPlanSection'
 import { GroceryListPanel } from './GroceryListPanel'
-import { fetchGroceryItems, getMealDietaryAlerts } from '../../services/groceries'
+import { fetchGroceryItems } from '../../services/groceries'
+import { TripDateTimeSelector } from './TripDateTimeSelector'
 
 // Helper to extract initials from user name
 function getInitials(name) {
@@ -81,7 +82,7 @@ function SetOptionDatesModal({ isOpen, onClose, option, trip, onSave }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content glass-card animate-fade-in" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content glass-card animate-fade-in" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem' }}>
           {option.start_date || option.end_date ? '✏️ Fix Option Dates' : '📅 Set Option Dates'}
         </h3>
@@ -101,30 +102,18 @@ function SetOptionDatesModal({ isOpen, onClose, option, trip, onSave }) {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              Start Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              className="input-field"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-              End Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              className="input-field"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
+          <TripDateTimeSelector
+            trip={trip}
+            startDate={startDate}
+            endDate={endDate}
+            onChange={({ startDate: s, endDate: e }) => {
+              setStartDate(s)
+              setEndDate(e)
+            }}
+            category={option?.category}
+            required
+            showTripRangeBanner={false}
+          />
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
             <button type="button" onClick={onClose} className="btn btn-secondary" disabled={saving}>
               Cancel
@@ -158,6 +147,7 @@ export function OptionsTab({
   onVoteToggle,
   onLockToggle,
   onDeleteOption,
+  onEditOption,
   onUpdateOptionDates,
   onOpenPitchModal,
   onOpenPollRecapModal,
@@ -483,648 +473,35 @@ export function OptionsTab({
     }
   }, [effectiveOptions, getPollForCategory, trip, getOptionVoteCount])
 
-  // Render individual option card using Redesign Proposal B (3-Zone layout)
+  // Render individual option card using OptionCard sub-component (3-Zone layout)
   const renderOptionCard = (opt, isSectionLocked = false, isInsideDateGroup = false) => {
-    const optCategory = (opt.category || activeTab || '').toLowerCase()
-    const optPoll = getPollForCategory(optCategory)
-    const optIdStr = String(opt.id)
-    const voters = getVotersForOption(opt.id, optPoll)
-    const pollVotes = optPoll?.votes_by_option || {}
-    const selections = optPoll?.voter_selections || {}
-
-    const userVotes = (
-      selections[String(activeUser?.id)] ||
-      selections[activeUser?.id] ||
-      []
-    )
-    const hasVoted = Array.isArray(userVotes) && userVotes.map(String).includes(optIdStr)
-
-    const recordedVotes = pollVotes[opt.id] !== undefined
-      ? Number(pollVotes[opt.id])
-      : (pollVotes[optIdStr] !== undefined ? Number(pollVotes[optIdStr]) : undefined)
-
-    const votesCount = Math.max(
-      recordedVotes !== undefined && !isNaN(recordedVotes) ? recordedVotes : 0,
-      voters.length,
-      hasVoted ? 1 : 0
-    )
-
-    const votePercent = Math.min(100, Math.round((votesCount / Math.max(1, committedCount)) * 100))
-
-    const isLockedChoice = isSectionLocked || isOptionLocked(opt, optPoll)
-    const isConflict = checkOptionDateConflict(opt, trip?.start_date, trip?.end_date)
-    const isLogged = isOptionLogged(opt)
-    const costDetails = getCostDetails(opt)
-
-    const metadata = opt.metadata || {}
-
-    const presentTravelers = getPresentTravelers(committedMembers, opt.start_date, opt.end_date)
-    const presentTravelerIds = presentTravelers.map((m) => String(m.user_id || m.id))
-    const hasExplicitAssignments = Array.isArray(opt.assigned_users) && opt.assigned_users.length > 0
-    const assignedUserIds = hasExplicitAssignments ? opt.assigned_users.map(String) : presentTravelerIds
-    const assignedCount = assignedUserIds.length
-    const isUserJoined = activeUser && assignedUserIds.includes(String(activeUser.id))
-
-    // Resolve assigned users to member objects for avatar chips
-    const assignedMembers = assignedUserIds.map((uId) => {
-      const member = roster.find(
-        (m) => String(m.user_id) === String(uId) || String(m.users?.id) === String(uId) || String(m.id) === String(uId)
-      )
-      return {
-        id: uId,
-        name: member?.users?.first_name || member?.username || 'Traveler'
-      }
-    })
-
-    // Determine capacity if applicable
-    let capacity = null
-    if (optCategory === 'accommodation' && metadata.max_capacity) {
-      capacity = Number(metadata.max_capacity)
-    } else if ((optCategory === 'transport' || optCategory === 'flights') && metadata.transport_mode !== 'ticket' && metadata.seats_capacity) {
-      capacity = Number(metadata.seats_capacity)
-    } else if (optCategory === 'activities' && metadata.max_participants) {
-      capacity = Number(metadata.max_participants)
-    }
-
     return (
-      <div
+      <OptionCard
         key={opt.id}
-        className={`option-card ${isLockedChoice ? 'locked-card' : ''} ${hasVoted ? 'voted' : ''}`}
-        style={{
-          border: isLockedChoice
-            ? '1px solid rgba(16, 185, 129, 0.4)'
-            : isConflict
-            ? '1px solid rgba(245, 158, 11, 0.35)'
-            : hasVoted
-            ? '1px solid var(--accent)'
-            : '1px solid var(--border-light)',
-          background: isLockedChoice
-            ? 'rgba(16, 185, 129, 0.03)'
-            : 'rgba(255, 255, 255, 0.02)'
-        }}
-      >
-        <div>
-          {/* Zone 1: Header Row — Category Pill + Date Range / Duration + Status Badge */}
-          <div className="option-card-header-row">
-            <div className="option-header-left">
-              <span className="option-category-pill">
-                {getCategoryLabelWithIcon(opt.category)}
-              </span>
-              <span className="option-duration-pill">
-                {formatCardDurationOrDates(opt, isInsideDateGroup)}
-              </span>
-              {isConflict && (
-                <span className="option-conflict-pill">
-                  ⚠️ Outside Trip Dates
-                </span>
-              )}
-            </div>
-
-            <div className="option-header-right">
-              {isLogged ? (
-                <span className="badge-logged-expense">
-                  ✓ Logged in Expenses
-                </span>
-              ) : isLockedChoice && (
-                <button
-                  onClick={() => onOpenExpenseModal({ ...opt, category: opt.category || activeTab || 'Accommodation' })}
-                  className="btn btn-secondary log-expense-btn"
-                  title="Convert locked option directly into a shared expense"
-                  type="button"
-                >
-                  💸 Log as Expense
-                </button>
-              )}
-
-              {onDeleteOption && (
-                confirmingDeleteId === opt.id ? (
-                  <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
-                    <span style={{ fontSize: '0.75rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      style={{ padding: '2px 8px', fontSize: '0.75rem', minHeight: 'auto' }}
-                      onClick={() => {
-                        setConfirmingDeleteId(null)
-                        onDeleteOption(opt)
-                      }}
-                    >
-                      Yes, Delete
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ padding: '2px 6px', fontSize: '0.75rem', minHeight: 'auto' }}
-                      onClick={() => setConfirmingDeleteId(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn-delete-icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setConfirmingDeleteId(opt.id)
-                    }}
-                    title="Delete option"
-                    aria-label="Delete option"
-                  >
-                    🗑️
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-
-          {/* Zone 2: Title & Pricing Row */}
-          <div className="option-card-title-pricing-row">
-            <h4 className="option-card-title">
-              {opt.option_text}
-            </h4>
-
-            <div className="option-card-pricing-block">
-              {costDetails ? (
-                <>
-                  <div className="option-total-price">
-                    {formatMoney(costDetails.rawCost, costDetails.currency, { maximumFractionDigits: 0 })}
-                    {costDetails.isDiff && rates && (
-                      <span className="cost-converted option-converted-price">
-                        (≈ {formatMoney(costDetails.converted, costDetails.baseCurrency, { maximumFractionDigits: 0 })})
-                      </span>
-                    )}
-                  </div>
-                  <div className="option-per-person">
-                    {costDetails.costType === 'per_person' && (
-                      <span title="Priced per ticket/person">🎟️ {formatMoney(costDetails.rawCost, costDetails.currency, { maximumFractionDigits: 0 })} / person</span>
-                    )}
-                    {costDetails.costType === 'per_night' && (
-                      <span title="Priced per night and prorated by stay dates">🌙 ~{formatMoney(costDetails.perPerson, costDetails.baseCurrency, { maximumFractionDigits: 0 })} / person</span>
-                    )}
-                    {(!costDetails.costType || costDetails.costType === 'split_total') && (
-                      <span>~{formatMoney(costDetails.perPerson, costDetails.baseCurrency, { maximumFractionDigits: 0 })} / person</span>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <span className="price-tbd-badge">Price TBD</span>
-              )}
-            </div>
-          </div>
-
-          {/* Category-Specific Metadata Spec Box */}
-          {optCategory === 'accommodation' && (metadata.max_capacity || metadata.beds_summary || metadata.has_kitchen || metadata.check_in_out) && (
-            <div className="category-spec-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {metadata.max_capacity && (() => {
-                  const cap = checkAccommodationCapacity(assignedCount, metadata.max_capacity, committedMembers.length)
-                  if (cap.isOverCapacity) {
-                    return (
-                      <span className="capacity-gauge-pill gauge-red">
-                        ⚠️ Over capacity! ({assignedCount}/{metadata.max_capacity} sleepers)
-                      </span>
-                    )
-                  }
-                  return (
-                    <span className="capacity-gauge-pill gauge-green">
-                      🛏️ {assignedCount}/{metadata.max_capacity} sleepers ({cap.bedsRemaining} left)
-                    </span>
-                  )
-                })()}
-                {metadata.has_kitchen && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-                    🍳 Kitchen available
-                  </span>
-                )}
-                {metadata.check_in_out && (
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    ⏰ {metadata.check_in_out}
-                  </span>
-                )}
-              </div>
-              {metadata.beds_summary && (
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  🛏️ {metadata.beds_summary}
-                </div>
-              )}
-              {metadata.max_capacity && (() => {
-                const cap = checkAccommodationCapacity(assignedCount, metadata.max_capacity, committedMembers.length)
-                if (cap.groupExceedsCapacity) {
-                  return (
-                    <div style={{ fontSize: '0.75rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>⚠️</span> Whole group ({committedMembers.length}) needs {cap.bedsNeededForGroup} more bed{cap.bedsNeededForGroup !== 1 ? 's' : ''}
-                    </div>
-                  )
-                }
-                return null
-              })()}
-            </div>
-          )}
-
-          {((optCategory === 'transport' && metadata.transport_mode !== 'ticket') || (optCategory === 'transport' && !metadata.transport_mode && metadata.seats_capacity)) && (
-            <div className="category-spec-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {metadata.seats_capacity && (() => {
-                  const veh = calculateVehicleCostPerPassenger(
-                    costDetails?.rawCost || opt.estimated_cost,
-                    assignedCount,
-                    metadata.seats_capacity,
-                    costDetails?.currency || opt.currency || baseCurrency
-                  )
-                  if (veh.isOverCapacity) {
-                    return (
-                      <span className="capacity-gauge-pill gauge-red">
-                        🚗 {assignedCount} / {metadata.seats_capacity} seats (Overloaded!)
-                      </span>
-                    )
-                  }
-                  if (veh.isFull) {
-                    return (
-                      <span className="capacity-gauge-pill gauge-amber">
-                        🚗 {assignedCount} / {metadata.seats_capacity} seats filled (Full)
-                      </span>
-                    )
-                  }
-                  return (
-                    <span className="capacity-gauge-pill gauge-green">
-                      🚗 {assignedCount} / {metadata.seats_capacity} seats filled ({veh.seatsLeft} seat{veh.seatsLeft !== 1 ? 's' : ''} left)
-                    </span>
-                  )
-                })()}
-                {metadata.driver_user_id && (() => {
-                  const driverMember = roster.find((m) => String(m.user_id) === String(metadata.driver_user_id) || String(m.users?.id) === String(metadata.driver_user_id) || String(m.id) === String(metadata.driver_user_id))
-                  const driverName = driverMember?.users?.first_name || driverMember?.username || 'Designated Driver'
-                  return (
-                    <span className="capacity-gauge-pill" style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#93c5fd', border: '1px solid rgba(96, 165, 250, 0.3)' }}>
-                      🛞 Driver: {driverName}
-                    </span>
-                  )
-                })()}
-              </div>
-              {metadata.seats_capacity && (costDetails?.rawCost || opt.estimated_cost) && (() => {
-                const veh = calculateVehicleCostPerPassenger(
-                  costDetails?.rawCost || opt.estimated_cost,
-                  assignedCount,
-                  metadata.seats_capacity,
-                  costDetails?.currency || opt.currency || baseCurrency
-                )
-                return (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
-                    <strong>Cost per passenger: {formatMoney(veh.costPerPassenger, costDetails?.currency || opt.currency || baseCurrency, { maximumFractionDigits: 0 })}</strong>
-                    {metadata.seats_capacity > assignedCount && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                        (If all {metadata.seats_capacity} seats fill: ~{formatMoney(veh.costIfFull, costDetails?.currency || opt.currency || baseCurrency, { maximumFractionDigits: 0 })} / person)
-                      </span>
-                    )}
-                  </div>
-                )
-              })()}
-              {metadata.estimated_fuel_cost && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  ⛽ Estimated fuel: ~{metadata.estimated_fuel_cost} {costDetails?.currency || opt.currency || baseCurrency}
-                </div>
-              )}
-            </div>
-          )}
-
-          {(optCategory === 'flights' || (optCategory === 'transport' && (metadata.transport_mode === 'ticket' || metadata.is_legacy_flight || /flight|vol|avion|airline|sata|tap|ticket|train/i.test(opt.option_text || '')))) && (
-            <div className="category-spec-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {metadata.is_legacy_flight && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                    ✈️ Flight
-                  </span>
-                )}
-                {metadata.route_code && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', border: '1px solid rgba(14, 165, 233, 0.3)' }}>
-                    ✈️ {metadata.route_code}
-                  </span>
-                )}
-                {metadata.transit_times && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(147, 51, 234, 0.15)', color: '#c084fc', border: '1px solid rgba(147, 51, 234, 0.3)' }}>
-                    ⏱️ {metadata.transit_times}
-                  </span>
-                )}
-                {metadata.baggage_included && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                    🧳 Baggage included
-                  </span>
-                )}
-              </div>
-              {(costDetails?.rawCost || opt.estimated_cost) && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
-                  <strong>🎟️ {formatMoney(costDetails?.rawCost || opt.estimated_cost, costDetails?.currency || opt.currency || baseCurrency)} / person</strong>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                    (Total for {assignedCount} traveler{assignedCount !== 1 ? 's' : ''}: {formatMoney((costDetails?.rawCost || opt.estimated_cost) * assignedCount, costDetails?.currency || opt.currency || baseCurrency)})
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {optCategory === 'activities' && (metadata.max_participants || metadata.difficulty_or_duration || metadata.required_gear) && (
-            <div className="category-spec-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {metadata.max_participants && (() => {
-                  const act = checkActivitySpots(assignedCount, metadata.max_participants)
-                  if (act.isOverLimit) {
-                    return (
-                      <span className="capacity-gauge-pill gauge-red">
-                        ⚠️ {assignedCount}/{metadata.max_participants} spots (Over quota!)
-                      </span>
-                    )
-                  }
-                  if (act.isFull) {
-                    return (
-                      <span className="capacity-gauge-pill gauge-amber">
-                        🎯 Full ({assignedCount}/{metadata.max_participants} spots)
-                      </span>
-                    )
-                  }
-                  return (
-                    <span className="capacity-gauge-pill gauge-green">
-                      🎯 {assignedCount}/{metadata.max_participants} spots ({act.spotsLeft} left)
-                    </span>
-                  )
-                })()}
-                {metadata.difficulty_or_duration && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                    ⏱️ {metadata.difficulty_or_duration}
-                  </span>
-                )}
-              </div>
-              {metadata.required_gear && (
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  🎒 Gear needed: <strong style={{ color: 'var(--text-main)' }}>{metadata.required_gear}</strong>
-                </div>
-              )}
-            </div>
-          )}
-
-          {optCategory === 'food' && (metadata.meal_mode || metadata.chef_ids?.length > 0 || metadata.cleanup_ids?.length > 0 || metadata.ingredients?.length > 0 || metadata.meal_slot) && (
-            <div className="category-spec-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {metadata.meal_slot && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
-                    {metadata.meal_slot === 'breakfast' && '🌅 Breakfast'}
-                    {metadata.meal_slot === 'lunch' && '☀️ Lunch'}
-                    {metadata.meal_slot === 'dinner' && '🌙 Dinner'}
-                  </span>
-                )}
-                {metadata.meal_mode && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                    {metadata.meal_mode === 'cook' && '🍳 Home-Cooked'}
-                    {metadata.meal_mode === 'restaurant' && '🍽️ Restaurant'}
-                    {metadata.meal_mode === 'picnic' && '🥪 Trail Picnic'}
-                  </span>
-                )}
-                {Array.isArray(metadata.ingredients) && metadata.ingredients.length > 0 && (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                    🛒 {metadata.ingredients.length} ingredients
-                  </span>
-                )}
-              </div>
-
-              {/* Kitchen Crew */}
-              {(metadata.chef_ids?.length > 0 || metadata.cleanup_ids?.length > 0) && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
-                  {metadata.chef_ids?.length > 0 && (() => {
-                    const chefs = metadata.chef_ids.map((id) => {
-                      const m = roster.find((r) => String(r.user_id || r.id) === String(id))
-                      return m?.users?.first_name || m?.username || 'Traveler'
-                    }).join(', ')
-                    return (
-                      <span className="duty-badge chef">👨‍🍳 Chefs: {chefs}</span>
-                    )
-                  })()}
-                  {metadata.cleanup_ids?.length > 0 && (() => {
-                    const washers = metadata.cleanup_ids.map((id) => {
-                      const m = roster.find((r) => String(r.user_id || r.id) === String(id))
-                      return m?.users?.first_name || m?.username || 'Traveler'
-                    }).join(', ')
-                    return (
-                      <span className="duty-badge cleanup">🧽 Cleanup: {washers}</span>
-                    )
-                  })()}
-                </div>
-              )}
-
-              {/* Dietary Alerts */}
-              {(() => {
-                const alerts = getMealDietaryAlerts(opt, roster)
-                if (alerts.length === 0) return null
-                return (
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '3px' }}>
-                    {alerts.map((al, idx) => (
-                      <span key={idx} className="dietary-warning-pill">{al.label}</span>
-                    ))}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-
-          {/* Description */}
-          {opt.description && (
-            <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineBreak: 'anywhere' }}>
-              {opt.description}
-            </p>
-          )}
-
-          {/* External Link */}
-          {opt.link && (
-            <a
-              href={opt.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--primary-light)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginBottom: '10px'
-              }}
-            >
-              <span>🔗</span> View Pitch Link
-            </a>
-          )}
-        </div>
-
-        {/* Zone 3: Participation & Decision Footer */}
-        <div className="option-card-footer">
-          {/* Attendance Row */}
-          <div className="option-attendance-row">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
-              <span className="attendance-label">
-                Going ({assignedCount}):
-              </span>
-              {assignedMembers.length > 0 && (
-                <div className="voter-avatars-row attendance-avatars" style={{ margin: 0 }}>
-                  {assignedMembers.slice(0, 5).map((m, i) => (
-                    <div
-                      key={i}
-                      className="voter-avatar-chip"
-                      style={{ backgroundColor: getAvatarColor(m.name) }}
-                      title={m.name}
-                    >
-                      {getInitials(m.name)}
-                    </div>
-                  ))}
-                  {assignedMembers.length > 5 && (
-                    <span className="voter-more-chip">+{assignedMembers.length - 5}</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {onToggleParticipant && activeUser && (
-              <button
-                type="button"
-                className={`one-tap-join-btn ${isUserJoined ? 'joined' : 'not-joined'}`}
-                onClick={() => onToggleParticipant(opt.id, opt.assigned_users || [], presentTravelerIds)}
-                title={isUserJoined ? 'Click to leave this option' : 'Click to join this option'}
-              >
-                {isUserJoined ? "✓ I'm In" : '+ Join'}
-              </button>
-            )}
-          </div>
-
-          {/* Visual Vote Progress Bar & Voter Avatar Chips */}
-          <div className="option-voting-section">
-            <div className="option-vote-meta">
-              <span className="vote-count-label">
-                {votesCount} {votesCount === 1 ? 'vote' : 'votes'} ({votePercent}%)
-              </span>
-              {voters.length > 0 && (
-                <div
-                  className="voter-avatars-row"
-                  onClick={onOpenPollRecapModal}
-                  title="Click to view full voter poll breakdown"
-                >
-                  {voters.slice(0, 4).map((v, i) => (
-                    <div
-                      key={i}
-                      className="voter-avatar-chip"
-                      style={{ backgroundColor: getAvatarColor(v.name) }}
-                      title={v.name}
-                    >
-                      {getInitials(v.name)}
-                    </div>
-                  ))}
-                  {voters.length > 4 && (
-                    <span className="voter-more-chip">+{voters.length - 4}</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="vote-progress-track">
-              <div
-                className="vote-progress-fill"
-                style={{
-                  width: `${votePercent}%`,
-                  background: hasVoted
-                    ? 'linear-gradient(90deg, #10b981, #34d399)'
-                    : 'linear-gradient(90deg, var(--primary), var(--primary-light))'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Action Row */}
-          <div className="option-action-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => onVoteToggle && onVoteToggle(opt.id, hasVoted, opt.category || activeTab)}
-              className={`btn ${hasVoted ? 'btn-voted' : 'btn-vote'}`}
-              type="button"
-              style={{ flex: 1, minHeight: '38px' }}
-            >
-              {hasVoted ? `✓ Voted (${votesCount}) (${votePercent}%)` : `👍 ${votesCount} Vote${votesCount === 1 ? '' : 's'} (${votePercent}%)`}
-            </button>
-
-            <button
-              onClick={() => onLockToggle && onLockToggle(opt.id)}
-              className={`btn ${isLockedChoice ? 'btn-locked-choice' : 'btn-secondary'}`}
-              style={{
-                padding: '6px 14px',
-                fontSize: '0.85rem',
-                minHeight: '38px',
-                whiteSpace: 'nowrap'
-              }}
-              title={isLockedChoice ? 'Unlock this choice' : 'Lock as winning choice'}
-              type="button"
-            >
-              {isLockedChoice ? '🔒 Locked · Undo' : '🔒 Lock'}
-            </button>
-
-            {/* Extra tools for flexible or out-of-bounds options */}
-            {isConflict && (
-              <>
-                <button
-                  onClick={() => setDateModalOption(opt)}
-                  className="btn btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-                  title="Fix option dates to fall within the trip"
-                  type="button"
-                >
-                  ✏️ Fix Dates
-                </button>
-                {onDeleteOption && (
-                  confirmingDeleteId === opt.id ? (
-                    <div className="inline-delete-confirm" onClick={(e) => e.stopPropagation()}>
-                      <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>Delete?</span>
-                      <button
-                        type="button"
-                        className="btn btn-danger"
-                        style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
-                        onClick={() => {
-                          setConfirmingDeleteId(null)
-                          onDeleteOption(opt)
-                        }}
-                      >
-                        Yes, Delete
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: '38px' }}
-                        onClick={() => setConfirmingDeleteId(null)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmingDeleteId(opt.id)}
-                      className="btn btn-secondary btn-danger-soft"
-                      style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-                      title="Delete this out-of-bounds option"
-                      type="button"
-                    >
-                      🗑️ Delete
-                    </button>
-                  )
-                )}
-              </>
-            )}
-
-            {!isConflict && !opt.start_date && !opt.end_date && (
-              <button
-                onClick={() => setDateModalOption(opt)}
-                className="btn btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '0.8rem', minHeight: '38px' }}
-                title="Set scheduled dates for this option"
-                type="button"
-              >
-                📅 Set Dates
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+        opt={opt}
+        activeTab={activeTab}
+        trip={trip}
+        roster={roster}
+        activeUser={activeUser}
+        committedMembers={committedMembers}
+        rates={rates}
+        baseCurrency={baseCurrency}
+        poll={getPollForCategory((opt.category || activeTab || '').toLowerCase())}
+        isSectionLocked={isSectionLocked}
+        isInsideDateGroup={isInsideDateGroup}
+        isLogged={isOptionLogged(opt)}
+        costDetails={getCostDetails(opt)}
+        onVoteToggle={onVoteToggle}
+        onLockToggle={onLockToggle}
+        onDeleteOption={onDeleteOption}
+        onEditOption={onEditOption}
+        onOpenExpenseModal={onOpenExpenseModal}
+        onOpenPollRecapModal={onOpenPollRecapModal}
+        onToggleParticipant={onToggleParticipant}
+        onOpenSetDatesModal={(option) => setDateModalOption(option)}
+        confirmingDeleteId={confirmingDeleteId}
+        setConfirmingDeleteId={setConfirmingDeleteId}
+      />
     )
   }
 
@@ -1214,7 +591,7 @@ export function OptionsTab({
           activePolls={allActivePollsMap}
           roster={roster}
           onDeleteOption={onDeleteOption}
-          onOptionClick={(opt) => setDateModalOption(opt)}
+          onOptionClick={(opt) => (onEditOption ? onEditOption(opt) : setDateModalOption(opt))}
           onPitchForSlot={(dayDate, category) => {
             const dateToUse = dayDate || (trip?.start_date ? new Date(trip.start_date) : new Date())
             const dStr = dateToUse instanceof Date ? dateToUse.toISOString().slice(0, 10) : String(dateToUse).slice(0, 10)
@@ -1260,69 +637,29 @@ export function OptionsTab({
             })}
           </div>
 
-          {/* Food Category Sub-Bar: Matrix vs Cards Toggle + Grocery List Button */}
+          {/* Food Category Sub-Bar & Daily Meal Matrix */}
           {activeTab === 'Food' && (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
-                marginBottom: '1.25rem',
-                padding: '0.6rem 0.85rem',
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid var(--border-light)',
-                borderRadius: '10px'
-              }}
-            >
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className={`filter-pill ${foodViewMode === 'matrix' ? 'active' : ''}`}
-                  onClick={() => setFoodViewMode('matrix')}
-                >
-                  📅 Daily Meal Matrix (Recommended)
-                </button>
-                <button
-                  type="button"
-                  className={`filter-pill ${foodViewMode === 'cards' ? 'active' : ''}`}
-                  onClick={() => setFoodViewMode('cards')}
-                >
-                  🃏 All Food Cards
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-secondary grocery-btn-accent"
-                onClick={() => setIsGroceryPanelOpen(true)}
-              >
-                <span>🛒 Grocery List</span>
-                {uncheckedGroceryCount > 0 && (
-                  <span className="grocery-cart-badge">{uncheckedGroceryCount}</span>
-                )}
-              </button>
-            </div>
-          )}
-
-          {activeTab === 'Food' && foodViewMode === 'matrix' ? (
-            <MealPlannerMatrix
+            <MealPlanSection
               trip={trip}
               roster={roster}
               activeUser={activeUser}
               foodOptions={effectiveOptions}
               activePoll={currentCategoryPoll}
+              foodViewMode={foodViewMode}
+              setFoodViewMode={setFoodViewMode}
+              uncheckedGroceryCount={uncheckedGroceryCount}
+              onOpenGroceryList={() => setIsGroceryPanelOpen(true)}
               onOpenPitchModal={onOpenPitchModal}
               onVoteToggle={onVoteToggle}
               onLockToggle={onLockToggle}
               onDeleteOption={onDeleteOption}
+              onEditOption={onEditOption}
               onToggleParticipant={onToggleParticipant}
-              onOpenGroceryList={() => setIsGroceryPanelOpen(true)}
-              uncheckedGroceryCount={uncheckedGroceryCount}
               onSubmitMeal={onSubmitMeal}
             />
-          ) : (
+          )}
+
+          {activeTab === 'Food' && foodViewMode === 'matrix' ? null : (
             <>
               {/* Quick Filter & Sort Toolbar */}
               <div className="options-filter-toolbar">

@@ -10,7 +10,7 @@ Provide an intuitive, real-time, responsive web interface for frictionless group
 
 ## Current State
 
-Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor**, **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline**, and **v4.0 Smart Trip OS: Relational Core, Dynamic Logistics & Personal Cost Simulation** (Complete).
+Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor**, **v3.1 Passwordless Auth & Database Security, Real-Time WebSockets & GitHub Actions CI Pipeline**, and **v4.0 Smart Trip OS: Relational Core, Dynamic Logistics & Personal Cost Simulation** (Complete).
 
 ---
 
@@ -67,9 +67,8 @@ Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor**, **v3.1
 - ✓ Budget breakdown & traveler cost distribution analytics report with variance tracking & category progress bars — v2.0 (Phase 35)
 - ✓ Pure standalone web-first architecture: complete purge of Telegram bot, Python code, and legacy Telegram schema — v3.0
 - ✓ Clean, normalized PostgreSQL schema migration with strict first-class columns (`is_archived`, `role`, `locked_option_id`) — v3.0
-- ✓ Modular UI component refactor: decomposed `TripDetails.jsx` into focused sub-components (`TripHeader`, `RosterSection`, `OptionsTab`, `LedgerAndSettleTab`, `BudgetAnalyticsTab`, modals) — v3.0
-- ✓ Native Supabase Auth migration (`auth.uid()`, passwordless OTP magic links, public `anon` key isolation) — v3.1
-- ✓ PostgreSQL Row Level Security (RLS) policies scoped strictly to authenticated users and trip participants — v3.1
+- ✓ Passwordless Auth & Database Security (`login_tokens` + Resend trigger, identity sync triggers, public `anon` key isolation) — v3.1
+- ✓ PostgreSQL Row Level Security (RLS) policies scoped with helper functions (`is_trip_admin`, `is_trip_member`) — v3.1
 - ✓ Real-time multi-user synchronization with `useTripRealtime` debounced WebSocket channel subscriptions — v3.1
 - ✓ Automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) running `npm ci`, `npm run lint`, `npm test`, `npm run build` — v3.1
 - ✓ Offline test suite with JSDOM component UI smoke tests and pure domain logic unit tests running in <3s — v3.1
@@ -93,14 +92,14 @@ Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor**, **v3.1
 - Shipped **v1.5 Trip Settings, User Profiles & Pitching Audit** which added editable trip settings with date conflict reconciliation warnings & dynamic FX matrix recalculation, audited database RLS policies to fix option pitching/voting, and built a dedicated `/profile` page with avatar customization and Telegram account link/unlink management.
 - Shipped **v2.0 Locked Option Expense Sync & Advanced Cost Partitioning** which integrated locked-in itinerary options into the expense ledger ("💸 Log as Expense"), built flexible cost partitioning supporting equal, custom dollar amount, and percentage participant splits, and created a visual Budget & Cost Analytics report.
 - Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor** which permanently removed all Python code and Telegram bot integrations, migrated to clean normalized PostgreSQL schemas with first-class columns (`is_archived`, `role`, `locked_option_id`), and decomposed the monolithic `TripDetails.jsx` view into maintainable modular sub-components.
-- Shipped **v3.1 Native Supabase Auth, Real-Time WebSockets & GitHub Actions CI Pipeline** which implemented native `supabase.auth` integration, enforced PostgreSQL RLS referencing `auth.uid()`, built the `useTripRealtime` multi-user live synchronization hook with resource debouncing, added JSDOM UI smoke tests, and established automated GitHub Actions CI.
+- Shipped **v3.1 Passwordless Auth & Database Security, Real-Time WebSockets & GitHub Actions CI Pipeline** which hardened custom `login_tokens` passwordless magic link flow with identity reconciliation triggers (`handle_auth_user_sync`), enforced PostgreSQL RLS, built the `useTripRealtime` multi-user live synchronization hook with resource debouncing, added JSDOM UI smoke tests, and established automated GitHub Actions CI.
 - Shipped **v4.0 Smart Trip OS: Relational Core, Dynamic Logistics & Personal Cost Simulation** which linked participant presence dates and dietary preferences with category-specialized option pricing, full group meal intendance & supermarket aisle groceries, Gantt daily logistics coverage gauges (`🛏️`, `🚗`, `🍴`), and an individualized personal trip cost forecasting simulator.
 
 ## Constraints
 
 - **Tech Stack (Web)**: React 19 + Vite 8 + Vanilla CSS (Glassmorphic)
 - **Database**: PostgreSQL (Supabase) with Row Level Security (RLS) & Triggers
-- **Authentication**: Native Supabase Auth (`supabase.auth`) with Email OTP & standard UUID `auth.uid()`
+- **Authentication**: Passwordless Magic Links via custom `public.login_tokens` table & Resend PostgreSQL trigger, verified in `web/src/services/auth.js` and cached in `localStorage`
 - **CI/CD**: GitHub Actions running on Node.js 22 with offline test constraints (<10s runtime)
 
 ## Key Decisions
@@ -115,7 +114,7 @@ Shipped **v3.0 Standalone Web-First Architecture & Modular UI Refactor**, **v3.1
 | Pure Web-First Architecture Purge | Eliminate hybrid complexity and dependencies on Telegram bots and Python runtime | ✓ Good (v3.0 complete) |
 | First-Class Database Columns (`is_archived`, `role`, `locked_option_id`) | Eliminate string tag parsing and JSON metadata stuffing | ✓ Good (v3.0 complete) |
 | Modular Sub-Component Decomposition | Decomposed 1400+ line `TripDetails.jsx` into focused sub-components and modals | ✓ Good (v3.0 complete) |
-| Native Supabase Auth (`auth.uid()`) | Production-grade identity and access control without custom token endpoints | ✓ Good (v3.1 complete) |
+| Passwordless Auth & Database Security (`login_tokens`) | Database-agnostic magic links via Resend trigger with identity reconciliation triggers for auth.users | ✓ Good (v3.1 complete) |
 | Channel-Level Resource Debouncing (`useTripRealtime`) | Mitigates Supabase broadcast storming while delivering instantaneous multi-user updates | ✓ Good (v3.1 complete) |
 | GitHub Actions Automated CI Pipeline | Enforces quality gate (lint, test, build) on every commit and PR without secrets exposure | ✓ Good (v3.1 complete) |
 | Offline JSDOM Component Smoke Tests | Guarantees zero runtime state/reference crashes in core sub-components without network calls | ✓ Good (v3.1 complete) |

@@ -36,9 +36,9 @@
 - **Real-Time WebSocket Sync (`useTripRealtime`)**: Bi-directional live synchronization using Supabase Realtime broadcast channels (`trip-room:<id>`) with automated per-resource debouncing.
 - **Slide-Out Notification Drawer**: Real-time notification drawer with relative timestamps and unread badges.
 
-### 🔐 Native Supabase Auth & Security
-- **Native Passwordless Authentication**: Native Supabase Auth email OTP magic links (`supabase.auth.signInWithOtp`).
-- **PostgreSQL Row Level Security (RLS)**: Enforces access control strictly using `auth.uid() = user_id` and trip participant rosters.
+### 🔐 Passwordless Authentication & Database Security
+- **Passwordless Magic Links**: Custom magic link authentication via `public.login_tokens` and PostgreSQL `send_magic_link_trigger()` / Resend webhook, verified in `web/src/services/auth.js` (`requestLoginLink`, `verifyLoginToken`) with active user sessions persisted in `localStorage` (`useUserSession`).
+- **PostgreSQL Row Level Security (RLS)**: Enforces access control with Row Level Security enabled across all tables (`trips`, `users`, `rsvps`, `poll_options`, `option_votes`, `expenses`, `activity_log`, `grocery_items`, `login_tokens`), using helper functions (`is_trip_admin`, `is_trip_member`) and identity reconciliation triggers (`handle_auth_user_sync`).
 - **Public Client Isolation**: Web client code operates strictly via `VITE_SUPABASE_ANON_KEY` without exposing secret service keys.
 
 ---

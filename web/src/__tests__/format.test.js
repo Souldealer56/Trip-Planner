@@ -6,7 +6,9 @@ import {
   formatCurrency,
   formatMoney,
   formatRelativeTime,
-  formatDateTimeRange
+  formatDateTimeRange,
+  getTripDaysList,
+  buildDefaultOptionDates
 } from '../utils/format'
 
 describe('Formatting Utilities', () => {
@@ -151,4 +153,83 @@ describe('Formatting Utilities', () => {
       expect(endOnly).toContain('Jul 24')
     })
   })
+
+  describe('getTripDaysList', () => {
+    it('returns empty array when start or end date is missing', () => {
+      expect(getTripDaysList(null, '2026-12-25')).toEqual([])
+      expect(getTripDaysList('2026-12-25', null)).toEqual([])
+      expect(getTripDaysList('', '')).toEqual([])
+    })
+
+    it('returns empty array when start date is after end date', () => {
+      expect(getTripDaysList('2026-12-28', '2026-12-25')).toEqual([])
+    })
+
+    it('generates a 1-day list when start equals end', () => {
+      const days = getTripDaysList('2026-12-25', '2026-12-25')
+      expect(days).toHaveLength(1)
+      expect(days[0]).toEqual({
+        dayNumber: 1,
+        dateStr: '2026-12-25',
+        label: 'Day 1 (Dec 25)',
+        shortDate: 'Dec 25',
+        chipLabel: 'Day 1 · Dec 25'
+      })
+    })
+
+    it('generates a multi-day descriptor list for trip span', () => {
+      const days = getTripDaysList('2026-12-25', '2026-12-27')
+      expect(days).toHaveLength(3)
+      expect(days[0].dayNumber).toBe(1)
+      expect(days[0].dateStr).toBe('2026-12-25')
+      expect(days[0].label).toBe('Day 1 (Dec 25)')
+
+      expect(days[1].dayNumber).toBe(2)
+      expect(days[1].dateStr).toBe('2026-12-26')
+      expect(days[1].label).toBe('Day 2 (Dec 26)')
+
+      expect(days[2].dayNumber).toBe(3)
+      expect(days[2].dateStr).toBe('2026-12-27')
+      expect(days[2].label).toBe('Day 3 (Dec 27)')
+    })
+  })
+
+  describe('buildDefaultOptionDates', () => {
+    it('returns empty object when trip start date is missing', () => {
+      const res = buildDefaultOptionDates(null, null, 'Activities')
+      expect(res.start).toBe('')
+      expect(res.end).toBe('')
+    })
+
+    it('defaults Accommodation to full trip span (15:00 to 11:00)', () => {
+      const res = buildDefaultOptionDates('2026-12-25', '2026-12-28', 'Accommodation')
+      expect(res.start).toBe('2026-12-25T15:00')
+      expect(res.end).toBe('2026-12-28T11:00')
+    })
+
+    it('defaults Accommodation on single-day trip safely', () => {
+      const res = buildDefaultOptionDates('2026-12-25', '2026-12-25', 'Accommodation')
+      expect(res.start).toBe('2026-12-25T15:00')
+      expect(res.end).toBe('2026-12-25T21:00')
+    })
+
+    it('defaults Shared Vehicle / Transport to full trip span (09:00 to 18:00)', () => {
+      const res = buildDefaultOptionDates('2026-12-25', '2026-12-28', 'Transport')
+      expect(res.start).toBe('2026-12-25T09:00')
+      expect(res.end).toBe('2026-12-28T18:00')
+    })
+
+    it('defaults Activity to Day 1 from 09:00 to 12:00', () => {
+      const res = buildDefaultOptionDates('2026-12-25', '2026-12-28', 'Activities')
+      expect(res.start).toBe('2026-12-25T09:00')
+      expect(res.end).toBe('2026-12-25T12:00')
+    })
+
+    it('defaults Meal / Food to Day 1 at 19:30', () => {
+      const res = buildDefaultOptionDates('2026-12-25', '2026-12-28', 'Food')
+      expect(res.start).toBe('2026-12-25T19:30')
+      expect(res.end).toBe('2026-12-25T21:30')
+    })
+  })
 })
+

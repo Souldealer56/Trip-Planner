@@ -52,9 +52,10 @@ web/
 │   │   ├── JoinTrip.jsx      # Shareable invite onboarding flow
 │   │   ├── Profile.jsx       # User profile & preferences
 │   │   └── VerifyLogin.jsx   # Magic link authentication handler
+│   ├── __tests__/        # Offline unit, calculation & JSDOM smoke test suite
 │   ├── App.jsx           # Root layout and router configuration
 │   └── main.jsx          # DOM entrypoint
-├── verify-*.cjs          # Node.js integration & verification test scripts
+├── qa-live-scenario.js   # Live database & service E2E verification runner
 ├── vite.config.js        # Vite configuration
 └── package.json          # Web dependencies and scripts
 supabase/migrations/      # Versioned SQL migrations and RLS policies
@@ -71,8 +72,8 @@ supabase/migrations/      # Versioned SQL migrations and RLS policies
 2. **Custom Passwordless Auth (`login_tokens` + Resend Trigger) & PostgreSQL Row Level Security (RLS):**
    - Authentication uses the custom `public.login_tokens` table (`requestLoginLink` -> `INSERT INTO public.login_tokens` -> PostgreSQL `send_magic_link_trigger()` via `pg_net` to Resend API -> `/verify?token=...` -> `verifyLoginToken` -> `useUserSession` cached in `localStorage`).
    - **Never drop `public.login_tokens` or `public.send_magic_link_trigger()` in migrations.**
-   - All tables enforce strict RLS policies referencing user ID or membership in `rsvps`.
-   - Never bypass RLS; all client operations execute under the public `anon` role (`VITE_SUPABASE_ANON_KEY`).
+   - All tables enforce Row Level Security (RLS) with security definer functions (`is_trip_admin`, `is_trip_member`) and identity reconciliation triggers (`handle_auth_user_sync`).
+   - Web client operations execute under the public `anon` role (`VITE_SUPABASE_ANON_KEY`); never expose `service_role` or secret admin keys.
 
 3. **Real-Time Synchronization (`useTripRealtime`):**
    - Interactive trip views leverage `useTripRealtime` to listen for Postgres CDC updates via Supabase WebSocket channels (`trip-room:<id>`).

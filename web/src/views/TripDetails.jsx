@@ -2,616 +2,214 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTripDetails } from '../hooks/useTripDetails'
 import { useRsvpRoster } from '../hooks/useRsvpRoster'
-import { useAddParticipant } from '../hooks/useAddParticipant'
 import { useUserSession } from '../hooks/useUserSession'
 import { useTripRealtime } from '../hooks/useTripRealtime'
-import { updateRsvpNote, updateRsvpStatus, createRsvp, isUserTripAdmin, promoteToCoOrganizer, demoteCoOrganizer, updateRsvpDetails } from '../services/rsvps'
-import { fetchOptions, pitchOption, toggleVote, fetchActivePoll, checkOptionDateConflict, fetchAllTripOptions, lockOption, deleteOption, updateOptionDates, toggleOptionParticipant } from '../services/options'
-import { updateTrip, archiveTrip, unarchiveTrip, deleteTrip } from '../services/trips'
-import { fetchExpenses, logExpense, updateExpense, deleteExpense } from '../services/expenses'
-import { fetchExchangeRates, convertCurrency, calculateSettlements, calculateExpenseParticipantShares } from '../utils/currency'
-import { fetchActivityLogs } from '../services/activity'
-import { generateICalContent, downloadICalFile } from '../utils/ical'
-import { saveTripOfflineSnapshot, loadTripOfflineSnapshot, isNetworkOffline } from '../utils/offlineCache'
+import { useTripFinancials } from '../hooks/useTripFinancials'
+import { useTripOptionsManager } from '../hooks/useTripOptionsManager'
+import { useTripManagement } from '../hooks/useTripManagement'
+import { useRosterActions } from '../hooks/useRosterActions'
+import { saveMealPlan } from '../services/groceries'
+import { buildDefaultOptionDates } from '../utils/format'
+import { saveTripOfflineSnapshot, loadTripOfflineSnapshot } from '../utils/offlineCache'
 
-// Modular Trip Components
+// Extracted Modular Sub-Components
 import { TripHeader } from '../components/trip/TripHeader'
-import { RosterSection } from '../components/trip/RosterSection'
-import { OptionsTab } from '../components/trip/OptionsTab'
-import { LedgerAndSettleTab } from '../components/trip/LedgerAndSettleTab'
-import { ActivityFeedDrawer } from '../components/trip/ActivityFeedDrawer'
+import { WorkspaceTabsNav } from '../components/trip/WorkspaceTabsNav'
+import { WorkspaceContentPane } from '../components/trip/WorkspaceContentPane'
+import { NotOnRosterModal } from '../components/trip/NotOnRosterModal'
+import { TripModalsContainer } from '../components/trip/TripModalsContainer'
 
-// Modular Modals
-import { PitchOptionModal } from '../components/modals/PitchOptionModal'
-import { AddExpenseModal } from '../components/modals/AddExpenseModal'
-import { EditTripModal } from '../components/modals/EditTripModal'
-import { PrintableItineraryModal, PollRecapModal } from '../components/modals/PrintableItineraryModal'
-
-const CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
-
-function TripDetails() {
+/**
+ * TripDetails View
+ * Refactored modular orchestration cockpit for Trip Overview, Itinerary / Gantt,
+ * Pitched Options, Meals & Groceries, Expense Ledger, and Crew Roster.
+ */
+export function TripDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { activeUser, login: onLogin, logout: onLogout, updateActiveUser } = useUserSession()
+  const { activeUser, logout, updateActiveUser } = useUserSession()
 
-  // Redirect unauthenticated travelers back to splash screen
-  useEffect(() => {
-    if (!activeUser) {
-      navigate('/trips')
-    }
-  }, [activeUser, navigate])
+  // Offline snapshot cache fallback
+  const offlineSnapshot = useMemo(() => loadTripOfflineSnapshot(id), [id])
 
-  // Core Trip & Roster Data
-  const { data: trip, loading: tripLoading, error: tripError, isOffline: tripIsOffline, refresh: refreshTrip } = useTripDetails(id)
-  const { data: roster = [], loading: rosterLoading, error: rosterError, refresh: refreshRoster } = useRsvpRoster(id)
-  const { addParticipant, loading: joinLoading, error: joinError } = useAddParticipant()
+  // Core Trip & Roster Queries
+  const { trip, loading: tripLoading, error: tripError, refreshTrip } = useTripDetails(id, offlineSnapshot?.trip)
+  const { roster, loading: rosterLoading, error: rosterError, refreshRoster } = useRsvpRoster(id, offlineSnapshot?.roster)
 
-  // Offline state detection
-  const [offlineSnapshot, setOfflineSnapshot] = useState(() => loadTripOfflineSnapshot(id))
-  const isOffline = tripIsOffline || !navigator.onLine || Boolean(offlineSnapshot && !trip && !tripLoading)
-
-  // Activity Feed States
-  const [activityLogs, setActivityLogs] = useState([])
-  const [showActivityDrawer, setShowActivityDrawer] = useState(false)
-  const [lastReadTimestamp, setLastReadTimestamp] = useState(() => {
-    return typeof localStorage !== 'undefined' ? localStorage.getItem(`trip_planner_last_read_log_${id}`) : null
-  })
-
-  const loadActivityLogs = useCallback(async () => {
-    try {
-      const logs = await fetchActivityLogs(id)
-      setActivityLogs(logs || [])
-    } catch (err) {
-      console.warn('Failed to load activity logs:', err)
-    }
-  }, [id])
-
-  useEffect(() => {
-    if (activeUser) {
-      loadActivityLogs()
-    }
-  }, [activeUser, loadActivityLogs])
-
-  const unreadCount = useMemo(() => {
-    if (!lastReadTimestamp) return activityLogs.length
-    const lastReadTime = new Date(lastReadTimestamp).getTime()
-    return activityLogs.filter((log) => new Date(log.created_at).getTime() > lastReadTime).length
-  }, [activityLogs, lastReadTimestamp])
-
-  const handleToggleDrawer = () => {
-    const nextShow = !showActivityDrawer
-    setShowActivityDrawer(nextShow)
-    if (nextShow && typeof localStorage !== 'undefined') {
-      const nowIso = new Date().toISOString()
-      setLastReadTimestamp(nowIso)
-      localStorage.setItem(`trip_planner_last_read_log_${id}`, nowIso)
-    }
-  }
-
-  // Options & Polls
-  const [activeTab, setActiveTab] = useState('Accommodation')
-  const [options, setOptions] = useState(() => offlineSnapshot?.options || [])
-  const [optionsLoading, setOptionsLoading] = useState(false)
-  const [activePoll, setActivePoll] = useState(null)
-  const [viewMode, setViewMode] = useState('grid')
-  const [allTripOptions, setAllTripOptions] = useState([])
-  const [allActivePollsMap, setAllActivePollsMap] = useState({})
+  // Workspace tab state
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('itinerary')
-  const [voteError, setVoteError] = useState('')
 
-  const loadOptionsAndPoll = useCallback(async (silent = false) => {
-    if (!silent) setOptionsLoading(true)
-    try {
-      const [opts, allOpts] = await Promise.all([
-        fetchOptions(id, activeTab),
-        fetchAllTripOptions(id)
-      ])
-      const filteredFromAll = (allOpts || []).filter(
-        (o) => o.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
-      )
-      const unifiedCategoryOpts = filteredFromAll.length > 0 ? filteredFromAll : (opts || [])
-      setOptions(unifiedCategoryOpts)
-      if (allOpts) setAllTripOptions(allOpts)
-
-      const poll = await fetchActivePoll(id, activeTab)
-      setActivePoll(poll)
-      if (poll) {
-        setAllActivePollsMap((prev) => ({ ...(prev || {}), [activeTab.toLowerCase()]: poll }))
-      }
-      saveTripOfflineSnapshot(id, { options: unifiedCategoryOpts })
-    } catch (err) {
-      console.warn('Failed to load options/poll, falling back to cache:', err)
-      const cached = loadTripOfflineSnapshot(id)
-      if (cached?.options) setOptions(cached.options)
-    } finally {
-      if (!silent) setOptionsLoading(false)
-    }
-  }, [id, activeTab])
-
-  const loadGanttData = useCallback(async () => {
-    try {
-      const allOpts = await fetchAllTripOptions(id)
-      setAllTripOptions(allOpts || [])
-      const filteredForActiveTab = (allOpts || []).filter(
-        (o) => o.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
-      )
-      if (filteredForActiveTab.length > 0) {
-        setOptions(filteredForActiveTab)
-      }
-      const map = {}
-      for (const cat of CATEGORIES) {
-        const poll = await fetchActivePoll(id, cat)
-        if (poll) map[cat.toLowerCase()] = poll
-      }
-      setAllActivePollsMap((prev) => ({ ...(prev || {}), ...map }))
-    } catch (err) {
-      console.warn('Failed to load Gantt data:', err)
-    }
-  }, [id, activeTab])
-
-  // Single source of truth for active category options
-  const categoryOptions = useMemo(() => {
-    if (allTripOptions && allTripOptions.length > 0) {
-      const filtered = allTripOptions.filter(
-        (opt) => opt.category?.trim().toLowerCase() === activeTab.trim().toLowerCase()
-      )
-      if (filtered.length > 0 || !options || options.length === 0) {
-        return filtered
-      }
-    }
-    return options || []
-  }, [allTripOptions, activeTab, options])
-
-  useEffect(() => {
-    if (activeUser) {
-      loadOptionsAndPoll()
-      loadGanttData()
-    }
-  }, [activeUser, activeTab, loadOptionsAndPoll, loadGanttData])
-
-  useEffect(() => {
-    if (viewMode === 'gantt') {
-      loadGanttData()
-    }
-  }, [viewMode, loadGanttData])
-
-  // Expenses & Settlements
-  const [expenses, setExpenses] = useState(() => offlineSnapshot?.expenses || [])
-  const [expensesLoading, setExpensesLoading] = useState(false)
-  const [rates, setRates] = useState(null)
-  const [ledgerTab, setLedgerTab] = useState('ledger')
-
-  const loadExpenses = useCallback(async (silent = false) => {
-    if (!silent) setExpensesLoading(true)
-    try {
-      const data = await fetchExpenses(id)
-      setExpenses(data)
-      saveTripOfflineSnapshot(id, { expenses: data })
-    } catch (err) {
-      console.warn('Failed to load expenses, checking offline cache:', err)
-      const cached = loadTripOfflineSnapshot(id)
-      if (cached?.expenses) setExpenses(cached.expenses)
-    } finally {
-      if (!silent) setExpensesLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    if (activeUser) {
-      loadExpenses()
-      fetchExchangeRates().then(setRates).catch(console.warn)
-    }
-  }, [activeUser, loadExpenses])
-
-  // Cache trip & roster changes
-  useEffect(() => {
-    if (trip || roster.length > 0) {
-      saveTripOfflineSnapshot(id, { trip, roster })
-    }
-  }, [id, trip, roster])
-
-  // Modals States
-  const [showPitchModal, setShowPitchModal] = useState(false)
-  const [pitchInitialCategory, setPitchInitialCategory] = useState('Accommodation')
-  const [pitchInitialDates, setPitchInitialDates] = useState({ start: '', end: '' })
-  const [pitchLoading, setPitchLoading] = useState(false)
-  const [pitchError, setPitchError] = useState('')
-
+  // Expense modal states
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [expenseOptionToPreFill, setExpenseOptionToPreFill] = useState(null)
   const [expenseToEdit, setExpenseToEdit] = useState(null)
   const [expenseLoading, setExpenseLoading] = useState(false)
   const [expenseError, setExpenseError] = useState('')
 
-  const [showEditTripModal, setShowEditTripModal] = useState(false)
-  const [editingTripSnapshot, setEditingTripSnapshot] = useState(null)
-  const [editLoading, setEditLoading] = useState(false)
-  const [editError, setEditError] = useState('')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteLoading, setDeleteLoading] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
-  const [showReconcileModal, setShowReconcileModal] = useState(false)
-  const [conflictingOptions, setConflictingOptions] = useState([])
+  // Trip Management, Settings, Activity Logs & iCal Hook
+  const tripManagement = useTripManagement({
+    tripId: id,
+    trip,
+    refreshTrip,
+    navigate
+  })
+  const { loadActivityLogs } = tripManagement
 
-  const [showPollRecapModal, setShowPollRecapModal] = useState(false)
-  const [showPrintableItineraryModal, setShowPrintableItineraryModal] = useState(false)
+  // Options & Polls Manager Hook
+  const {
+    categories,
+    activeTab,
+    setActiveTab,
+    options,
+    optionsLoading,
+    activePoll,
+    viewMode,
+    setViewMode,
+    allTripOptions,
+    allActivePollsMap,
+    categoryOptions,
+    voteError,
+    setVoteError,
+    loadOptionsAndPoll,
+    loadGanttData,
+    showPitchModal,
+    setShowPitchModal,
+    pitchInitialCategory,
+    setPitchInitialCategory,
+    pitchInitialDates,
+    setPitchInitialDates,
+    pitchLoading,
+    pitchError,
+    editingOption,
+    setEditingOption,
+    handleVoteToggle,
+    handleLockToggle,
+    handleDeleteOption,
+    handleUpdateOptionDates,
+    handleToggleOptionParticipant,
+    handleOpenEditOptionModal,
+    handlePitchSubmit
+  } = useTripOptionsManager({
+    tripId: id,
+    trip,
+    activeUser,
+    onActivityLogged: loadActivityLogs,
+    initialOptions: offlineSnapshot?.options
+  })
 
-  // RSVP note editing state
-  const [userNote, setUserNote] = useState('')
-  const [savingNote, setSavingNote] = useState(false)
-  const [showCopiedToast, setShowCopiedToast] = useState(false)
+  // Financials & Settlements Hook
+  const committedMembers = useMemo(() => roster.filter((m) => m.status === 'Committed'), [roster])
+  const baseCurrency = trip?.base_currency || 'USD'
 
-  const activeUserRsvp = roster.find((m) => m.user_id === activeUser?.id)
-  const isAdmin = isUserTripAdmin(activeUser, trip, activeUserRsvp)
+  const {
+    expenses,
+    expensesLoading,
+    rates,
+    ledgerTab,
+    setLedgerTab,
+    loadExpenses,
+    memberBalances,
+    totalGroupSpend,
+    settlementsList,
+    perPersonSplit,
+    submitExpense,
+    removeExpense,
+    logGroceryExpense
+  } = useTripFinancials({
+    tripId: id,
+    baseCurrency,
+    activeUser,
+    committedMembers,
+    onActivityLogged: loadActivityLogs,
+    initialExpenses: offlineSnapshot?.expenses
+  })
 
+  // Roster Actions & Session Reconciliation Hook
+  const {
+    userNote,
+    setUserNote,
+    savingNote,
+    showCopiedToast,
+    isAdmin,
+    activeUserInRoster,
+    reconcileLoading,
+    reconcileError,
+    handleJoinRoster,
+    handleNoteBlur,
+    handleCopyInviteLink,
+    handleStatusChange,
+    handlePromoteMember,
+    handleDemoteMember,
+    handleUpdateRsvpDetails
+  } = useRosterActions({
+    tripId: id,
+    trip,
+    roster,
+    activeUser,
+    refreshRoster,
+    onActivityLogged: loadActivityLogs,
+    updateActiveUser
+  })
+
+  // Cache trip & roster changes to offline snapshot
   useEffect(() => {
-    if (activeUser && roster.length > 0) {
-      const activeMember = roster.find((m) => m.user_id === activeUser.id)
-      if (activeMember) setUserNote(activeMember.notes || '')
+    if (trip || roster.length > 0) {
+      saveTripOfflineSnapshot(id, { trip, roster })
     }
-  }, [activeUser, roster])
+  }, [id, trip, roster])
 
-  // Real-time collaborative synchronization across all connected travelers
-  const { realtimeStatus } = useTripRealtime(
-    id,
-    {
-      onTripChange: () => {
-        refreshTrip()
-      },
-      onRosterChange: () => {
-        refreshRoster()
-      },
-      onOptionsChange: () => {
-        loadOptionsAndPoll(true)
-        loadGanttData()
-      },
-      onExpensesChange: () => {
-        loadExpenses(true)
-      },
-      onActivityChange: () => {
-        loadActivityLogs()
-      }
-    },
-    300
-  )
-
-  // Handlers
-  const handleRefresh = () => {
+  // Unified Refresh Handler
+  const handleRefresh = useCallback(() => {
     refreshTrip()
     refreshRoster()
-    if (activeUser) {
+    if (viewMode === 'gantt') loadGanttData()
+    else loadOptionsAndPoll()
+    loadExpenses()
+    loadActivityLogs()
+  }, [refreshTrip, refreshRoster, viewMode, loadGanttData, loadOptionsAndPoll, loadExpenses, loadActivityLogs])
+
+  // Real-Time Multi-User Synchronization via Supabase CDC
+  const { status: realtimeStatus, isOffline } = useTripRealtime(id, {
+    onTripsChange: () => {
+      refreshTrip()
+      loadActivityLogs()
+    },
+    onRsvpsChange: () => {
+      refreshRoster()
+      loadActivityLogs()
+    },
+    onOptionsChange: () => {
+      if (viewMode === 'gantt') loadGanttData()
+      else loadOptionsAndPoll()
+      loadActivityLogs()
+    },
+    onPollsChange: () => {
       loadOptionsAndPoll()
-      loadGanttData()
+      loadActivityLogs()
+    },
+    onExpensesChange: () => {
       loadExpenses()
       loadActivityLogs()
-      fetchExchangeRates().then(setRates).catch(console.warn)
-    }
-  }
-
-  const handleCopyInviteLink = () => {
-    const inviteUrl = `${window.location.origin}/join/${id}`
-    navigator.clipboard.writeText(inviteUrl)
-      .then(() => {
-        setShowCopiedToast(true)
-        setTimeout(() => setShowCopiedToast(false), 2000)
-      })
-      .catch((err) => {
-        console.error('Failed to copy invite link:', err)
-        alert('Invite link: ' + inviteUrl)
-      })
-  }
-
-  const handleNoteBlur = async () => {
-    if (!activeUser) return
-    const activeMember = roster.find((m) => m.user_id === activeUser.id)
-    if (userNote.trim() === (activeMember?.notes || '').trim()) return
-    setSavingNote(true)
-    try {
-      await updateRsvpNote(id, activeUser.id, userNote.trim() || null)
-      refreshRoster()
-    } catch (err) {
-      console.error('Failed to update note:', err)
-    } finally {
-      setSavingNote(false)
-    }
-  }
-
-  const handleStatusChange = async (e) => {
-    if (!activeUser) return
-    try {
-      await updateRsvpStatus(id, activeUser.id, e.target.value)
-      refreshRoster()
-    } catch (err) {
-      console.error('Failed to update RSVP status:', err)
-    }
-  }
-
-  const handlePromoteMember = async (userId) => {
-    if (!isAdmin) return
-    try {
-      await promoteToCoOrganizer(id, userId)
-      refreshRoster()
-    } catch (err) {
-      console.error('Failed to promote user:', err)
-    }
-  }
-
-  const handleDemoteMember = async (userId) => {
-    if (!isAdmin) return
-    try {
-      await demoteCoOrganizer(id, userId)
-      refreshRoster()
-    } catch (err) {
-      console.error('Failed to demote user:', err)
-    }
-  }
-
-  const handleVoteToggle = async (optionId, hasVoted, optionCategory) => {
-    if (!activeUser || !activeUser.id) {
-      setVoteError('Please sign in or join the crew to vote on options.')
-      return
-    }
-    setVoteError('')
-    const targetCategory = (optionCategory || activeTab || 'Accommodation').toLowerCase()
-    const optIdStr = String(optionId)
-    const userKey = String(activeUser.id)
-
-    // 1. Snapshot previous state for rollback
-    const prevActivePoll = activePoll ? JSON.parse(JSON.stringify(activePoll)) : null
-    const prevPollsMap = allActivePollsMap ? JSON.parse(JSON.stringify(allActivePollsMap)) : {}
-
-    // 2. Perform optimistic state update
-    const currentPoll = (allActivePollsMap && allActivePollsMap[targetCategory]) || (targetCategory === activeTab.toLowerCase() ? activePoll : null) || {
-      trip_id: id,
-      category: targetCategory,
-      voter_selections: {},
-      votes_by_option: {}
-    }
-
-    const newSelections = { ...(currentPoll.voter_selections || {}) }
-    let currentUserVotes = Array.isArray(newSelections[userKey]) ? [...newSelections[userKey]] : []
-
-    if (!hasVoted) {
-      if (!currentUserVotes.some((v) => String(v) === optIdStr)) {
-        currentUserVotes.push(optIdStr)
-      }
-      newSelections[userKey] = currentUserVotes
-    } else {
-      currentUserVotes = currentUserVotes.filter((v) => String(v) !== optIdStr)
-      if (currentUserVotes.length > 0) {
-        newSelections[userKey] = currentUserVotes
-      } else {
-        delete newSelections[userKey]
-      }
-    }
-
-    // Recalculate votes_by_option totals (ignoring keys starting with '_')
-    const newVotesByOpt = {}
-    Object.entries(newSelections).forEach(([key, opts]) => {
-      if (!key.startsWith('_') && Array.isArray(opts)) {
-        opts.forEach((vId) => {
-          const vIdStr = String(vId)
-          newVotesByOpt[vIdStr] = (newVotesByOpt[vIdStr] || 0) + 1
-        })
-      }
-    })
-
-    const optimisticPoll = {
-      ...currentPoll,
-      voter_selections: newSelections,
-      votes_by_option: newVotesByOpt
-    }
-
-    // Immediately update UI
-    if (targetCategory === activeTab.toLowerCase()) {
-      setActivePoll(optimisticPoll)
-    }
-    setAllActivePollsMap((prev) => ({
-      ...(prev || {}),
-      [targetCategory]: optimisticPoll
-    }))
-
-    // 3. Persist to database
-    try {
-      const updatedPoll = await toggleVote(id, targetCategory, optionId, activeUser.id, !hasVoted)
-      if (targetCategory === activeTab.toLowerCase()) {
-        setActivePoll(updatedPoll)
-      }
-      setAllActivePollsMap((prev) => ({
-        ...(prev || {}),
-        [targetCategory]: updatedPoll
-      }))
-      loadOptionsAndPoll(true).catch((err) => console.warn('Background sync failed:', err))
+    },
+    onGroceriesChange: () => {
+      if (viewMode === 'gantt') loadGanttData()
+      else loadOptionsAndPoll()
       loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to toggle vote:', err)
-      // Revert optimistic update
-      if (prevActivePoll && targetCategory === activeTab.toLowerCase()) {
-        setActivePoll(prevActivePoll)
-      }
-      setAllActivePollsMap(prevPollsMap)
-      setVoteError(err.message || 'Failed to submit vote. Please try again.')
-    }
-  }
-
-  const handleLockToggle = async (optionId) => {
-    if (!activeUser) return
-    try {
-      const updatedPoll = await lockOption(id, activeTab, optionId, activeUser.id)
-      setActivePoll(updatedPoll)
-      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
+    },
+    onActivityChange: () => {
       loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to toggle lock option:', err)
     }
-  }
+  })
 
-  const handleDeleteOption = async (optionOrId) => {
-    const optObj = typeof optionOrId === 'object' && optionOrId !== null
-      ? optionOrId
-      : (allTripOptions.find((o) => String(o.id) === String(optionOrId)) || options.find((o) => String(o.id) === String(optionOrId)) || { id: optionOrId, category: activeTab })
-    const optId = optObj.id
-    const optCategory = optObj.category || activeTab
-
-    // Optimistically remove option from local options state
-    const prevAllTripOptions = allTripOptions
-    const prevOptions = options
-    const prevActivePoll = activePoll
-    const prevPollsMap = allActivePollsMap
-
-    setAllTripOptions((prev) => prev.filter((o) => String(o.id) !== String(optId)))
-    setOptions((prev) => prev.filter((o) => String(o.id) !== String(optId)))
-
-    // Optimistically update poll state
-    const optIdStr = String(optId)
-    const catKey = String(optCategory || '').trim().toLowerCase()
-    const targetPoll = allActivePollsMap[catKey] || (activeTab.toLowerCase() === catKey ? activePoll : null)
-
-    if (targetPoll) {
-      const selections = { ...(targetPoll.voter_selections || {}) }
-      Object.keys(selections).forEach((key) => {
-        if (!key.startsWith('_') && Array.isArray(selections[key])) {
-          const filtered = selections[key].filter((id) => String(id) !== optIdStr)
-          if (filtered.length > 0) selections[key] = filtered
-          else delete selections[key]
-        }
-      })
-      if (selections._locked_option_id && String(selections._locked_option_id) === optIdStr) {
-        delete selections._locked_option_id
-      }
-      if (Array.isArray(selections._locked_option_ids)) {
-        selections._locked_option_ids = selections._locked_option_ids.filter((id) => String(id) !== optIdStr)
-      }
-      const newVotesByOpt = {}
-      Object.entries(selections).forEach(([key, opts]) => {
-        if (!key.startsWith('_') && Array.isArray(opts)) {
-          opts.forEach((id) => {
-            const idS = String(id)
-            newVotesByOpt[idS] = (newVotesByOpt[idS] || 0) + 1
-          })
-        }
-      })
-      const optimisticPoll = {
-        ...targetPoll,
-        voter_selections: selections,
-        votes_by_option: newVotesByOpt,
-        locked_option_id: selections._locked_option_id || null,
-        locked_option_ids: selections._locked_option_ids || []
-      }
-      if (catKey === activeTab.toLowerCase()) {
-        setActivePoll(optimisticPoll)
-      }
-      setAllActivePollsMap((prev) => ({ ...(prev || {}), [catKey]: optimisticPoll }))
-    }
-
-    try {
-      await deleteOption(id, optId, optCategory, activeUser?.id)
-      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
-      loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to delete option:', err)
-      // Restore previous state
-      setAllTripOptions(prevAllTripOptions)
-      setOptions(prevOptions)
-      setAllActivePollsMap(prevPollsMap)
-      if (prevActivePoll) setActivePoll(prevActivePoll)
-      setVoteError(err.message || 'Failed to delete option. Please try again.')
-    }
-  }
-
-  const handleUpdateOptionDates = async (optionId, startDate, endDate) => {
-    try {
-      await updateOptionDates(optionId, startDate, endDate, id, activeUser?.id)
-      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
-      loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to update option dates:', err)
-      alert('Failed to update option dates: ' + (err.message || err))
-    }
-  }
-
-  const handleToggleOptionParticipant = async (optionId, currentAssignedUsers, fallbackAllUserIds = []) => {
-    if (!activeUser) return
-    try {
-      await toggleOptionParticipant(optionId, activeUser.id, currentAssignedUsers, fallbackAllUserIds)
-      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
-      loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to toggle option participant:', err)
-    }
-  }
-
-  const handleUpdateRsvpDetails = async (userId, details) => {
-    try {
-      await updateRsvpDetails(id, userId, details)
-      refreshRoster()
-      loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to update RSVP details:', err)
-    }
-  }
-
-  const handlePitchSubmit = async ({ category, name, cost, currency, link, description, startDate, endDate, costType }) => {
-    setPitchLoading(true)
-    setPitchError('')
-    try {
-      await pitchOption(
-        id,
-        category,
-        name,
-        cost,
-        currency,
-        link,
-        description,
-        activeUser.id,
-        startDate,
-        endDate,
-        costType || 'split_total'
-      )
-      setShowPitchModal(false)
-      if (activeTab !== category) {
-        setActiveTab(category)
-      }
-      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
-      loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to pitch option:', err)
-      setPitchError(err.message || 'Failed to pitch option.')
-    } finally {
-      setPitchLoading(false)
-    }
-  }
-
-  const handleExpenseSubmit = async ({ description, amount, currency, category, paidBy, splitUsers, optionId, expenseId }) => {
+  // Expense Submission & Deletion Handlers
+  const handleExpenseSubmit = async (expenseData) => {
     setExpenseLoading(true)
     setExpenseError('')
     try {
-      if (expenseId) {
-        await updateExpense(expenseId, {
-          description,
-          amount,
-          currency,
-          category,
-          paidBy,
-          splitUsers
-        })
-      } else {
-        await logExpense(
-          id,
-          paidBy,
-          amount,
-          currency,
-          description,
-          splitUsers,
-          category,
-          optionId
-        )
-      }
+      await submitExpense(expenseData)
       setShowExpenseModal(false)
       setExpenseToEdit(null)
       setExpenseOptionToPreFill(null)
-      loadExpenses()
-      loadActivityLogs()
     } catch (err) {
       console.error('Failed to log expense:', err)
       setExpenseError(err.message || 'Failed to save expense.')
@@ -622,65 +220,22 @@ function TripDetails() {
 
   const handleDeleteExpense = async (expenseId) => {
     if (!window.confirm('Are you sure you want to remove this expense?')) return
-    setExpenseLoading(true)
     try {
-      await deleteExpense(expenseId)
-      loadExpenses()
-      loadActivityLogs()
+      await removeExpense(expenseId)
     } catch (err) {
       console.error('Failed to delete expense:', err)
       alert(err.message || 'Failed to delete expense.')
-    } finally {
-      setExpenseLoading(false)
-    }
-  }
-
-  const handleLogGroceryExpense = async (expenseData) => {
-    try {
-      const {
-        paid_by,
-        amount,
-        currency,
-        description,
-        split_details,
-        category,
-        option_id
-      } = expenseData
-      const splitUsers = split_details ? Object.keys(split_details) : []
-      await logExpense(
-        id,
-        paid_by || activeUser?.id,
-        amount,
-        currency || trip?.base_currency || 'USD',
-        description,
-        splitUsers,
-        category || 'food',
-        option_id || null
-      )
-      loadExpenses()
-      loadActivityLogs()
-    } catch (err) {
-      console.error('Failed to log grocery expense:', err)
-      throw err
     }
   }
 
   const handleSubmitMeal = async (mealData) => {
     try {
-      await pitchOption(
-        id,
-        mealData.category || 'Food',
-        mealData.option_text,
-        mealData.estimated_cost,
-        mealData.currency || trip?.base_currency || 'USD',
-        mealData.link || '',
-        mealData.start_date || '',
-        mealData.end_date || '',
-        activeUser?.id,
-        mealData.cost_type || 'split_total',
-        mealData.assigned_users || [],
-        mealData.metadata || {}
-      )
+      await saveMealPlan({
+        trip_id: id,
+        ...mealData,
+        added_by: activeUser?.id,
+        currency: mealData.currency || trip?.base_currency || 'USD'
+      })
       await loadOptionsAndPoll()
       loadActivityLogs()
     } catch (err) {
@@ -689,504 +244,203 @@ function TripDetails() {
     }
   }
 
-  const handleEditTripSubmit = async ({ title, destination, vibe, startDate, endDate, baseCurrency }) => {
-    setEditLoading(true)
-    setEditError('')
-    try {
-      const datesChanged = startDate !== trip?.start_date || endDate !== trip?.end_date
-      await updateTrip(id, {
-        title,
-        destination,
-        vibe,
-        start_date: startDate,
-        end_date: endDate,
-        base_currency: baseCurrency
-      })
-      setShowEditTripModal(false)
-      setEditingTripSnapshot(null)
-      refreshTrip()
-      loadActivityLogs()
-
-      if (datesChanged && startDate && endDate) {
-        const allOptions = await fetchAllTripOptions(id)
-        const conflicts = allOptions.filter((opt) => checkOptionDateConflict(opt, startDate, endDate))
-        if (conflicts.length > 0) {
-          setConflictingOptions(conflicts)
-          setShowReconcileModal(true)
-        }
-      }
-    } catch (err) {
-      console.error('Failed to update trip:', err)
-      setEditError(err.message || 'Failed to update trip.')
-    } finally {
-      setEditLoading(false)
-    }
+  const handleOpenPitchModal = (cat, start = '', end = '') => {
+    setEditingOption(null)
+    const targetCat = cat || activeTab
+    const defaultDates = buildDefaultOptionDates(trip?.start_date, trip?.end_date, targetCat)
+    setPitchInitialCategory(targetCat)
+    setPitchInitialDates({ start: start || defaultDates.start, end: end || defaultDates.end })
+    setShowPitchModal(true)
   }
 
-  const handleToggleArchive = async () => {
-    if (!trip) return
-    try {
-      if (trip.is_archived) await unarchiveTrip(id)
-      else await archiveTrip(id)
-      refreshTrip()
-      setShowEditTripModal(false)
-      setEditingTripSnapshot(null)
-    } catch (err) {
-      console.error('Failed to toggle archive state:', err)
-      alert('Failed to update archive status: ' + err.message)
-    }
+  const handleOpenExpenseModal = (opt) => {
+    setExpenseOptionToPreFill(opt ? { ...opt, category: opt.category || activeTab || 'Accommodation' } : null)
+    setShowExpenseModal(true)
   }
 
-  const handleConfirmDelete = async () => {
-    setDeleteLoading(true)
-    setDeleteError('')
-    try {
-      await deleteTrip(id)
-      navigate('/trips')
-    } catch (err) {
-      console.error('Failed to delete trip:', err)
-      setDeleteError(err.message || 'Failed to delete trip.')
-    } finally {
-      setDeleteLoading(false)
-    }
+  const handleClosePitchModal = () => {
+    setShowPitchModal(false)
+    setEditingOption(null)
   }
 
-  const handleExportICal = () => {
-    const opts = allTripOptions.length > 0 ? allTripOptions : options
-    const icalStr = generateICalContent(trip, opts)
-    downloadICalFile(`${(trip?.title || 'Trip').replace(/\s+/g, '_')}_itinerary.ics`, icalStr)
+  const handleCloseExpenseModal = () => {
+    setShowExpenseModal(false)
+    setExpenseToEdit(null)
+    setExpenseOptionToPreFill(null)
   }
 
-  // Cost & Balance Calculations
-  const committedMembers = roster.filter((m) => m.status === 'Committed')
-  const baseCurrency = trip?.base_currency || 'USD'
-
-  const memberBalances = {}
-  committedMembers.forEach((m) => {
-    memberBalances[m.user_id] = {
-      userId: m.user_id,
-      name: m.users?.first_name || m.username || 'Member',
-      paid: 0.0,
-      owed: 0.0
-    }
-  })
-
-  let totalGroupSpend = 0.0
-  if (rates && expenses.length > 0) {
-    expenses.forEach((exp) => {
-      const payerId = exp.paid_by
-      const originalAmount = parseFloat(exp.amount)
-      const expCurrency = exp.currency || 'USD'
-      const convertedAmount = exp.exchange_rate
-        ? originalAmount * parseFloat(exp.exchange_rate)
-        : convertCurrency(originalAmount, expCurrency, baseCurrency, rates)
-
-      const fallbackUserIds = committedMembers.map((m) => m.user_id)
-      const userShares = calculateExpenseParticipantShares(convertedAmount, exp.split_users, fallbackUserIds)
-
-      userShares.forEach((owedShare, uIdStr) => {
-        const targetKey = Object.keys(memberBalances).find((k) => String(k) === uIdStr)
-        if (targetKey && memberBalances[targetKey]) {
-          memberBalances[targetKey].owed += owedShare
-        }
-      })
-
-      const payerKey = Object.keys(memberBalances).find((k) => String(k) === String(payerId))
-      if (payerKey && memberBalances[payerKey]) {
-        memberBalances[payerKey].paid += convertedAmount
-        totalGroupSpend += convertedAmount
-      }
-    })
+  const onLogout = () => {
+    logout()
+    navigate('/')
   }
-
-  const settlementsList = rates ? calculateSettlements(memberBalances) : []
-  const perPersonSplit = committedMembers.length > 0 ? totalGroupSpend / committedMembers.length : 0.0
 
   const totalOptionsCount = allTripOptions.length > 0 ? allTripOptions.length : options.length
   const expensesCount = expenses.length
   const rosterCount = roster.length
 
-  const activeUserInRoster = useMemo(() => {
-    if (!activeUser) return false
-    if (!trip) return true // Do not flag while trip is still loading
-    if (String(trip.organizer_id) === String(activeUser.id)) return true
-
-    const userEmail = activeUser.email?.trim().toLowerCase()
-    const userUsername = activeUser.username?.trim().toLowerCase()
-
-    return roster.some((r) => {
-      if (String(r.user_id) === String(activeUser.id)) return true
-      const rosterEmail = r.users?.email?.trim().toLowerCase()
-      if (rosterEmail && userEmail && rosterEmail === userEmail) return true
-      const rosterUsername = (r.users?.username || r.username)?.trim().toLowerCase()
-      if (rosterUsername && userUsername && rosterUsername === userUsername) return true
-      return false
-    })
-  }, [activeUser, trip, roster])
-
-  // Session reconciliation: if matched by email or username with different ID, update session UUID
-  useEffect(() => {
-    if (!activeUser || !roster.length || !updateActiveUser) return
-    const userEmail = activeUser.email?.trim().toLowerCase()
-    const userUsername = activeUser.username?.trim().toLowerCase()
-
-    for (const r of roster) {
-      const rosterEmail = r.users?.email?.trim().toLowerCase()
-      const rosterUsername = (r.users?.username || r.username)?.trim().toLowerCase()
-      const matchesEmail = rosterEmail && userEmail && rosterEmail === userEmail
-      const matchesUsername = rosterUsername && userUsername && rosterUsername === userUsername
-
-      if ((matchesEmail || matchesUsername) && String(activeUser.id) !== String(r.user_id)) {
-        updateActiveUser({ ...activeUser, id: r.user_id })
-        break
-      }
-    }
-  }, [activeUser, roster, updateActiveUser])
-
-  const [reconcileLoading, setReconcileLoading] = useState(false)
-  const [reconcileError, setReconcileError] = useState('')
-
-  const handleJoinRoster = async () => {
-    if (!activeUser || !id) return
-    setReconcileLoading(true)
-    setReconcileError('')
-    try {
-      await createRsvp(id, activeUser.id, 'Committed')
-      await refreshRoster()
-    } catch (err) {
-      console.error('Failed to join roster:', err)
-      setReconcileError(err.message || 'Failed to join roster.')
-    } finally {
-      setReconcileLoading(false)
-    }
-  }
-
-  if ((tripLoading || rosterLoading) && !trip && !offlineSnapshot?.trip) {
+  if (tripLoading && !trip) {
     return (
-      <div style={{ padding: '3rem', textAlign: 'center' }}>
-        <div className="skeleton skeleton-title" style={{ width: '50%', margin: '0 auto 1rem' }} />
-        <div className="skeleton skeleton-text" style={{ width: '80%', margin: '0 auto' }} />
+      <div className="container" style={{ textAlign: 'center', padding: '4rem 0' }}>
+        <div className="spinner" style={{ margin: '0 auto 1.5rem' }}></div>
+        <p style={{ color: 'var(--text-muted)' }}>Loading expedition workspace...</p>
       </div>
     )
   }
 
-  if ((tripError || rosterError) && !trip && !offlineSnapshot?.trip) {
+  if (tripError && !trip) {
     return (
-      <div style={{ padding: '3rem', textAlign: 'center', color: 'hsl(0, 85%, 65%)' }}>
-        <h2>Error Loading Trip</h2>
-        <p>{tripError || rosterError}</p>
-        <button onClick={handleRefresh} className="btn" style={{ marginTop: '1rem' }}>
-          Retry
+      <div className="container" style={{ textAlign: 'center', padding: '4rem 0' }}>
+        <h2 style={{ color: 'var(--accent-red)', marginBottom: '1rem' }}>Trip Not Found</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{tripError}</p>
+        <button type="button" onClick={() => navigate('/trips')} className="btn btn-primary">
+          Back to My Trips
         </button>
       </div>
     )
   }
 
   return (
-    <div className="trip-details-container">
-      {/* Blocking Modal strictly if user is confirmed NOT in roster after loading completes */}
-      {!tripLoading && !rosterLoading && trip !== null && activeUser && !activeUserInRoster && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-card animate-fade-in" style={{ textAlign: 'center', maxWidth: '400px' }}>
-            <h2 style={{ color: 'var(--primary-light)', marginBottom: '0.5rem' }}>Not on the Roster</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              You are signed in as <strong>{activeUser.first_name || activeUser.username || 'Traveler'}</strong>, but you are not registered on this trip.
-            </p>
-            {reconcileError && (
-              <p style={{ color: 'hsl(0, 85%, 65%)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                {reconcileError}
-              </p>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <button onClick={handleJoinRoster} className="btn" disabled={reconcileLoading} style={{ width: '100%' }}>
-                {reconcileLoading ? 'Joining...' : 'Join Trip'}
-              </button>
-              <button onClick={onLogout} className="btn btn-secondary" style={{ width: '100%' }}>
-                Switch Profile / Sign Out
-              </button>
-            </div>
-          </div>
+    <div className="container trip-details-page">
+      {/* Offline Sync Banner */}
+      {isOffline && (
+        <div className="alert-banner alert-banner-warning animate-fade-in" style={{ marginBottom: '1rem' }}>
+          <span>📡 Offline mode — Viewing cached trip data. Changes will sync when reconnected.</span>
         </div>
       )}
+
+      {/* Blocking Modal strictly if user is confirmed NOT in roster after loading completes */}
+      <NotOnRosterModal
+        isOpen={!tripLoading && !rosterLoading && trip !== null && activeUser && !activeUserInRoster}
+        activeUser={activeUser}
+        onJoinRoster={handleJoinRoster}
+        onLogout={onLogout}
+        reconcileLoading={reconcileLoading}
+        reconcileError={reconcileError}
+      />
 
       {/* Main Trip Cockpit Header */}
       <TripHeader
         trip={trip}
         activeUser={activeUser}
         isOffline={isOffline}
-        unreadCount={unreadCount}
+        unreadCount={tripManagement.unreadCount}
         realtimeStatus={realtimeStatus}
         onRefresh={handleRefresh}
         onOpenEditModal={() => {
-          setEditingTripSnapshot(trip)
-          setShowEditTripModal(true)
+          tripManagement.setEditingTripSnapshot(trip)
+          tripManagement.setShowEditTripModal(true)
         }}
-        onToggleArchive={handleToggleArchive}
-        onExportICal={handleExportICal}
-        onOpenPrintModal={() => setShowPrintableItineraryModal(true)}
-        onOpenPollRecapModal={() => setShowPollRecapModal(true)}
-        onToggleActivityDrawer={handleToggleDrawer}
+        onToggleArchive={tripManagement.handleToggleArchive}
+        onExportICal={tripManagement.handleExportICal}
+        onOpenPrintModal={() => tripManagement.setShowPrintableItineraryModal(true)}
+        onOpenPollRecapModal={() => tripManagement.setShowPollRecapModal(true)}
+        onToggleActivityDrawer={tripManagement.handleToggleDrawer}
         onLogout={onLogout}
       />
 
-      {/* 3-Tab Workspace Navigation (Sticky segmented pill on desktop, thumb-friendly fixed bottom bar on mobile) */}
-      <nav className="workspace-tabs-nav" aria-label="Trip Workspace Tabs" role="tablist">
-        <button
-          id="tab-itinerary"
-          role="tab"
-          type="button"
-          aria-selected={activeWorkspaceTab === 'itinerary'}
-          aria-controls="panel-itinerary"
-          className={`workspace-tab-btn ${activeWorkspaceTab === 'itinerary' ? 'active' : ''}`}
-          onClick={() => setActiveWorkspaceTab('itinerary')}
-        >
-          <span className="workspace-tab-icon">🗺️</span>
-          <span className="workspace-tab-label">Itinerary & Options</span>
-          <span className="workspace-tab-badge">{totalOptionsCount}</span>
-        </button>
-
-        <button
-          id="tab-expenses"
-          role="tab"
-          type="button"
-          aria-selected={activeWorkspaceTab === 'expenses'}
-          aria-controls="panel-expenses"
-          className={`workspace-tab-btn ${activeWorkspaceTab === 'expenses' ? 'active' : ''}`}
-          onClick={() => setActiveWorkspaceTab('expenses')}
-        >
-          <span className="workspace-tab-icon">💰</span>
-          <span className="workspace-tab-label">Expenses & Budget</span>
-          <span className="workspace-tab-badge">{expensesCount}</span>
-        </button>
-
-        <button
-          id="tab-roster"
-          role="tab"
-          type="button"
-          aria-selected={activeWorkspaceTab === 'roster'}
-          aria-controls="panel-roster"
-          className={`workspace-tab-btn ${activeWorkspaceTab === 'roster' ? 'active' : ''}`}
-          onClick={() => setActiveWorkspaceTab('roster')}
-        >
-          <span className="workspace-tab-icon">👥</span>
-          <span className="workspace-tab-label">Crew & RSVPs</span>
-          <span className="workspace-tab-badge">{rosterCount}</span>
-        </button>
-      </nav>
-
-      {/* Full-Width Workspace Active Content (100% width, non-overlapping) */}
-      <main className="workspace-content-pane">
-        {voteError && (
-          <div
-            className="alert-banner alert-banner-danger animate-fade-in"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              padding: '10px 16px',
-              marginBottom: '1rem',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#fca5a5'
-            }}
-          >
-            <span>⚠️ {voteError}</span>
-            <button
-              type="button"
-              onClick={() => setVoteError('')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#fca5a5',
-                fontSize: '1.2rem',
-                cursor: 'pointer',
-                lineHeight: 1
-              }}
-              title="Dismiss error"
-            >
-              ×
-            </button>
-          </div>
-        )}
-        {activeWorkspaceTab === 'itinerary' && (
-          <div id="panel-itinerary" role="tabpanel" aria-labelledby="tab-itinerary" className="animate-fade-in">
-            <OptionsTab
-              categories={CATEGORIES}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              options={categoryOptions}
-              optionsLoading={optionsLoading}
-              activePoll={activePoll}
-              allTripOptions={allTripOptions}
-              allActivePollsMap={allActivePollsMap}
-              trip={trip}
-              roster={roster}
-              activeUser={activeUser}
-              expenses={expenses}
-              rates={rates}
-              onVoteToggle={handleVoteToggle}
-              onLockToggle={handleLockToggle}
-              onDeleteOption={handleDeleteOption}
-              onUpdateOptionDates={handleUpdateOptionDates}
-              onOpenPitchModal={(cat, start = '', end = '') => {
-                setPitchInitialCategory(cat || activeTab)
-                setPitchInitialDates({ start, end })
-                setShowPitchModal(true)
-              }}
-              onOpenPollRecapModal={() => setShowPollRecapModal(true)}
-              onOpenExpenseModal={(opt) => {
-                if (opt) {
-                  setExpenseOptionToPreFill({
-                    ...opt,
-                    category: opt.category || activeTab || 'Accommodation'
-                  })
-                } else {
-                  setExpenseOptionToPreFill(null)
-                }
-                setShowExpenseModal(true)
-              }}
-              onRefresh={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}
-              onToggleParticipant={handleToggleOptionParticipant}
-              onLogExpense={handleLogGroceryExpense}
-              onSubmitMeal={handleSubmitMeal}
-            />
-          </div>
-        )}
-
-        {activeWorkspaceTab === 'expenses' && (
-          <div id="panel-expenses" role="tabpanel" aria-labelledby="tab-expenses" className="animate-fade-in">
-            <LedgerAndSettleTab
-              ledgerTab={ledgerTab}
-              onLedgerTabChange={setLedgerTab}
-              expenses={expenses}
-              expensesLoading={expensesLoading}
-              committedMembers={committedMembers}
-              roster={roster}
-              memberBalances={memberBalances}
-              settlementsList={settlementsList}
-              totalGroupSpend={totalGroupSpend}
-              perPersonSplit={perPersonSplit}
-              baseCurrency={baseCurrency}
-              onOpenExpenseModal={() => {
-                setExpenseToEdit(null)
-                setExpenseOptionToPreFill(null)
-                setShowExpenseModal(true)
-              }}
-              onEditExpense={(exp) => {
-                setExpenseOptionToPreFill(null)
-                setExpenseToEdit(exp)
-                setShowExpenseModal(true)
-              }}
-              onDeleteExpense={handleDeleteExpense}
-              allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
-              rates={rates}
-              activeUser={activeUser}
-            />
-          </div>
-        )}
-
-        {activeWorkspaceTab === 'roster' && (
-          <div id="panel-roster" role="tabpanel" aria-labelledby="tab-roster" className="animate-fade-in">
-            <RosterSection
-              roster={roster}
-              activeUser={activeUser}
-              trip={trip}
-              isAdmin={isAdmin}
-              userNote={userNote}
-              setUserNote={setUserNote}
-              savingNote={savingNote}
-              onNoteBlur={handleNoteBlur}
-              onStatusChange={handleStatusChange}
-              onPromoteMember={handlePromoteMember}
-              onDemoteMember={handleDemoteMember}
-              onCopyInviteLink={handleCopyInviteLink}
-              showCopiedToast={showCopiedToast}
-              onUpdateRsvpDetails={handleUpdateRsvpDetails}
-            />
-          </div>
-        )}
-      </main>
-
-      {/* Extracted Modals */}
-      <PitchOptionModal
-        isOpen={showPitchModal}
-        onClose={() => setShowPitchModal(false)}
-        onSubmit={handlePitchSubmit}
-        loading={pitchLoading}
-        error={pitchError}
-        categories={CATEGORIES}
-        initialCategory={pitchInitialCategory}
-        initialStartDate={pitchInitialDates.start}
-        initialEndDate={pitchInitialDates.end}
-        baseCurrency={baseCurrency}
-        roster={roster}
-        activeUserId={activeUser?.id}
+      {/* 3-Tab Workspace Navigation */}
+      <WorkspaceTabsNav
+        activeWorkspaceTab={activeWorkspaceTab}
+        onTabChange={setActiveWorkspaceTab}
+        totalOptionsCount={totalOptionsCount}
+        expensesCount={expensesCount}
+        rosterCount={rosterCount}
       />
 
-      <AddExpenseModal
-        isOpen={showExpenseModal}
-        onClose={() => {
-          setShowExpenseModal(false)
+      {/* Full-Width Workspace Active Content */}
+      <WorkspaceContentPane
+        activeWorkspaceTab={activeWorkspaceTab}
+        voteError={voteError}
+        setVoteError={setVoteError}
+        categories={categories}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        categoryOptions={categoryOptions}
+        optionsLoading={optionsLoading}
+        activePoll={activePoll}
+        allTripOptions={allTripOptions}
+        allActivePollsMap={allActivePollsMap}
+        trip={trip}
+        roster={roster}
+        activeUser={activeUser}
+        expenses={expenses}
+        rates={rates}
+        handleVoteToggle={handleVoteToggle}
+        handleLockToggle={handleLockToggle}
+        handleDeleteOption={handleDeleteOption}
+        handleOpenEditOptionModal={handleOpenEditOptionModal}
+        handleUpdateOptionDates={handleUpdateOptionDates}
+        onOpenPitchModal={handleOpenPitchModal}
+        onOpenPollRecapModal={() => setShowPollRecapModal(true)}
+        onOpenExpenseModal={handleOpenExpenseModal}
+        loadGanttData={loadGanttData}
+        loadOptionsAndPoll={loadOptionsAndPoll}
+        handleToggleOptionParticipant={handleToggleOptionParticipant}
+        logGroceryExpense={logGroceryExpense}
+        handleSubmitMeal={handleSubmitMeal}
+        ledgerTab={ledgerTab}
+        setLedgerTab={setLedgerTab}
+        expensesLoading={expensesLoading}
+        committedMembers={committedMembers}
+        memberBalances={memberBalances}
+        settlementsList={settlementsList}
+        totalGroupSpend={totalGroupSpend}
+        perPersonSplit={perPersonSplit}
+        baseCurrency={baseCurrency}
+        onOpenCreateExpense={() => {
           setExpenseToEdit(null)
           setExpenseOptionToPreFill(null)
+          setShowExpenseModal(true)
         }}
-        onSubmit={handleExpenseSubmit}
-        loading={expenseLoading}
-        error={expenseError}
-        roster={roster}
+        onEditExpense={(exp) => {
+          setExpenseOptionToPreFill(null)
+          setExpenseToEdit(exp)
+          setShowExpenseModal(true)
+        }}
+        handleDeleteExpense={handleDeleteExpense}
+        options={options}
+        isAdmin={isAdmin}
+        userNote={userNote}
+        setUserNote={setUserNote}
+        savingNote={savingNote}
+        handleNoteBlur={handleNoteBlur}
+        handleStatusChange={handleStatusChange}
+        handlePromoteMember={handlePromoteMember}
+        handleDemoteMember={handleDemoteMember}
+        handleCopyInviteLink={handleCopyInviteLink}
+        showCopiedToast={showCopiedToast}
+        handleUpdateRsvpDetails={handleUpdateRsvpDetails}
+      />
+
+      {/* Extracted Modular Modals & Drawer */}
+      <TripModalsContainer
+        tripManagement={tripManagement}
+        showPitchModal={showPitchModal}
+        onClosePitchModal={handleClosePitchModal}
+        onPitchSubmit={handlePitchSubmit}
+        pitchLoading={pitchLoading}
+        pitchError={pitchError}
+        categories={categories}
+        pitchInitialCategory={pitchInitialCategory}
+        pitchInitialDates={pitchInitialDates}
         baseCurrency={baseCurrency}
-        activeUserId={activeUser?.id}
-        optionToPreFill={expenseOptionToPreFill}
-        expenseToEdit={expenseToEdit}
-      />
-
-      <EditTripModal
-        isOpen={showEditTripModal}
-        onClose={() => {
-          setShowEditTripModal(false)
-          setEditingTripSnapshot(null)
-        }}
-        trip={editingTripSnapshot || trip}
-        onSubmit={handleEditTripSubmit}
-        loading={editLoading}
-        error={editError}
-        onToggleArchive={handleToggleArchive}
-        onOpenDeleteConfirm={() => setShowDeleteConfirm(true)}
-        showDeleteConfirm={showDeleteConfirm}
-        onCloseDeleteConfirm={() => setShowDeleteConfirm(false)}
-        onConfirmDelete={handleConfirmDelete}
-        deleteLoading={deleteLoading}
-        deleteError={deleteError}
-        conflictingOptions={conflictingOptions}
-        showReconcileModal={showReconcileModal}
-        onCloseReconcileModal={() => setShowReconcileModal(false)}
-      />
-
-      <PrintableItineraryModal
-        isOpen={showPrintableItineraryModal}
-        onClose={() => setShowPrintableItineraryModal(false)}
+        roster={roster}
+        activeUser={activeUser}
+        editingOption={editingOption}
         trip={trip}
-        options={allTripOptions.length > 0 ? allTripOptions : options}
-      />
-
-      <PollRecapModal
-        isOpen={showPollRecapModal}
-        onClose={() => setShowPollRecapModal(false)}
+        showExpenseModal={showExpenseModal}
+        onCloseExpenseModal={handleCloseExpenseModal}
+        onExpenseSubmit={handleExpenseSubmit}
+        expenseLoading={expenseLoading}
+        expenseError={expenseError}
+        expenseOptionToPreFill={expenseOptionToPreFill}
+        expenseToEdit={expenseToEdit}
+        printableOptions={allTripOptions.length > 0 ? allTripOptions : options}
         activeTab={activeTab}
         options={options}
         activePoll={activePoll}
-        roster={roster}
-      />
-
-      <ActivityFeedDrawer
-        isOpen={showActivityDrawer}
-        onClose={() => setShowActivityDrawer(false)}
-        activityLogs={activityLogs}
-        lastReadTimestamp={lastReadTimestamp}
       />
     </div>
   )

@@ -1,4 +1,21 @@
 import { supabase } from './supabase.js'
+import {
+  isValidUuid,
+  sanitizeUuidOrNull,
+  sanitizeUuidArray,
+  sanitizeDateTimeOrNull,
+  saveMealPlan
+} from './groceries.js'
+import { isVehicleCoverage } from '../utils/schedule.js'
+
+export {
+  isValidUuid,
+  sanitizeUuidOrNull,
+  sanitizeUuidArray,
+  sanitizeDateTimeOrNull,
+  saveMealPlan,
+  isVehicleCoverage
+}
 
 export const TRIP_CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
 export const TRIP_CATEGORIES_LOWER = ['accommodation', 'transport', 'activities', 'food', 'other']
@@ -43,7 +60,7 @@ export function normalizeOptionRow(row) {
  * Fetches pitched options for a specific trip and category.
  * If querying 'transport', automatically fetches legacy 'flights' records as well.
  * @param {string} tripId The UUID of the trip.
- * @param {string} category The category name (lowercase or capitalized).
+ * @param {string} category The category name (lowercase or practical).
  * @returns {Promise<Array>} A promise resolving to an array of option records.
  */
 export async function fetchOptions(tripId, category) {
@@ -70,9 +87,12 @@ export async function fetchOptions(tripId, category) {
 
 /**
  * Inserts a new pitched option into the database.
+ * Supports either a structured payload object or positional arguments.
+ * Strictly validates trip_id UUID and sanitizes added_by / assigned_users UUIDs
+ * and start_date / end_date timestamps.
  */
 export async function pitchOption(
-  tripId,
+  tripIdOrPayload,
   category,
   name,
   estimatedCost,
@@ -86,31 +106,91 @@ export async function pitchOption(
   assignedUsers = [],
   metadata = {}
 ) {
-  let sanitizedLink = link ? link.trim() : null
+  let tripId
+  let rawCategory
+  let rawName
+  let rawCost
+  let rawCurrency
+  let rawLink
+  let rawDescription
+  let rawAddedBy
+  let rawStartDate
+  let rawEndDate
+  let rawCostType
+  let rawAssignedUsers
+  let rawMetadata
+
+  if (tripIdOrPayload && typeof tripIdOrPayload === 'object' && !Array.isArray(tripIdOrPayload)) {
+    tripId = tripIdOrPayload.tripId || tripIdOrPayload.trip_id
+    rawCategory = tripIdOrPayload.category
+    rawName = tripIdOrPayload.name || tripIdOrPayload.option_text || tripIdOrPayload.title
+    rawCost = tripIdOrPayload.estimatedCost ?? tripIdOrPayload.estimated_cost ?? tripIdOrPayload.cost
+    rawCurrency = tripIdOrPayload.currency
+    rawLink = tripIdOrPayload.link
+    rawDescription = tripIdOrPayload.description
+    rawAddedBy = tripIdOrPayload.addedByUserId || tripIdOrPayload.added_by || tripIdOrPayload.userId || tripIdOrPayload.user_id
+    rawStartDate = tripIdOrPayload.startDate || tripIdOrPayload.start_date
+    rawEndDate = tripIdOrPayload.endDate || tripIdOrPayload.end_date
+    rawCostType = tripIdOrPayload.costType || tripIdOrPayload.cost_type
+    rawAssignedUsers = tripIdOrPayload.assignedUsers || tripIdOrPayload.assigned_users
+    rawMetadata = tripIdOrPayload.metadata
+  } else {
+    tripId = tripIdOrPayload
+    rawCategory = category
+    rawName = name
+    rawCost = estimatedCost
+    rawCurrency = currency
+    rawLink = link
+    rawDescription = description
+    rawAddedBy = addedByUserId
+    rawStartDate = startDate
+    rawEndDate = endDate
+    rawCostType = costType
+    rawAssignedUsers = assignedUsers
+    rawMetadata = metadata
+  }
+
+  if (!tripId) {
+    throw new Error('Trip ID is required to pitch an option.')
+  }
+  if (!isValidUuid(tripId)) {
+    throw new Error(`Invalid trip_id: expected a valid UUID, got "${tripId}"`)
+  }
+
+  let sanitizedLink = rawLink ? String(rawLink).trim() : null
   if (sanitizedLink && !/^https?:\/\//i.test(sanitizedLink)) {
     sanitizedLink = `https://${sanitizedLink}`
   }
 
-  const normalizedCat = normalizeCategory(category)
-  const cleanMeta = metadata && typeof metadata === 'object' ? { ...metadata } : {}
+  const normalizedCat = normalizeCategory(rawCategory)
+  const cleanMeta = rawMetadata && typeof rawMetadata === 'object' ? { ...rawMetadata } : {}
   if (normalizedCat === 'transport' && !cleanMeta.transport_mode) {
-    cleanMeta.transport_mode = 'vehicle'
+    cleanMeta.transport_mode = 'vehicle_pool'
   }
+
+  const parsedCost = rawCost !== undefined && rawCost !== null && !isNaN(parseFloat(rawCost))
+    ? parseFloat(rawCost)
+    : null
+
+  const cleanAddedBy = sanitizeUuidOrNull(rawAddedBy)
+  const cleanStartDate = sanitizeDateTimeOrNull(rawStartDate)
+  const cleanEndDate = sanitizeDateTimeOrNull(rawEndDate)
+  const cleanAssignedUsers = sanitizeUuidArray(rawAssignedUsers)
 
   const payload = {
     trip_id: tripId,
     category: normalizedCat,
-    option_text: name,
-    estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
-    currency: estimatedCost ? (currency || 'USD') : null,
+    option_text: rawName,
+    estimated_cost: parsedCost,
+    currency: parsedCost !== null ? (rawCurrency || 'USD') : null,
     link: sanitizedLink,
-    description: description || null,
-    start_date: startDate || null,
-    end_date: endDate || null,
-    added_by: addedByUserId,
+    description: rawDescription ? String(rawDescription).trim() : null,
+    start_date: cleanStartDate,
+    end_date: cleanEndDate,
+    added_by: cleanAddedBy,
     is_locked: false,
-    cost_type: costType || 'split_total',
-    assigned_users: Array.isArray(assignedUsers) ? assignedUsers : [],
+    cost_type: rawCostType || 'split_total',
+    assigned_users: cleanAssignedUsers,
     metadata: cleanMeta
   }
 
@@ -125,14 +205,14 @@ export async function pitchOption(
     const fallbackPayload = {
       trip_id: tripId,
       category: normalizedCat,
-      option_text: name,
-      estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
-      currency: estimatedCost ? (currency || 'USD') : null,
+      option_text: rawName,
+      estimated_cost: parsedCost,
+      currency: parsedCost !== null ? (rawCurrency || 'USD') : null,
       link: sanitizedLink,
-      description: description || null,
-      start_date: startDate || null,
-      end_date: endDate || null,
-      added_by: addedByUserId,
+      description: rawDescription ? String(rawDescription).trim() : null,
+      start_date: cleanStartDate,
+      end_date: cleanEndDate,
+      added_by: cleanAddedBy,
       is_locked: false
     }
 
@@ -672,11 +752,13 @@ export async function deleteOption(tripId, optionId, category, userId = null) {
  * @returns {Promise<Object>} Updated option record.
  */
 export async function updateOptionDates(optionId, startDate, endDate, tripId = null, userId = null) {
+  const cleanStartDate = sanitizeDateTimeOrNull(startDate)
+  const cleanEndDate = sanitizeDateTimeOrNull(endDate)
   const { data, error } = await supabase
     .from('poll_options')
     .update({
-      start_date: startDate || null,
-      end_date: endDate || null
+      start_date: cleanStartDate,
+      end_date: cleanEndDate
     })
     .eq('id', optionId)
     .select()
@@ -702,7 +784,7 @@ export async function updateOptionDates(optionId, startDate, endDate, tripId = n
 
       await supabase.from('activity_log').insert({
         trip_id: tripId,
-        user_id: userId || null,
+        user_id: sanitizeUuidOrNull(userId),
         action_type: 'update_option_dates',
         description: `${userName} updated dates for an option`
       })
@@ -715,55 +797,167 @@ export async function updateOptionDates(optionId, startDate, endDate, tripId = n
 }
 
 /**
- * Updates a pitched option's attributes with graceful fallback for unmigrated columns.
- * @param {string|number} optionId The option ID.
+ * Updates a pitched option's attributes with comprehensive sanitization and graceful fallback.
+ * Editing an option strictly preserves the option ID, votes, and does not mutate unrelated fields.
+ *
+ * @param {string|number} optionId The option ID to update.
  * @param {Object} updates Properties to update.
+ * @param {string} [tripId] Optional trip UUID for activity logging.
+ * @param {string} [userId] Optional active user ID for activity logging.
  * @returns {Promise<Object>} Updated option record.
  */
-export async function updateOption(optionId, updates) {
+export async function updateOption(optionId, updates, tripId = null, userId = null) {
+  if (!optionId && optionId !== 0) {
+    throw new Error('optionId is required to update an option')
+  }
+
+  // Normalize aliases if caller passed name, cost, startDate, endDate, etc.
+  const mappedUpdates = { ...(updates || {}) }
+  if (mappedUpdates.name !== undefined && mappedUpdates.option_text === undefined) {
+    mappedUpdates.option_text = mappedUpdates.name
+  }
+  if (mappedUpdates.title !== undefined && mappedUpdates.option_text === undefined) {
+    mappedUpdates.option_text = mappedUpdates.title
+  }
+  if (mappedUpdates.cost !== undefined && mappedUpdates.estimated_cost === undefined) {
+    mappedUpdates.estimated_cost = mappedUpdates.cost
+  }
+  if (mappedUpdates.price !== undefined && mappedUpdates.estimated_cost === undefined) {
+    mappedUpdates.estimated_cost = mappedUpdates.price
+  }
+  if (mappedUpdates.startDate !== undefined && mappedUpdates.start_date === undefined) {
+    mappedUpdates.start_date = mappedUpdates.startDate
+  }
+  if (mappedUpdates.endDate !== undefined && mappedUpdates.end_date === undefined) {
+    mappedUpdates.end_date = mappedUpdates.endDate
+  }
+  if (mappedUpdates.costType !== undefined && mappedUpdates.cost_type === undefined) {
+    mappedUpdates.cost_type = mappedUpdates.costType
+  }
+  if (mappedUpdates.assignedUsers !== undefined && mappedUpdates.assigned_users === undefined) {
+    mappedUpdates.assigned_users = mappedUpdates.assignedUsers
+  }
+
   const allowedKeys = [
     'option_text', 'estimated_cost', 'currency', 'link',
     'description', 'start_date', 'end_date', 'cost_type',
     'assigned_users', 'metadata', 'is_locked', 'category'
   ]
   const payload = {}
-  Object.keys(updates || {}).forEach(k => {
-    if (allowedKeys.includes(k) && updates[k] !== undefined) {
-      payload[k] = updates[k]
+  Object.keys(mappedUpdates).forEach(k => {
+    if (allowedKeys.includes(k) && mappedUpdates[k] !== undefined) {
+      if (k === 'start_date' || k === 'end_date') {
+        payload[k] = sanitizeDateTimeOrNull(mappedUpdates[k])
+      } else if (k === 'category') {
+        payload[k] = normalizeCategory(mappedUpdates[k])
+      } else if (k === 'estimated_cost') {
+        const costVal = mappedUpdates[k]
+        payload[k] = costVal !== null && costVal !== '' && !isNaN(parseFloat(costVal))
+          ? parseFloat(costVal)
+          : null
+      } else if (k === 'link') {
+        let sanitizedLink = mappedUpdates[k] ? String(mappedUpdates[k]).trim() : null
+        if (sanitizedLink && !/^https?:\/\//i.test(sanitizedLink)) {
+          sanitizedLink = `https://${sanitizedLink}`
+        }
+        payload[k] = sanitizedLink
+      } else if (k === 'description') {
+        payload[k] = mappedUpdates[k] ? String(mappedUpdates[k]).trim() : null
+      } else if (k === 'assigned_users') {
+        payload[k] = sanitizeUuidArray(mappedUpdates[k])
+      } else {
+        payload[k] = mappedUpdates[k]
+      }
     }
   })
 
+  let updatedData = null
+
   try {
-    const { data, error } = await supabase
+    const updateQuery = supabase
       .from('poll_options')
       .update(payload)
       .eq('id', optionId)
-      .select()
-      .single()
 
-    if (!error && data) return data
-  } catch (_) {
+    if (typeof updateQuery?.select === 'function') {
+      const selectQuery = updateQuery.select()
+      if (typeof selectQuery?.single === 'function') {
+        const { data, error } = await selectQuery.single()
+        if (!error && data) {
+          updatedData = data
+        } else if (error) {
+          throw error
+        }
+      } else {
+        const { data, error } = await selectQuery
+        if (!error && data) {
+          updatedData = Array.isArray(data) ? data[0] : data
+        } else if (error) {
+          throw error
+        }
+      }
+    } else {
+      const { data, error } = await updateQuery
+      if (error) throw error
+      updatedData = data
+    }
+  } catch (err) {
     // Fallback if schema does not support new columns
+    const fallbackPayload = { ...payload }
+    delete fallbackPayload.cost_type
+    delete fallbackPayload.assigned_users
+    delete fallbackPayload.metadata
+
+    if (Object.keys(fallbackPayload).length > 0) {
+      const fallbackQuery = supabase
+        .from('poll_options')
+        .update(fallbackPayload)
+        .eq('id', optionId)
+
+      if (typeof fallbackQuery?.select === 'function') {
+        const fallbackSelect = fallbackQuery.select()
+        const fallbackRes = typeof fallbackSelect?.single === 'function'
+          ? await fallbackSelect.single()
+          : await fallbackSelect
+        if (fallbackRes.error) throw fallbackRes.error
+        updatedData = Array.isArray(fallbackRes.data) ? fallbackRes.data[0] : fallbackRes.data
+      } else {
+        const fallbackRes = await fallbackQuery
+        if (fallbackRes?.error) throw fallbackRes.error
+        updatedData = fallbackRes?.data
+      }
+    } else {
+      throw err
+    }
   }
 
-  const fallbackPayload = { ...payload }
-  delete fallbackPayload.cost_type
-  delete fallbackPayload.assigned_users
-  delete fallbackPayload.metadata
-
-  if (Object.keys(fallbackPayload).length > 0) {
-    const { data, error } = await supabase
-      .from('poll_options')
-      .update(fallbackPayload)
-      .eq('id', optionId)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
+  // Activity logging
+  if (tripId) {
+    try {
+      let userName = 'Someone'
+      if (userId) {
+        const { data: userRec } = await supabase
+          .from('users')
+          .select('first_name')
+          .eq('id', userId)
+          .maybeSingle()
+        if (userRec?.first_name) {
+          userName = userRec.first_name
+        }
+      }
+      const optName = payload.option_text || updatedData?.option_text || 'an option'
+      await supabase.from('activity_log').insert({
+        trip_id: tripId,
+        user_id: sanitizeUuidOrNull(userId),
+        action_type: 'update_option',
+        description: `${userName} updated option "${optName}"`
+      })
+    } catch (logErr) {
+      console.warn('Failed to log update option activity:', logErr)
+    }
   }
 
-  return { id: optionId, ...payload }
+  return normalizeOptionRow(updatedData || { id: optionId, ...payload })
 }
 
 /**

@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, within, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+
+afterEach(() => {
+  cleanup()
+})
 
 import { TripHeader } from '../components/trip/TripHeader'
 import { RosterSection } from '../components/trip/RosterSection'
@@ -10,6 +14,7 @@ import { LedgerAndSettleTab } from '../components/trip/LedgerAndSettleTab'
 import { BudgetAnalyticsTab } from '../components/trip/BudgetAnalyticsTab'
 import { PitchOptionModal } from '../components/modals/PitchOptionModal'
 import { AddExpenseModal } from '../components/modals/AddExpenseModal'
+import { TripDateTimeSelector } from '../components/trip/TripDateTimeSelector'
 
 const mockTrip = {
   id: 'trip-smoke-1',
@@ -261,6 +266,81 @@ describe('UI Component Smoke Tests', () => {
     expect(openContainer).toBeDefined()
     expect(openContainer.textContent).toContain('Pitch New Option')
     expect(openContainer.textContent).toContain('Option Name / Title *')
+  })
+
+  it('pre-fills dates in PitchOptionModal from trip when creating and preserves dates in edit mode', () => {
+    // 1. Create mode with trip prop
+    const { container: createContainer } = render(
+      <PitchOptionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        initialCategory="Activities"
+        trip={mockTrip}
+      />
+    )
+    const inputs = createContainer.querySelectorAll('input[type="datetime-local"]')
+    expect(inputs.length).toBe(2)
+    // Activities default to Day 1: 09:00 to 12:00
+    expect(inputs[0].value).toBe('2026-09-01T09:00')
+    expect(inputs[1].value).toBe('2026-09-01T12:00')
+
+    // 2. Edit mode: preserves saved option dates
+    const editingOpt = {
+      id: 'opt-custom-dates',
+      category: 'Activities',
+      option_text: 'Sunset Kayaking',
+      start_date: '2026-09-05T17:30',
+      end_date: '2026-09-05T20:00'
+    }
+    const { container: editContainer } = render(
+      <PitchOptionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        editingOption={editingOpt}
+        trip={mockTrip}
+      />
+    )
+    const editInputs = editContainer.querySelectorAll('input[type="datetime-local"]')
+    expect(editInputs[0].value).toBe('2026-09-05T17:30')
+    expect(editInputs[1].value).toBe('2026-09-05T20:00')
+  })
+
+  it('renders TripDateTimeSelector with quick-select day chips and time presets', () => {
+    const handleChange = vi.fn()
+    const { container } = render(
+      <TripDateTimeSelector
+        trip={{ start_date: '2026-09-01', end_date: '2026-09-03' }}
+        startDate="2026-09-01T09:00"
+        endDate="2026-09-01T12:00"
+        onChange={handleChange}
+        category="Activities"
+      />
+    )
+
+    const view = within(container)
+    expect(container.textContent).toContain('Trip Window:')
+    expect(container.textContent).toContain('Sep 1 – Sep 3, 2026')
+    expect(view.getByText('🗺️ Full Trip')).toBeDefined()
+    expect(view.getByText('Day 1 · Sep 1')).toBeDefined()
+    expect(view.getByText('Day 2 · Sep 2')).toBeDefined()
+    expect(view.getByText('Day 3 · Sep 3')).toBeDefined()
+
+    // Click Day 2 chip -> sets date to 2026-09-02 while preserving hours 09:00 - 12:00
+    fireEvent.click(view.getByText('Day 2 · Sep 2'))
+    expect(handleChange).toHaveBeenCalledWith({
+      startDate: '2026-09-02T09:00',
+      endDate: '2026-09-02T12:00'
+    })
+
+    // Click Evening preset -> updates hours to 19:30 - 22:00
+    const eveningPreset = view.getByText('🌙 Evening')
+    fireEvent.click(eveningPreset)
+    expect(handleChange).toHaveBeenCalledWith({
+      startDate: '2026-09-01T19:30',
+      endDate: '2026-09-01T22:00'
+    })
   })
 
   it('renders AddExpenseModal when open with pre-filled option data and split settings', () => {

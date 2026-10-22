@@ -145,10 +145,97 @@ export function packOptionsIntoSubTracks(categoryOptions = [], tripStart = null,
 }
 
 /**
+ * Determines whether a transport option functions as a multi-day background
+ * vehicle/carpool coverage (e.g. rental car, shared vehicle) or a point-to-point transit leg.
+ * Vehicle coverage acts as background logistics (like lodging) and does not conflict with activities.
+ * 
+ * @param {Object} option Option object
+ * @returns {boolean} True if option is a vehicle/carpool coverage
+ */
+export function isVehicleCoverage(option) {
+  if (!option) return false
+  const cat = (option.category || '').toLowerCase().trim()
+  if (cat !== 'transport' && cat !== 'flights' && cat !== 'flight') return false
+
+  const meta = option.metadata && typeof option.metadata === 'object' ? option.metadata : {}
+  const mode = meta.transport_mode
+
+  // Explicit modes
+  if (mode === 'vehicle_pool' || mode === 'vehicle') {
+    return true
+  }
+  if (meta.is_vehicle_coverage === true) {
+    return true
+  }
+  if (mode === 'transit' || mode === 'ticket' || meta.is_legacy_flight) {
+    return false
+  }
+
+  // Heuristics for existing / backwards compatibility
+  if (meta.seats_capacity || meta.driver_user_id) {
+    return true
+  }
+
+  const text = (option.option_text || option.name || '').toLowerCase()
+  if (/flight|vol|avion|airline|plane|airfare|train|sncf|eurostar|bus\s+ticket|ferry\s+ticket/i.test(text)) {
+    return false
+  }
+
+  if (/car|rental|van|suv|auto|voiture|drive|carpool|vehicle/i.test(text)) {
+    return true
+  }
+
+  // Multi-day duration check (>= 24 hours) under transport
+  if (option.start_date && option.end_date) {
+    const s = new Date(option.start_date).getTime()
+    const e = new Date(option.end_date).getTime()
+    if (!isNaN(s) && !isNaN(e) && e - s >= 86400000) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Determines whether an option represents multi-day background logistics coverage
+ * (e.g. Accommodations/Stays or Shared Vehicles/Carpools/Rental Cars).
+ * 
+ * @param {Object} option Option object
+ * @returns {boolean} True if option is an accommodation or vehicle coverage
+ */
+export function isLogisticsCoverage(option) {
+  if (!option) return false
+  const cat = (option.category || '').toLowerCase().trim()
+  if (cat === 'accommodation') return true
+  return isVehicleCoverage(option)
+}
+
+/**
+ * Determines whether a scheduled option has a short duration (e.g. <= 24 hours),
+ * such as single-day activities, dinners, or point-to-point transit legs.
+ * 
+ * @param {Object} option Option object
+ * @param {number} [thresholdHours=24] Maximum duration in hours to be considered short
+ * @returns {boolean} True if option duration is <= thresholdHours
+ */
+export function isShortDurationOption(option, thresholdHours = 24) {
+  if (!option || (!option.start_date && !option.end_date)) return false
+  const s = option.start_date ? parseLocalDate(option.start_date)?.getTime() : null
+  const e = option.end_date ? parseLocalDate(option.end_date)?.getTime() : null
+  if (!s && !e) return false
+  const startMs = s || (e - 3600000 * 3)
+  const endMs = e || (s + 3600000 * 3)
+  const durationMs = Math.max(0, endMs - startMs)
+  return durationMs <= thresholdHours * 3600000
+}
+
+/**
  * Compares scheduled options to detect overlapping time collisions.
  * Distinguishes between hard conflicts (e.g., conflicting locked options)
  * and candidate alternatives (e.g., competing options pitched in the same category).
- * Accommodation stays are isolated so they never collide with daytime activities/food/transport.
+ * Accommodation stays and Vehicle/Carpool coverages are background logistics that
+ * never collide with daytime activities/food/point-to-point transits.
  * 
  * @param {Array} options Array of pitched options.
  * @param {Set|Array|null} [lockedOptionIds=null] Optional set or array of locked option IDs.
@@ -190,6 +277,17 @@ export function detectScheduleConflicts(options = [], lockedOptionIds = null) {
         continue
       }
 
+      // Vehicle / Carpool Coverage rule:
+      // Shared vehicles and rental cars act as background logistics coverage across multiple days.
+      // They NEVER trigger schedule conflicts against activities, meals, point-to-point transits,
+      // or other vehicles.
+      const isVehA = isVehicleCoverage(optA)
+      const isVehB = isVehicleCoverage(optB)
+
+      if (isVehA || isVehB) {
+        continue
+      }
+
       const startA = parseLocalDate(optA.start_date)?.getTime() || 0
       const endA = parseLocalDate(optA.end_date)?.getTime() || 0
       const startB = parseLocalDate(optB.start_date)?.getTime() || 0
@@ -199,6 +297,18 @@ export function detectScheduleConflicts(options = [], lockedOptionIds = null) {
       const timeOverlaps = startA < endB && endA > startB
       if (!timeOverlaps) {
         continue
+      }
+
+      // Participant awareness:
+      // If both options explicitly specify assigned participants, they only conflict
+      // if they share at least one traveler (i.e. disjoint participant groups can run parallel activities).
+      const usersA = Array.isArray(optA.assigned_users) && optA.assigned_users.length > 0 ? optA.assigned_users.map(String) : null
+      const usersB = Array.isArray(optB.assigned_users) && optB.assigned_users.length > 0 ? optB.assigned_users.map(String) : null
+      if (usersA && usersB) {
+        const hasSharedUser = usersA.some(u => usersB.includes(u))
+        if (!hasSharedUser) {
+          continue
+        }
       }
 
       const isLockedA = checkIsLocked(optA)
@@ -237,13 +347,13 @@ export function detectScheduleConflicts(options = [], lockedOptionIds = null) {
 /**
  * Analyzes day-by-day logistics coverage (Beds, Seats, Meals) across the trip.
  * Correlates exact traveler presence each day against locked accommodations,
- * transports, and scheduled meal slots.
+ * vehicles / transports, and scheduled meal slots.
  *
  * @param {Object} trip Trip object with start_date and end_date.
  * @param {Array} options Array of pitched options.
  * @param {Array} roster Roster array of participants.
  * @param {Object} activePollsMap Map of active category polls with locked choices.
- * @returns {Object} { days, nightsCoveredCount, totalNights, mealsPlannedCount, totalMealsSlots, alerts }
+ * @returns {Object} { days, nightsCoveredCount, totalNights, mealsPlannedCount, totalMealsSlots, totalVehiclesCount, alerts }
  */
 export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], activePollsMap = {}) {
   if (!trip?.start_date || !trip?.end_date) {
@@ -253,6 +363,7 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
       totalNights: 0,
       mealsPlannedCount: 0,
       totalMealsSlots: 0,
+      totalVehiclesCount: 0,
       alerts: []
     }
   }
@@ -266,6 +377,7 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
       totalNights: 0,
       mealsPlannedCount: 0,
       totalMealsSlots: 0,
+      totalVehiclesCount: 0,
       alerts: []
     }
   }
@@ -374,9 +486,12 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
       }
     }
 
-    // 3. Transport Coverage
+    // 3. Transport & Vehicle Coverage
     let seatsLocked = 0
     const lockedTransports = []
+    const availableVehicles = []
+    const lockedVehicles = []
+    const transitLegs = []
 
     options.forEach((opt) => {
       const cat = (opt.category || '').toLowerCase()
@@ -386,11 +501,46 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
       const eStr = opt.end_date ? String(opt.end_date).slice(0, 10) : null
 
       const activeOnDay = (sStr && sStr === dayStr) || (eStr && eStr === dayStr) || (sStr && eStr && dayStr >= sStr && dayStr <= eStr)
-      if (activeOnDay && isOptLocked(opt)) {
-        lockedTransports.push(opt)
-        const explicitCap = opt.metadata?.max_capacity ? Number(opt.metadata.max_capacity) : 0
-        const assignedCap = Array.isArray(opt.assigned_users) && opt.assigned_users.length > 0 ? opt.assigned_users.length : 0
-        seatsLocked += explicitCap > 0 ? explicitCap : (assignedCap > 0 ? assignedCap : presentCount)
+      if (!activeOnDay) return
+
+      const isVeh = isVehicleCoverage(opt)
+      const isLocked = isOptLocked(opt)
+
+      if (isVeh) {
+        const explicitCap = opt.metadata?.seats_capacity
+          ? Number(opt.metadata.seats_capacity)
+          : (opt.metadata?.max_capacity ? Number(opt.metadata.max_capacity) : 0)
+        const assignedUserIds = Array.isArray(opt.assigned_users) ? opt.assigned_users.map(String) : []
+        const assignedMembers = committedRoster.filter(r => assignedUserIds.includes(String(r.user_id || r.id)))
+        const capacity = explicitCap > 0 ? explicitCap : (assignedUserIds.length > 0 ? assignedUserIds.length : presentCount)
+
+        const vehInfo = {
+          ...opt,
+          capacity,
+          seats_capacity: capacity,
+          assignedUserIds,
+          assignedMembers,
+          assignedCount: assignedUserIds.length,
+          driverUserId: opt.metadata?.driver_user_id || null,
+          isLocked
+        }
+
+        availableVehicles.push(vehInfo)
+        if (isLocked) {
+          lockedVehicles.push(vehInfo)
+          lockedTransports.push(opt)
+          seatsLocked += capacity
+        }
+      } else {
+        if (isLocked) {
+          lockedTransports.push(opt)
+          transitLegs.push(opt)
+          const explicitCap = opt.metadata?.seats_capacity
+            ? Number(opt.metadata.seats_capacity)
+            : (opt.metadata?.max_capacity ? Number(opt.metadata.max_capacity) : 0)
+          const assignedCap = Array.isArray(opt.assigned_users) && opt.assigned_users.length > 0 ? opt.assigned_users.length : 0
+          seatsLocked += explicitCap > 0 ? explicitCap : (assignedCap > 0 ? assignedCap : presentCount)
+        }
       }
     })
 
@@ -461,7 +611,10 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
         seatsLocked,
         presentCount,
         status: transportStatus,
-        lockedOptions: lockedTransports
+        lockedOptions: lockedTransports,
+        availableVehicles,
+        lockedVehicles,
+        transitLegs
       },
       meals: {
         count: plannedSlotsCount,
@@ -480,12 +633,20 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
     alerts.push(`🍴 ${totalMealsPlanned}/${totalMealsSlots} meals planned`)
   }
 
+  // Calculate unique vehicles count across the trip
+  const uniqueVehicleIds = new Set()
+  days.forEach(d => {
+    (d.transport.availableVehicles || []).forEach(v => uniqueVehicleIds.add(String(v.id)))
+  })
+  const totalVehiclesCount = uniqueVehicleIds.size
+
   return {
     days,
     nightsCoveredCount,
     totalNights,
     mealsPlannedCount: totalMealsPlanned,
     totalMealsSlots,
+    totalVehiclesCount,
     alerts
   }
 }
