@@ -1,7 +1,7 @@
 # Graph Report - Trip Planner  (2026-10-21)
 
 ## Corpus Check
-- 489 files · ~543,332 words
+- 489 files · ~543,359 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9c3f1211`
+- Built from commit: `5cb35c7f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

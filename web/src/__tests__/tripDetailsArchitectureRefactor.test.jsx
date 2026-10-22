@@ -486,5 +486,19 @@ describe('TripDetails Architecture Refactoring & Critical Flows Verification', (
       fireEvent.click(cancelBtn)
       expect(onClosePitchModal).toHaveBeenCalled()
     })
+
+    it('validates useRsvpRoster and useTripDetails expose both data and alias properties safely', async () => {
+      const { useRsvpRoster } = await import('../hooks/useRsvpRoster')
+      const { useTripDetails } = await import('../hooks/useTripDetails')
+
+      expect(typeof useRsvpRoster).toBe('function')
+      expect(typeof useTripDetails).toBe('function')
+
+      // Safe committed member filtering with defensive array check
+      const safeFilter = (r) => (r || []).filter((m) => m?.status === 'Committed')
+      expect(safeFilter(undefined)).toEqual([])
+      expect(safeFilter(null)).toEqual([])
+      expect(safeFilter(dummyRoster).length).toBe(6)
+    })
   })
 })

@@ -12,27 +12,28 @@ import {
 export function useRosterActions({
   tripId,
   trip,
-  roster,
+  roster = [],
   activeUser,
   refreshRoster,
   onActivityLogged,
   updateActiveUser
 }) {
+  const safeRoster = Array.isArray(roster) ? roster : []
   const [userNote, setUserNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [showCopiedToast, setShowCopiedToast] = useState(false)
   const [reconcileLoading, setReconcileLoading] = useState(false)
   const [reconcileError, setReconcileError] = useState('')
 
-  const activeUserRsvp = roster.find((m) => m.user_id === activeUser?.id)
+  const activeUserRsvp = safeRoster.find((m) => m?.user_id === activeUser?.id)
   const isAdmin = isUserTripAdmin(activeUser, trip, activeUserRsvp)
 
   useEffect(() => {
-    if (activeUser && roster.length > 0) {
-      const activeMember = roster.find((m) => m.user_id === activeUser.id)
+    if (activeUser && safeRoster.length > 0) {
+      const activeMember = safeRoster.find((m) => m?.user_id === activeUser.id)
       if (activeMember) setUserNote(activeMember.notes || '')
     }
-  }, [activeUser, roster])
+  }, [activeUser, safeRoster])
 
   const activeUserInRoster = useMemo(() => {
     if (!activeUser) return false
@@ -42,23 +43,23 @@ export function useRosterActions({
     const userEmail = activeUser.email?.trim().toLowerCase()
     const userUsername = activeUser.username?.trim().toLowerCase()
 
-    return roster.some((r) => {
-      if (String(r.user_id) === String(activeUser.id)) return true
-      const rosterEmail = r.users?.email?.trim().toLowerCase()
+    return safeRoster.some((r) => {
+      if (String(r?.user_id) === String(activeUser.id)) return true
+      const rosterEmail = r?.users?.email?.trim().toLowerCase()
       if (rosterEmail && userEmail && rosterEmail === userEmail) return true
-      const rosterUsername = (r.users?.username || r.username)?.trim().toLowerCase()
+      const rosterUsername = (r?.users?.username || r?.username)?.trim().toLowerCase()
       if (rosterUsername && userUsername && rosterUsername === userUsername) return true
       return false
     })
-  }, [activeUser, trip, roster])
+  }, [activeUser, trip, safeRoster])
 
   // Session reconciliation: if matched by email or username with different ID, update session UUID
   useEffect(() => {
-    if (!activeUser || !roster.length || !updateActiveUser) return
+    if (!activeUser || !safeRoster.length || !updateActiveUser) return
     const userEmail = activeUser.email?.trim().toLowerCase()
     const userUsername = activeUser.username?.trim().toLowerCase()
 
-    for (const r of roster) {
+    for (const r of safeRoster) {
       const rosterEmail = r.users?.email?.trim().toLowerCase()
       const rosterUsername = (r.users?.username || r.username)?.trim().toLowerCase()
       const matchesEmail = rosterEmail && userEmail && rosterEmail === userEmail
@@ -74,7 +75,7 @@ export function useRosterActions({
         break
       }
     }
-  }, [activeUser, roster, updateActiveUser])
+  }, [activeUser, safeRoster, updateActiveUser])
 
   const handleJoinRoster = async () => {
     if (!activeUser) return
@@ -94,7 +95,7 @@ export function useRosterActions({
 
   const handleNoteBlur = async () => {
     if (!activeUser) return
-    const currentMember = roster.find((m) => m.user_id === activeUser.id)
+    const currentMember = safeRoster.find((m) => m?.user_id === activeUser.id)
     if (!currentMember || currentMember.notes === userNote) return
 
     setSavingNote(true)

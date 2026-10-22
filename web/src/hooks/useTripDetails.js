@@ -8,8 +8,9 @@ import { loadTripOfflineSnapshot, saveTripOfflineSnapshot, isNetworkOffline } fr
  * @param {string} tripId The UUID of the trip.
  * @returns {Object} Object containing trip data, loading state, error, isOffline flag, and refresh function.
  */
-export function useTripDetails(tripId) {
+export function useTripDetails(tripId, initialTrip = null) {
   const [data, setData] = useState(() => {
+    if (initialTrip) return initialTrip
     const cached = loadTripOfflineSnapshot(tripId)
     return cached?.trip || null
   })
@@ -44,6 +45,14 @@ export function useTripDetails(tripId) {
     loadTripDetails()
   }, [loadTripDetails])
 
-  return { data, loading, error, isOffline, refresh: loadTripDetails }
+  return {
+    data,
+    trip: data,
+    loading,
+    error,
+    isOffline,
+    refresh: loadTripDetails,
+    refreshTrip: loadTripDetails
+  }
 }
 

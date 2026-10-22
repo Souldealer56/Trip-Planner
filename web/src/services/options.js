@@ -936,22 +936,27 @@ export async function updateOption(optionId, updates, tripId = null, userId = nu
     try {
       let userName = 'Someone'
       if (userId) {
-        const { data: userRec } = await supabase
-          .from('users')
-          .select('first_name')
-          .eq('id', userId)
-          .maybeSingle()
-        if (userRec?.first_name) {
-          userName = userRec.first_name
+        const userQuery = supabase.from('users').select('first_name')
+        if (typeof userQuery?.eq === 'function') {
+          const eqQuery = userQuery.eq('id', userId)
+          const userRes = typeof eqQuery?.maybeSingle === 'function'
+            ? await eqQuery.maybeSingle()
+            : await eqQuery
+          if (userRes?.data?.first_name) {
+            userName = userRes.data.first_name
+          }
         }
       }
       const optName = payload.option_text || updatedData?.option_text || 'an option'
-      await supabase.from('activity_log').insert({
-        trip_id: tripId,
-        user_id: sanitizeUuidOrNull(userId),
-        action_type: 'update_option',
-        description: `${userName} updated option "${optName}"`
-      })
+      const activityTable = supabase.from('activity_log')
+      if (typeof activityTable?.insert === 'function') {
+        await activityTable.insert({
+          trip_id: tripId,
+          user_id: sanitizeUuidOrNull(userId),
+          action_type: 'update_option',
+          description: `${userName} updated option "${optName}"`
+        })
+      }
     } catch (logErr) {
       console.warn('Failed to log update option activity:', logErr)
     }

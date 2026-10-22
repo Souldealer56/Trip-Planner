@@ -33,8 +33,27 @@ export function TripDetails() {
   const offlineSnapshot = useMemo(() => loadTripOfflineSnapshot(id), [id])
 
   // Core Trip & Roster Queries
-  const { trip, loading: tripLoading, error: tripError, refreshTrip } = useTripDetails(id, offlineSnapshot?.trip)
-  const { roster, loading: rosterLoading, error: rosterError, refreshRoster } = useRsvpRoster(id, offlineSnapshot?.roster)
+  const {
+    data: tripData,
+    trip: tripFromHook,
+    loading: tripLoading,
+    error: tripError,
+    refreshTrip: refreshTripFn,
+    refresh: refreshTripAlt
+  } = useTripDetails(id, offlineSnapshot?.trip)
+  const trip = tripFromHook ?? tripData ?? null
+  const refreshTrip = refreshTripFn || refreshTripAlt
+
+  const {
+    data: rosterData,
+    roster: rosterFromHook,
+    loading: rosterLoading,
+    error: rosterError,
+    refreshRoster: refreshRosterFn,
+    refresh: refreshRosterAlt
+  } = useRsvpRoster(id, offlineSnapshot?.roster)
+  const roster = rosterFromHook ?? rosterData ?? []
+  const refreshRoster = refreshRosterFn || refreshRosterAlt
 
   // Workspace tab state
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('itinerary')
@@ -98,7 +117,7 @@ export function TripDetails() {
   })
 
   // Financials & Settlements Hook
-  const committedMembers = useMemo(() => roster.filter((m) => m.status === 'Committed'), [roster])
+  const committedMembers = useMemo(() => (roster || []).filter((m) => m?.status === 'Committed'), [roster])
   const baseCurrency = trip?.base_currency || 'USD'
 
   const {
@@ -153,7 +172,7 @@ export function TripDetails() {
 
   // Cache trip & roster changes to offline snapshot
   useEffect(() => {
-    if (trip || roster.length > 0) {
+    if (trip || (roster && roster.length > 0)) {
       saveTripOfflineSnapshot(id, { trip, roster })
     }
   }, [id, trip, roster])
@@ -276,7 +295,7 @@ export function TripDetails() {
 
   const totalOptionsCount = allTripOptions.length > 0 ? allTripOptions.length : options.length
   const expensesCount = expenses.length
-  const rosterCount = roster.length
+  const rosterCount = (roster || []).length
 
   if (tripLoading && !trip) {
     return (

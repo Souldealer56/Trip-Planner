@@ -6,9 +6,12 @@ import { fetchRsvpRoster } from '../services/rsvps'
  * @param {string} tripId The UUID of the trip.
  * @returns {Object} Object containing roster data, loading state, error, and refresh function.
  */
-export function useRsvpRoster(tripId) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
+export function useRsvpRoster(tripId, initialRoster = null) {
+  const [data, setData] = useState(() => {
+    if (Array.isArray(initialRoster)) return initialRoster
+    return []
+  })
+  const [loading, setLoading] = useState(!data || data.length === 0)
   const [error, setError] = useState(null)
 
   const loadRoster = useCallback(async () => {
@@ -17,7 +20,7 @@ export function useRsvpRoster(tripId) {
     setError(null)
     try {
       const roster = await fetchRsvpRoster(tripId)
-      setData(roster)
+      setData(roster || [])
     } catch (err) {
       console.error(`Error fetching RSVP roster for trip ID ${tripId}:`, err)
       setError(err.message || 'Failed to fetch RSVP roster')
@@ -30,5 +33,12 @@ export function useRsvpRoster(tripId) {
     loadRoster()
   }, [loadRoster])
 
-  return { data, loading, error, refresh: loadRoster }
+  return {
+    data,
+    roster: data,
+    loading,
+    error,
+    refresh: loadRoster,
+    refreshRoster: loadRoster
+  }
 }
