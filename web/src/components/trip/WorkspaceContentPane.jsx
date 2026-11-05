@@ -66,7 +66,9 @@ export function WorkspaceContentPane({
   handleDemoteMember,
   handleCopyInviteLink,
   showCopiedToast,
-  handleUpdateRsvpDetails
+  handleUpdateRsvpDetails,
+  rosterError,
+  rosterSuccess
 }) {
   return (
     <main className="workspace-content-pane">
@@ -180,6 +182,8 @@ export function WorkspaceContentPane({
             onCopyInviteLink={handleCopyInviteLink}
             showCopiedToast={showCopiedToast}
             onUpdateRsvpDetails={handleUpdateRsvpDetails}
+            rosterError={rosterError}
+            rosterSuccess={rosterSuccess}
           />
         </div>
       )}

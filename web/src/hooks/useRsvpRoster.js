@@ -39,6 +39,7 @@ export function useRsvpRoster(tripId, initialRoster = null) {
     loading,
     error,
     refresh: loadRoster,
-    refreshRoster: loadRoster
+    refreshRoster: loadRoster,
+    setRoster: setData
   }
 }

@@ -9,14 +9,14 @@ import { supabase } from './supabase.js'
 export async function fetchRsvpRoster(tripId) {
   let { data, error } = await supabase
     .from('rsvps')
-    .select('status, user_id, notes, role, arrival_date, departure_date, dietary_tags, users(*)')
+    .select('id, status, user_id, notes, role, arrival_date, departure_date, dietary_tags, users(*)')
     .eq('trip_id', tripId)
 
   if (error) {
     // Fallback if arrival_date, departure_date, or dietary_tags column absent on unmigrated schema
     const fallback = await supabase
       .from('rsvps')
-      .select('status, user_id, notes, role, users(*)')
+      .select('id, status, user_id, notes, role, users(*)')
       .eq('trip_id', tripId)
     data = fallback.data
     error = fallback.error
@@ -35,12 +35,137 @@ export async function fetchRsvpRoster(tripId) {
   if (error) {
     throw error
   }
-  return data
+
+  // Deduplicate by user_id keeping the first/latest occurrence
+  const seenUsers = new Set()
+  const deduplicated = []
+  for (const item of (data || [])) {
+    const uid = String(item.user_id)
+    if (!seenUsers.has(uid)) {
+      seenUsers.add(uid)
+      deduplicated.push(item)
+    }
+  }
+
+  return deduplicated
+}
+
+/**
+ * Defensively queries existing RSVP rows matching (trip_id, user_id),
+ * deletes any redundant duplicate rows so only the primary row remains,
+ * and executes an update or insert without chaining .single().
+ *
+ * @param {string} tripId The UUID of the trip.
+ * @param {string|number} userId The user ID.
+ * @param {Object} payload Key-value pairs to update or insert.
+ * @param {Object} [fallbackPayload] Fallback fields if columns are missing.
+ * @returns {Promise<Object>} The updated or inserted RSVP row.
+ */
+export async function saveRsvpRecord(tripId, userId, payload, fallbackPayload = null) {
+  if (!tripId || !userId) {
+    throw new Error('tripId and userId are required to save RSVP.')
+  }
+
+  // 1. Query existing rows matching (trip_id, user_id)
+  let existingRows = []
+  try {
+    const res = await supabase
+      .from('rsvps')
+      .select('*')
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (res.error) {
+      // Fallback query without .order() if created_at is absent
+      const fallback = await supabase
+        .from('rsvps')
+        .select('*')
+        .eq('trip_id', tripId)
+        .eq('user_id', userId)
+      if (fallback?.error) throw fallback.error
+      if (!fallback?.data) throw res.error
+      existingRows = fallback.data || []
+    } else {
+      existingRows = res.data || []
+    }
+  } catch (err) {
+    const fallback = await supabase
+      .from('rsvps')
+      .select('*')
+      .eq('trip_id', tripId)
+      .eq('user_id', userId)
+    if (fallback?.error) throw fallback.error
+    if (!fallback?.data) throw err
+    existingRows = fallback.data || []
+  }
+
+  // If multiple rows exist, sort by updated_at or created_at descending
+  if (existingRows.length > 1) {
+    existingRows.sort((a, b) => {
+      const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
+      const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
+      return timeB - timeA
+    })
+
+    // Delete redundant duplicate IDs so only the primary row remains
+    const duplicateIds = existingRows.slice(1).map((r) => r.id).filter(Boolean)
+    if (duplicateIds.length > 0) {
+      await supabase
+        .from('rsvps')
+        .delete()
+        .in('id', duplicateIds)
+    }
+  }
+
+  const primaryRow = existingRows[0] || null
+
+  const executeMutation = async (fieldsToApply) => {
+    if (primaryRow) {
+      let updateQuery = supabase
+        .from('rsvps')
+        .update(fieldsToApply)
+
+      if (primaryRow.id) {
+        updateQuery = updateQuery.eq('id', primaryRow.id)
+      } else {
+        updateQuery = updateQuery.eq('trip_id', tripId).eq('user_id', userId)
+      }
+
+      const { data, error } = await updateQuery.select()
+      if (error) throw error
+      const row = Array.isArray(data) ? data[0] : (data || { ...primaryRow, ...fieldsToApply })
+      return row
+    } else {
+      const insertData = {
+        trip_id: tripId,
+        user_id: userId,
+        ...fieldsToApply
+      }
+      const { data, error } = await supabase
+        .from('rsvps')
+        .insert([insertData])
+        .select()
+
+      if (error) throw error
+      const row = Array.isArray(data) ? data[0] : (data || insertData)
+      return row
+    }
+  }
+
+  try {
+    return await executeMutation(payload)
+  } catch (err) {
+    if (fallbackPayload && Object.keys(fallbackPayload).length > 0) {
+      return await executeMutation(fallbackPayload)
+    }
+    throw err
+  }
 }
 
 /**
  * Creates / updates an RSVP record for a user joining a trip.
- * Uses upsert with onConflict on (trip_id, user_id) to prevent duplicate RSVP rows.
+ * Uses defensive query and save pattern to prevent duplicate RSVP rows.
  * @param {string} tripId The UUID of the trip.
  * @param {string} userId The UUID of the user.
  * @param {string} [status='Committed'] The RSVP status.
@@ -48,36 +173,12 @@ export async function fetchRsvpRoster(tripId) {
  * @returns {Promise<Object>} A promise resolving to the created/updated RSVP record.
  */
 export async function createRsvp(tripId, userId, status = 'Committed', role = 'member') {
-  const payload = {
-    trip_id: tripId,
-    user_id: userId,
-    status,
-    role
-  }
-
-  const { data, error } = await supabase
-    .from('rsvps')
-    .upsert(payload, { onConflict: 'trip_id,user_id' })
-    .select()
-    .single()
-
-  if (!error) return data
-
-  // Fallback without role column if unmigrated
-  const fallback = await supabase
-    .from('rsvps')
-    .upsert({
-      trip_id: tripId,
-      user_id: userId,
-      status
-    }, { onConflict: 'trip_id,user_id' })
-    .select()
-    .single()
-
-  if (fallback.error) {
-    throw fallback.error
-  }
-  return fallback.data
+  return await saveRsvpRecord(
+    tripId,
+    userId,
+    { status, role },
+    { status }
+  )
 }
 
 /**
@@ -88,18 +189,11 @@ export async function createRsvp(tripId, userId, status = 'Committed', role = 'm
  * @returns {Promise<Object>} A promise resolving to the updated RSVP record.
  */
 export async function updateRsvpNote(tripId, userId, notes) {
-  const { data, error } = await supabase
-    .from('rsvps')
-    .update({ notes })
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (error) {
-    throw error
-  }
-  return data
+  return await saveRsvpRecord(
+    tripId,
+    userId,
+    { notes }
+  )
 }
 
 /**
@@ -110,18 +204,11 @@ export async function updateRsvpNote(tripId, userId, notes) {
  * @returns {Promise<Object>} A promise resolving to the updated RSVP record.
  */
 export async function updateRsvpStatus(tripId, userId, status) {
-  const { data, error } = await supabase
-    .from('rsvps')
-    .update({ status })
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (error) {
-    throw error
-  }
-  return data
+  return await saveRsvpRecord(
+    tripId,
+    userId,
+    { status }
+  )
 }
 
 /**
@@ -171,30 +258,12 @@ export function isUserTripAdmin(user, trip, rsvpOrRoster) {
  * @returns {Promise<Object>} Updated RSVP record.
  */
 export async function promoteToCoOrganizer(tripId, userId) {
-  // 1. Update role directly (primary first-class role column)
-  const { data, error } = await supabase
-    .from('rsvps')
-    .update({ role: 'co_organizer' })
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (!error) return data
-
-  // 2. Fallback if role column is absent on older schemas
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from('rsvps')
-    .update({ is_admin: true })
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (fallbackError) {
-    throw error || fallbackError
-  }
-  return fallbackData
+  return await saveRsvpRecord(
+    tripId,
+    userId,
+    { role: 'co_organizer' },
+    { is_admin: true }
+  )
 }
 
 /**
@@ -205,30 +274,12 @@ export async function promoteToCoOrganizer(tripId, userId) {
  * @returns {Promise<Object>} Updated RSVP record.
  */
 export async function demoteCoOrganizer(tripId, userId) {
-  // 1. Update role directly
-  const { data, error } = await supabase
-    .from('rsvps')
-    .update({ role: 'member' })
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (!error) return data
-
-  // 2. Fallback if role column is absent on older schemas
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from('rsvps')
-    .update({ is_admin: false })
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (fallbackError) {
-    throw error || fallbackError
-  }
-  return fallbackData
+  return await saveRsvpRecord(
+    tripId,
+    userId,
+    { role: 'member' },
+    { is_admin: false }
+  )
 }
 
 /**
@@ -238,45 +289,25 @@ export async function demoteCoOrganizer(tripId, userId) {
  * @param {Object} details Details to update: { arrival_date, departure_date, dietary_tags, notes }.
  * @returns {Promise<Object>} Updated RSVP record.
  */
-export async function updateRsvpDetails(tripId, userId, { arrival_date, departure_date, dietary_tags, notes }) {
+export async function updateRsvpDetails(tripId, userId, details = {}) {
+  const { arrival_date, departure_date, dietary_tags, notes } = details || {}
   const payload = {}
   if (arrival_date !== undefined) payload.arrival_date = arrival_date || null
   if (departure_date !== undefined) payload.departure_date = departure_date || null
   if (dietary_tags !== undefined) payload.dietary_tags = Array.isArray(dietary_tags) ? dietary_tags : []
   if (notes !== undefined) payload.notes = notes
 
-  try {
-    const { data, error } = await supabase
-      .from('rsvps')
-      .update(payload)
-      .eq('trip_id', tripId)
-      .eq('user_id', userId)
-      .select()
-      .single()
-
-    if (!error && data) return data
-  } catch (_) {
-    // Fallback if columns not yet migrated
-  }
-
-  // Schema-resilient fallback to notes only if arrival_date / dietary_tags are absent
   const fallbackPayload = {}
   if (notes !== undefined) fallbackPayload.notes = notes
 
-  if (Object.keys(fallbackPayload).length > 0) {
-    const { data, error } = await supabase
-      .from('rsvps')
-      .update(fallbackPayload)
-      .eq('trip_id', tripId)
-      .eq('user_id', userId)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
+  try {
+    return await saveRsvpRecord(tripId, userId, payload, fallbackPayload)
+  } catch (err) {
+    if (Object.keys(fallbackPayload).length > 0) {
+      return await saveRsvpRecord(tripId, userId, fallbackPayload)
+    }
+    return { trip_id: tripId, user_id: userId, ...payload }
   }
-
-  return { trip_id: tripId, user_id: userId, ...payload }
 }
 
 /**

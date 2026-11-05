@@ -13,6 +13,7 @@ export function useRosterActions({
   tripId,
   trip,
   roster = [],
+  setRoster,
   activeUser,
   refreshRoster,
   onActivityLogged,
@@ -24,6 +25,8 @@ export function useRosterActions({
   const [showCopiedToast, setShowCopiedToast] = useState(false)
   const [reconcileLoading, setReconcileLoading] = useState(false)
   const [reconcileError, setReconcileError] = useState('')
+  const [rosterError, setRosterError] = useState('')
+  const [rosterSuccess, setRosterSuccess] = useState('')
 
   const activeUserRsvp = safeRoster.find((m) => m?.user_id === activeUser?.id)
   const isAdmin = isUserTripAdmin(activeUser, trip, activeUserRsvp)
@@ -99,13 +102,43 @@ export function useRosterActions({
     if (!currentMember || currentMember.notes === userNote) return
 
     setSavingNote(true)
+    setRosterError('')
+    const previousRoster = safeRoster
+
+    if (typeof setRoster === 'function') {
+      setRoster((prev) => {
+        const list = Array.isArray(prev) ? prev : []
+        return list.map((m) => {
+          if (String(m.user_id) === String(activeUser.id)) {
+            return { ...m, notes: userNote }
+          }
+          return m
+        })
+      })
+    }
+
     try {
-      await updateRsvpNote(tripId, activeUser.id, userNote)
+      const updatedRow = await updateRsvpNote(tripId, activeUser.id, userNote)
+      if (typeof setRoster === 'function' && updatedRow) {
+        setRoster((prev) => {
+          const list = Array.isArray(prev) ? prev : []
+          return list.map((m) => {
+            if (String(m.user_id) === String(activeUser.id)) {
+              return { ...m, ...updatedRow, users: m.users }
+            }
+            return m
+          })
+        })
+      }
       if (refreshRoster) refreshRoster()
       if (onActivityLogged) onActivityLogged()
     } catch (err) {
       console.error('Failed to save note:', err)
-      alert('Failed to save note: ' + err.message)
+      if (typeof setRoster === 'function') {
+        setRoster(previousRoster)
+      }
+      setRosterError(err.message || 'Failed to save note.')
+      setTimeout(() => setRosterError(''), 5000)
     } finally {
       setSavingNote(false)
     }
@@ -122,46 +155,221 @@ export function useRosterActions({
     })
   }
 
-  const handleStatusChange = async (targetUserId, newStatus) => {
+  const handleStatusChange = async (targetUserIdOrEvent, explicitStatus) => {
+    let targetUserId = targetUserIdOrEvent
+    let newStatus = explicitStatus
+
+    if (targetUserIdOrEvent && typeof targetUserIdOrEvent === 'object' && targetUserIdOrEvent.target) {
+      newStatus = targetUserIdOrEvent.target.value
+      targetUserId = activeUser?.id
+    } else if (!explicitStatus && typeof targetUserIdOrEvent === 'string') {
+      if (['committed', 'tentative', 'declined', 'interested'].includes(targetUserIdOrEvent.toLowerCase())) {
+        newStatus = targetUserIdOrEvent
+        targetUserId = activeUser?.id
+      }
+    }
+
+    if (!targetUserId && activeUser?.id) {
+      targetUserId = activeUser.id
+    }
+
+    if (!targetUserId || !newStatus) return
+
+    setRosterError('')
+    const previousRoster = safeRoster
+
+    // 1. Optimistic UI update
+    if (typeof setRoster === 'function') {
+      setRoster((prev) => {
+        const list = Array.isArray(prev) ? prev : []
+        return list.map((m) => {
+          if (String(m.user_id) === String(targetUserId)) {
+            return { ...m, status: newStatus }
+          }
+          return m
+        })
+      })
+    }
+
     try {
-      await updateRsvpStatus(tripId, targetUserId, newStatus)
+      // 2. Defensive database mutation
+      const updatedRow = await updateRsvpStatus(tripId, targetUserId, newStatus)
+
+      // 3. Reconcile optimistic UI with returned row
+      if (typeof setRoster === 'function' && updatedRow) {
+        setRoster((prev) => {
+          const list = Array.isArray(prev) ? prev : []
+          return list.map((m) => {
+            if (String(m.user_id) === String(targetUserId)) {
+              return { ...m, ...updatedRow, users: m.users }
+            }
+            return m
+          })
+        })
+      }
+
+      setRosterSuccess(`RSVP status changed to ${newStatus}`)
+      setTimeout(() => setRosterSuccess(''), 3000)
+
       if (refreshRoster) refreshRoster()
       if (onActivityLogged) onActivityLogged()
     } catch (err) {
       console.error('Failed to update status:', err)
-      alert(err.message || 'Failed to update RSVP status.')
+      // Rollback optimistic update
+      if (typeof setRoster === 'function') {
+        setRoster(previousRoster)
+      }
+      setRosterError(err.message || 'Failed to update RSVP status.')
+      setTimeout(() => setRosterError(''), 5000)
     }
   }
 
   const handlePromoteMember = async (targetUserId) => {
+    setRosterError('')
+    const previousRoster = safeRoster
+
+    if (typeof setRoster === 'function') {
+      setRoster((prev) => {
+        const list = Array.isArray(prev) ? prev : []
+        return list.map((m) => {
+          if (String(m.user_id) === String(targetUserId)) {
+            return { ...m, role: 'co_organizer', is_admin: true }
+          }
+          return m
+        })
+      })
+    }
+
     try {
-      await promoteToCoOrganizer(tripId, targetUserId)
+      const updatedRow = await promoteToCoOrganizer(tripId, targetUserId)
+      if (typeof setRoster === 'function' && updatedRow) {
+        setRoster((prev) => {
+          const list = Array.isArray(prev) ? prev : []
+          return list.map((m) => {
+            if (String(m.user_id) === String(targetUserId)) {
+              return { ...m, ...updatedRow, users: m.users }
+            }
+            return m
+          })
+        })
+      }
+      setRosterSuccess('Member promoted to co-organizer')
+      setTimeout(() => setRosterSuccess(''), 3000)
+
       if (refreshRoster) refreshRoster()
       if (onActivityLogged) onActivityLogged()
     } catch (err) {
       console.error('Failed to promote participant:', err)
-      alert(err.message || 'Failed to promote member.')
+      if (typeof setRoster === 'function') {
+        setRoster(previousRoster)
+      }
+      setRosterError(err.message || 'Failed to promote member.')
+      setTimeout(() => setRosterError(''), 5000)
     }
   }
 
   const handleDemoteMember = async (targetUserId) => {
+    setRosterError('')
+    const previousRoster = safeRoster
+
+    if (typeof setRoster === 'function') {
+      setRoster((prev) => {
+        const list = Array.isArray(prev) ? prev : []
+        return list.map((m) => {
+          if (String(m.user_id) === String(targetUserId)) {
+            return { ...m, role: 'member', is_admin: false }
+          }
+          return m
+        })
+      })
+    }
+
     try {
-      await demoteCoOrganizer(tripId, targetUserId)
+      const updatedRow = await demoteCoOrganizer(tripId, targetUserId)
+      if (typeof setRoster === 'function' && updatedRow) {
+        setRoster((prev) => {
+          const list = Array.isArray(prev) ? prev : []
+          return list.map((m) => {
+            if (String(m.user_id) === String(targetUserId)) {
+              return { ...m, ...updatedRow, users: m.users }
+            }
+            return m
+          })
+        })
+      }
+      setRosterSuccess('Co-organizer demoted to member')
+      setTimeout(() => setRosterSuccess(''), 3000)
+
       if (refreshRoster) refreshRoster()
       if (onActivityLogged) onActivityLogged()
     } catch (err) {
       console.error('Failed to demote co-organizer:', err)
-      alert(err.message || 'Failed to demote member.')
+      if (typeof setRoster === 'function') {
+        setRoster(previousRoster)
+      }
+      setRosterError(err.message || 'Failed to demote member.')
+      setTimeout(() => setRosterError(''), 5000)
     }
   }
 
-  const handleUpdateRsvpDetails = async (rsvpId, targetUserId, details) => {
+  const handleUpdateRsvpDetails = async (arg1, arg2, arg3) => {
+    let targetUserId
+    let details
+
+    if (arg3 !== undefined) {
+      targetUserId = arg2
+      details = arg3
+    } else {
+      targetUserId = arg1
+      details = arg2
+    }
+
+    if (!targetUserId && activeUser?.id) {
+      targetUserId = activeUser.id
+    }
+
+    if (!targetUserId || !details) return
+
+    setRosterError('')
+    const previousRoster = safeRoster
+
+    // 1. Optimistic UI update
+    if (typeof setRoster === 'function') {
+      setRoster((prev) => {
+        const list = Array.isArray(prev) ? prev : []
+        return list.map((m) => {
+          if (String(m.user_id) === String(targetUserId)) {
+            return { ...m, ...details }
+          }
+          return m
+        })
+      })
+    }
+
     try {
-      await updateRsvpDetails(rsvpId, targetUserId, details)
+      const updatedRow = await updateRsvpDetails(tripId, targetUserId, details)
+
+      if (typeof setRoster === 'function' && updatedRow) {
+        setRoster((prev) => {
+          const list = Array.isArray(prev) ? prev : []
+          return list.map((m) => {
+            if (String(m.user_id) === String(targetUserId)) {
+              return { ...m, ...updatedRow, users: m.users }
+            }
+            return m
+          })
+        })
+      }
+
       if (refreshRoster) refreshRoster()
       if (onActivityLogged) onActivityLogged()
     } catch (err) {
       console.error('Failed to update RSVP details:', err)
+      if (typeof setRoster === 'function') {
+        setRoster(previousRoster)
+      }
+      setRosterError(err.message || 'Failed to update RSVP details.')
+      setTimeout(() => setRosterError(''), 5000)
     }
   }
 
@@ -174,6 +382,10 @@ export function useRosterActions({
     activeUserInRoster,
     reconcileLoading,
     reconcileError,
+    rosterError,
+    rosterSuccess,
+    setRosterError,
+    setRosterSuccess,
     handleJoinRoster,
     handleNoteBlur,
     handleCopyInviteLink,

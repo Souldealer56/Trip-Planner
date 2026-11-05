@@ -68,7 +68,9 @@ export function RosterSection({
   onDemoteMember,
   onCopyInviteLink,
   showCopiedToast = false,
-  onUpdateRsvpDetails
+  onUpdateRsvpDetails,
+  rosterError = '',
+  rosterSuccess = ''
 }) {
   const activeMember = roster.find(m => String(m.user_id) === String(activeUser?.id))
   const otherMembers = roster.filter(m => String(m.user_id) !== String(activeUser?.id))
@@ -131,6 +133,48 @@ export function RosterSection({
           {roster.length} participant{roster.length !== 1 ? 's' : ''}
         </span>
       </h2>
+
+      {/* Graceful Feedback Notifications */}
+      {rosterError && (
+        <div
+          role="alert"
+          className="animate-fade-in"
+          style={{
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            borderRadius: 'var(--border-radius-sm)',
+            fontSize: '0.875rem',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            color: '#fca5a5',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <span>⚠️ {rosterError}</span>
+        </div>
+      )}
+      {rosterSuccess && (
+        <div
+          role="status"
+          className="animate-fade-in"
+          style={{
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            borderRadius: 'var(--border-radius-sm)',
+            fontSize: '0.875rem',
+            background: 'rgba(16, 185, 129, 0.15)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            color: '#6ee7b7',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <span>✓ {rosterSuccess}</span>
+        </div>
+      )}
 
       {/* 1. Unified Active User Card ("My RSVP") — Redesign Proposal D */}
       {activeMember && (() => {

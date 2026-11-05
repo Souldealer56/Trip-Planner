@@ -50,7 +50,8 @@ export function TripDetails() {
     loading: rosterLoading,
     error: rosterError,
     refreshRoster: refreshRosterFn,
-    refresh: refreshRosterAlt
+    refresh: refreshRosterAlt,
+    setRoster
   } = useRsvpRoster(id, offlineSnapshot?.roster)
   const roster = rosterFromHook ?? rosterData ?? []
   const refreshRoster = refreshRosterFn || refreshRosterAlt
@@ -153,6 +154,8 @@ export function TripDetails() {
     activeUserInRoster,
     reconcileLoading,
     reconcileError,
+    rosterError: rosterActionError,
+    rosterSuccess: rosterActionSuccess,
     handleJoinRoster,
     handleNoteBlur,
     handleCopyInviteLink,
@@ -164,6 +167,7 @@ export function TripDetails() {
     tripId: id,
     trip,
     roster,
+    setRoster,
     activeUser,
     refreshRoster,
     onActivityLogged: loadActivityLogs,
@@ -431,6 +435,8 @@ export function TripDetails() {
         handleCopyInviteLink={handleCopyInviteLink}
         showCopiedToast={showCopiedToast}
         handleUpdateRsvpDetails={handleUpdateRsvpDetails}
+        rosterError={rosterActionError}
+        rosterSuccess={rosterActionSuccess}
       />
 
       {/* Extracted Modular Modals & Drawer */}
