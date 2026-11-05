@@ -4,7 +4,9 @@ import {
   detectScheduleConflicts,
   packOptionsIntoSubTracks,
   analyzeDailyLogisticsCoverage,
-  isVehicleCoverage
+  isVehicleCoverage,
+  detectTransportParticipantConflicts,
+  checkUserTransportOverlap
 } from '../utils/schedule'
 import { parseLocalDate, formatLocalDateStr } from '../utils/format'
 
@@ -578,6 +580,130 @@ describe('Schedule Engine Utilities', () => {
         start_date: '2026-07-24T09:00',
         end_date: '2026-07-31T18:00'
       })).toBe(false)
+    })
+  })
+
+  describe('detectTransportParticipantConflicts & checkUserTransportOverlap (TASK 4)', () => {
+    const dummyRoster = [
+      { user_id: 'user-alexis', users: { first_name: 'Alexis' } },
+      { user_id: 'user-sam', users: { first_name: 'Sam' } },
+      { user_id: 'user-taylor', users: { first_name: 'Taylor' } }
+    ]
+
+    const subaruOutback = {
+      id: 'opt-subaru',
+      category: 'transport',
+      option_text: 'SUBARU OUTBACK',
+      start_date: '2026-12-24',
+      end_date: '2027-01-03',
+      is_locked: true,
+      metadata: {
+        driver_user_id: 'user-alexis',
+        seats_capacity: 5
+      },
+      assigned_users: ['user-alexis', 'user-taylor']
+    }
+
+    const fordLightning = {
+      id: 'opt-ford',
+      category: 'transport',
+      option_text: 'FORD LIGHTNING',
+      start_date: '2026-12-25',
+      end_date: '2027-01-03',
+      is_locked: true,
+      metadata: {
+        driver_user_id: 'user-sam',
+        seats_capacity: 5
+      },
+      assigned_users: ['user-sam', 'user-alexis']
+    }
+
+    const rav4Later = {
+      id: 'opt-rav4',
+      category: 'transport',
+      option_text: 'TOYOTA RAV4',
+      start_date: '2027-01-05',
+      end_date: '2027-01-10',
+      is_locked: true,
+      metadata: {
+        driver_user_id: 'user-alexis',
+        seats_capacity: 5
+      },
+      assigned_users: ['user-alexis']
+    }
+
+    it('detects participant double-booked across overlapping locked vehicles (Alexis in Subaru and Ford)', () => {
+      const result = detectTransportParticipantConflicts([subaruOutback, fordLightning], null, dummyRoster)
+      expect(result.hasConflicts).toBe(true)
+      expect(result.conflicts).toHaveLength(1)
+      expect(result.conflicts[0].userId).toBe('user-alexis')
+      expect(result.conflicts[0].userName).toBe('Alexis')
+
+      // Verifies conflict structure by option ID
+      const subaruConflicts = result.conflictsByOptionId['opt-subaru']
+      expect(subaruConflicts).toBeDefined()
+      expect(subaruConflicts[0].otherOptionTitle).toBe('FORD LIGHTNING')
+      expect(subaruConflicts[0].message).toBe('⚠️ Schedule Conflict: Alexis is also in FORD LIGHTNING')
+
+      const fordConflicts = result.conflictsByOptionId['opt-ford']
+      expect(fordConflicts).toBeDefined()
+      expect(fordConflicts[0].otherOptionTitle).toBe('SUBARU OUTBACK')
+      expect(fordConflicts[0].message).toBe('⚠️ Schedule Conflict: Alexis is also in SUBARU OUTBACK')
+    })
+
+    it('returns no conflict when vehicles operate on non-overlapping dates', () => {
+      const result = detectTransportParticipantConflicts([subaruOutback, rav4Later], null, dummyRoster)
+      expect(result.hasConflicts).toBe(false)
+      expect(result.conflicts).toHaveLength(0)
+    })
+
+    it('returns no conflict when overlapping vehicles have completely disjoint travelers', () => {
+      const fordNoAlexis = {
+        ...fordLightning,
+        assigned_users: ['user-sam']
+      }
+      const result = detectTransportParticipantConflicts([subaruOutback, fordNoAlexis], null, dummyRoster)
+      expect(result.hasConflicts).toBe(false)
+      expect(result.conflicts).toHaveLength(0)
+    })
+
+    it('detects driver conflict when user is designated driver in both overlapping vehicles', () => {
+      const fordAlexisDriver = {
+        ...fordLightning,
+        metadata: { ...fordLightning.metadata, driver_user_id: 'user-alexis' },
+        assigned_users: ['user-sam']
+      }
+      const result = detectTransportParticipantConflicts([subaruOutback, fordAlexisDriver], null, dummyRoster)
+      expect(result.hasConflicts).toBe(true)
+      expect(result.conflicts[0].userId).toBe('user-alexis')
+      expect(result.conflicts[0].roleA).toBe('driver')
+      expect(result.conflicts[0].roleB).toBe('driver')
+    })
+
+    it('checkUserTransportOverlap accurately identifies existing overlapping assignment for active user', () => {
+      // Alexis is in Subaru (Dec 24 - Jan 3). When attempting to join Ford (Dec 25 - Jan 3), detects Subaru as conflict
+      const conflict = checkUserTransportOverlap('user-alexis', {
+        id: 'opt-new-vehicle',
+        category: 'transport',
+        start_date: '2026-12-25',
+        end_date: '2027-01-03'
+      }, [subaruOutback])
+
+      expect(conflict).not.toBeNull()
+      expect(conflict.conflictingOption.id).toBe('opt-subaru')
+      expect(conflict.conflictingTitle).toBe('SUBARU OUTBACK')
+      expect(conflict.isDriver).toBe(true)
+    })
+
+    it('checkUserTransportOverlap returns null if active user is not assigned to any overlapping vehicle', () => {
+      const conflict = checkUserTransportOverlap('user-sam', {
+        id: 'opt-new-vehicle',
+        category: 'transport',
+        start_date: '2026-12-25',
+        end_date: '2027-01-03'
+      }, [subaruOutback])
+
+      expect(conflict).toBeNull()
     })
   })
 })

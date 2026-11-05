@@ -388,5 +388,6 @@
   "386": "vite.config.js",
   "387": "qa_e2e_scenario.test.jsx",
   "388": "components.smoke.test.jsx",
-  "389": "supabase.js"
+  "389": "supabase.js",
+  "390": "OptionPitchModal.jsx"
 }

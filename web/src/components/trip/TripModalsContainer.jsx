@@ -27,6 +27,7 @@ export function TripModalsContainer({
   activeUser,
   editingOption,
   trip,
+  allTripOptions = [],
 
   // Add / Edit Expense Modal Props
   showExpenseModal,
@@ -93,6 +94,7 @@ export function TripModalsContainer({
         activeUserId={activeUser?.id}
         editingOption={editingOption}
         trip={trip}
+        allTripOptions={allTripOptions}
       />
 
       <AddExpenseModal

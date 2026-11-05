@@ -306,6 +306,60 @@ a:hover {
 }
 
 /* Option Pitching & Voting styles for Phase 11 */
+.advanced-options-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--border-radius-sm, 8px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  color: var(--text-main, #fff);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.advanced-options-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.advanced-options-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+  overflow: hidden;
+}
+
+.advanced-options-drawer.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.advanced-options-drawer-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}
+
+.advanced-count-badge {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 12px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .tab-btn {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-light);
@@ -2873,6 +2927,12 @@ input:checked + .toggle-slider:before {
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.35);
   white-space: nowrap;
+}
+
+.option-conflict-pill.transport-conflict-pill {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .option-card-title-pricing-row {

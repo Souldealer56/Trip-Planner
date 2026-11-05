@@ -39,6 +39,7 @@ export function WorkspaceContentPane({
   loadGanttData,
   loadOptionsAndPoll,
   handleToggleOptionParticipant,
+  handleAssignDriver,
   logGroceryExpense,
   handleSubmitMeal,
   // Ledger props
@@ -135,6 +136,7 @@ export function WorkspaceContentPane({
             onOpenExpenseModal={onOpenExpenseModal}
             onRefresh={viewMode === 'gantt' ? loadGanttData : loadOptionsAndPoll}
             onToggleParticipant={handleToggleOptionParticipant}
+            onAssignDriver={handleAssignDriver}
             onLogExpense={logGroceryExpense}
             onSubmitMeal={handleSubmitMeal}
           />

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { GanttTimeline } from '../GanttTimeline'
 import { formatDateTimeRange, formatDateRange, formatMoney } from '../../utils/format'
-import { checkOptionDateConflict, isOptionLocked } from '../../services/options'
+import { checkOptionDateConflict, isOptionLocked, detectTransportParticipantConflicts } from '../../services/options'
 import { calculateOptionCostBreakdown } from '../../utils/currency'
 import { OptionCard } from '../OptionCard'
 import { MealPlanSection } from './MealPlanSection'
@@ -155,7 +155,8 @@ export function OptionsTab({
   onRefresh,
   onToggleParticipant,
   onLogExpense,
-  onSubmitMeal
+  onSubmitMeal,
+  onAssignDriver
 }) {
   // Filter & Sort State
   const [filterState, setFilterState] = useState('all') // 'all' | 'locked' | 'top_voted'
@@ -473,8 +474,28 @@ export function OptionsTab({
     }
   }, [effectiveOptions, getPollForCategory, trip, getOptionVoteCount])
 
+  // Compute locked transport option IDs for double-booking conflict detection
+  const lockedOptionIds = useMemo(() => {
+    const ids = new Set()
+    const optsSource = (allTripOptions && allTripOptions.length > 0) ? allTripOptions : (options || [])
+    optsSource.forEach((opt) => {
+      const poll = getPollForCategory(opt.category)
+      if (isOptionLocked(opt, poll)) {
+        ids.add(String(opt.id))
+      }
+    })
+    return ids
+  }, [allTripOptions, options, getPollForCategory])
+
+  // Detect transport double-booking conflicts across overlapping locked transport options
+  const transportConflictsData = useMemo(() => {
+    const optsSource = (allTripOptions && allTripOptions.length > 0) ? allTripOptions : (options || [])
+    return detectTransportParticipantConflicts(optsSource, lockedOptionIds, roster)
+  }, [allTripOptions, options, lockedOptionIds, roster])
+
   // Render individual option card using OptionCard sub-component (3-Zone layout)
   const renderOptionCard = (opt, isSectionLocked = false, isInsideDateGroup = false) => {
+    const conflictsForOpt = transportConflictsData.conflictsByOptionId?.[String(opt.id)] || []
     return (
       <OptionCard
         key={opt.id}
@@ -501,6 +522,9 @@ export function OptionsTab({
         onOpenSetDatesModal={(option) => setDateModalOption(option)}
         confirmingDeleteId={confirmingDeleteId}
         setConfirmingDeleteId={setConfirmingDeleteId}
+        transportConflicts={conflictsForOpt}
+        allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
+        onAssignDriver={onAssignDriver}
       />
     )
   }

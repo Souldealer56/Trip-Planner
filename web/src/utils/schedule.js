@@ -650,3 +650,279 @@ export function analyzeDailyLogisticsCoverage(trip, options = [], roster = [], a
     alerts
   }
 }
+
+/**
+ * Detects double-booked participants and drivers across overlapping locked or active transport options.
+ *
+ * For any two transport options A and B whose date intervals overlap (start_A <= end_B and end_A >= start_B):
+ * Collects assigned users (both driver and passengers) and flags any user assigned to both.
+ *
+ * @param {Array} options Array of trip options.
+ * @param {Set|Array|null} [lockedOptionIds=null] Optional set or array of locked option IDs.
+ * @param {Array} [roster=[]] Optional roster for resolving user names.
+ * @returns {Object} {
+ *   hasConflicts: boolean,
+ *   conflicts: Array<Object>,
+ *   conflictsByOptionId: Object<string, Array<Object>>,
+ *   conflictsByUserId: Object<string, Array<Object>>,
+ *   conflictingOptionIds: Set<string>
+ * }
+ */
+export function detectTransportParticipantConflicts(options = [], lockedOptionIds = null, roster = []) {
+  const conflictingOptionIds = new Set()
+  const conflicts = []
+  const conflictsByOptionId = {}
+  const conflictsByUserId = {}
+
+  if (!Array.isArray(options) || options.length === 0) {
+    return {
+      hasConflicts: false,
+      conflicts,
+      conflictsByOptionId,
+      conflictsByUserId,
+      conflictingOptionIds
+    }
+  }
+
+  const lockedSet = lockedOptionIds instanceof Set 
+    ? lockedOptionIds 
+    : Array.isArray(lockedOptionIds) 
+      ? new Set(lockedOptionIds.map(String))
+      : null
+
+  const hasExplicitLocks = lockedSet 
+    ? lockedSet.size > 0 
+    : options.some(o => o && o.is_locked === true)
+
+  const isEligibleTransport = (opt) => {
+    if (!opt) return false
+    const cat = (opt.category || '').toLowerCase().trim()
+    const isTrans = cat === 'transport' || isVehicleCoverage(opt)
+    if (!isTrans) return false
+
+    // Check locked state: if locks exist, only consider locked options
+    if (lockedSet) {
+      if (!lockedSet.has(String(opt.id)) && !opt.is_locked) return false
+    } else if (hasExplicitLocks) {
+      if (!opt.is_locked) return false
+    }
+
+    return Boolean(opt.start_date || opt.end_date)
+  }
+
+  const transportOpts = options.filter(isEligibleTransport)
+
+  const resolveMemberName = (id) => {
+    if (roster && roster.length > 0) {
+      const member = roster.find(m => 
+        String(m.user_id || m.id || m.users?.id) === String(id) ||
+        String(m.username || '').toLowerCase() === String(id).toLowerCase()
+      )
+      if (member) {
+        return member.users?.first_name || member.username || member.name || String(id)
+      }
+    }
+    return String(id)
+  }
+
+  const getParticipants = (opt) => {
+    const userMap = new Map() // userId -> { id, name, role }
+
+    // Driver
+    const meta = opt.metadata && typeof opt.metadata === 'object' ? opt.metadata : {}
+    const driverId = meta.driver_user_id || opt.driver_user_id || meta.driver || opt.driver
+    if (driverId) {
+      const idStr = typeof driverId === 'object' ? String(driverId.id || driverId.user_id) : String(driverId)
+      const name = (typeof driverId === 'object' && (driverId.name || driverId.first_name))
+        ? (driverId.name || driverId.first_name)
+        : resolveMemberName(idStr)
+      userMap.set(idStr, { id: idStr, name, role: 'driver' })
+    }
+
+    // Passengers
+    const assigned = opt.assigned_users || opt.participants || []
+    if (Array.isArray(assigned)) {
+      assigned.forEach(item => {
+        if (!item) return
+        let idStr = ''
+        let name = ''
+        if (typeof item === 'object') {
+          idStr = String(item.id || item.user_id || item.name)
+          name = item.first_name || item.name || resolveMemberName(idStr)
+        } else {
+          idStr = String(item)
+          name = resolveMemberName(idStr)
+        }
+        if (idStr) {
+          if (!userMap.has(idStr)) {
+            userMap.set(idStr, { id: idStr, name, role: 'passenger' })
+          }
+        }
+      })
+    }
+
+    return userMap
+  }
+
+  const getOptRange = (opt) => {
+    const s = opt.start_date ? (parseLocalDate(opt.start_date)?.getTime() || new Date(opt.start_date).getTime()) : null
+    const e = opt.end_date ? (parseLocalDate(opt.end_date)?.getTime() || new Date(opt.end_date).getTime()) : s
+    const actualStart = s !== null ? s : e
+    const actualEnd = e !== null ? e : s
+    return { start: actualStart, end: actualEnd }
+  }
+
+  for (let i = 0; i < transportOpts.length; i++) {
+    for (let j = i + 1; j < transportOpts.length; j++) {
+      const optA = transportOpts[i]
+      const optB = transportOpts[j]
+
+      const rangeA = getOptRange(optA)
+      const rangeB = getOptRange(optB)
+      if (rangeA.start === null || rangeB.start === null) continue
+
+      // Overlap condition: start_A <= end_B and end_A >= start_B
+      const overlaps = rangeA.start <= rangeB.end && rangeA.end >= rangeB.start
+      if (!overlaps) continue
+
+      const usersA = getParticipants(optA)
+      const usersB = getParticipants(optB)
+
+      const titleA = optA.option_text || optA.name || optA.title || 'Vehicle'
+      const titleB = optB.option_text || optB.name || optB.title || 'Vehicle'
+
+      for (const [userId, userObjA] of usersA.entries()) {
+        if (usersB.has(userId)) {
+          const userObjB = usersB.get(userId)
+          const userName = userObjA.name || userObjB.name || 'Traveler'
+
+          conflictingOptionIds.add(String(optA.id))
+          conflictingOptionIds.add(String(optB.id))
+
+          const conflictRecord = {
+            userId,
+            userName,
+            optionAId: String(optA.id),
+            optionATitle: titleA,
+            optionBId: String(optB.id),
+            optionBTitle: titleB,
+            roleA: userObjA.role,
+            roleB: userObjB.role
+          }
+          conflicts.push(conflictRecord)
+
+          // By Option A
+          if (!conflictsByOptionId[String(optA.id)]) conflictsByOptionId[String(optA.id)] = []
+          conflictsByOptionId[String(optA.id)].push({
+            userId,
+            userName,
+            otherOptionId: String(optB.id),
+            otherOptionTitle: titleB,
+            userRole: userObjA.role,
+            otherUserRole: userObjB.role,
+            message: `⚠️ Schedule Conflict: ${userName} is also in ${titleB}`
+          })
+
+          // By Option B
+          if (!conflictsByOptionId[String(optB.id)]) conflictsByOptionId[String(optB.id)] = []
+          conflictsByOptionId[String(optB.id)].push({
+            userId,
+            userName,
+            otherOptionId: String(optA.id),
+            otherOptionTitle: titleA,
+            userRole: userObjB.role,
+            otherUserRole: userObjA.role,
+            message: `⚠️ Schedule Conflict: ${userName} is also in ${titleA}`
+          })
+
+          // By User ID
+          if (!conflictsByUserId[userId]) conflictsByUserId[userId] = []
+          conflictsByUserId[userId].push(conflictRecord)
+        }
+      }
+    }
+  }
+
+  return {
+    hasConflicts: conflicts.length > 0,
+    conflicts,
+    conflictsByOptionId,
+    conflictsByUserId,
+    conflictingOptionIds
+  }
+}
+
+/**
+ * Checks if a specific user is already assigned (driver or passenger) to another
+ * locked/active transport option that overlaps with targetOption.
+ *
+ * @param {string} userId User ID to check.
+ * @param {Object} targetOption Target transport option to join or assign driver for.
+ * @param {Array} allOptions All trip options.
+ * @param {Set|Array|null} [lockedOptionIds=null] Optional set or array of locked option IDs.
+ * @returns {Object|null} Conflicting option details if any, else null.
+ */
+export function checkUserTransportOverlap(userId, targetOption, allOptions = [], lockedOptionIds = null) {
+  if (!userId || !targetOption) return null
+  const uIdStr = String(userId)
+  const isTargetTrans = (targetOption.category || '').toLowerCase().trim() === 'transport' || isVehicleCoverage(targetOption)
+  if (!isTargetTrans) return null
+
+  const sTarget = targetOption.start_date ? (parseLocalDate(targetOption.start_date)?.getTime() || new Date(targetOption.start_date).getTime()) : null
+  const eTarget = targetOption.end_date ? (parseLocalDate(targetOption.end_date)?.getTime() || new Date(targetOption.end_date).getTime()) : sTarget
+  const startTarget = sTarget !== null ? sTarget : eTarget
+  const endTarget = eTarget !== null ? eTarget : sTarget
+  if (startTarget === null) return null
+
+  const lockedSet = lockedOptionIds instanceof Set 
+    ? lockedOptionIds 
+    : Array.isArray(lockedOptionIds) 
+      ? new Set(lockedOptionIds.map(String))
+      : null
+
+  const hasExplicitLocks = lockedSet 
+    ? lockedSet.size > 0 
+    : allOptions.some(o => o && o.is_locked === true)
+
+  const isEligible = (o) => {
+    if (!o || String(o.id) === String(targetOption.id)) return false
+    const cat = (o.category || '').toLowerCase().trim()
+    if (cat !== 'transport' && !isVehicleCoverage(o)) return false
+    if (lockedSet) {
+      if (!lockedSet.has(String(o.id)) && !o.is_locked) return false
+    } else if (hasExplicitLocks) {
+      if (!o.is_locked) return false
+    }
+    return Boolean(o.start_date || o.end_date)
+  }
+
+  for (const opt of allOptions) {
+    if (!isEligible(opt)) continue
+
+    const sOpt = opt.start_date ? (parseLocalDate(opt.start_date)?.getTime() || new Date(opt.start_date).getTime()) : null
+    const eOpt = opt.end_date ? (parseLocalDate(opt.end_date)?.getTime() || new Date(opt.end_date).getTime()) : sOpt
+    const startOpt = sOpt !== null ? sOpt : eOpt
+    const endOpt = eOpt !== null ? eOpt : sOpt
+    if (startOpt === null) continue
+
+    // Overlap condition: start_A <= end_B and end_A >= start_B
+    if (startTarget <= endOpt && endTarget >= startOpt) {
+      const assigned = (opt.assigned_users || opt.participants || []).map(String)
+      const meta = opt.metadata && typeof opt.metadata === 'object' ? opt.metadata : {}
+      const driverId = meta.driver_user_id || opt.driver_user_id || meta.driver || opt.driver
+      const isPassenger = assigned.includes(uIdStr)
+      const isDriver = driverId && String(driverId) === uIdStr
+      if (isPassenger || isDriver) {
+        return {
+          conflictingOption: opt,
+          conflictingTitle: opt.option_text || opt.name || opt.title || 'Vehicle',
+          isDriver,
+          isPassenger,
+          role: isDriver ? 'driver' : 'passenger'
+        }
+      }
+    }
+  }
+
+  return null
+}

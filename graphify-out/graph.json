@@ -1730,7 +1730,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "web_package_dependencies_react",
-      "community": 389,
+      "community": 374,
       "norm_label": "react"
     },
     {
@@ -1850,7 +1850,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_qa_live_scenario",
-      "community": 374,
+      "community": 379,
       "norm_label": "qa-live-scenario.js"
     },
     {
@@ -1860,7 +1860,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "web_qa_live_scenario_filename",
-      "community": 374,
+      "community": 379,
       "norm_label": "__filename"
     },
     {
@@ -1870,7 +1870,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "web_qa_live_scenario_dirname",
-      "community": 374,
+      "community": 379,
       "norm_label": "__dirname"
     },
     {
@@ -1880,7 +1880,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "web_qa_live_scenario_loadenv",
-      "community": 374,
+      "community": 379,
       "norm_label": "loadenv()"
     },
     {
@@ -1890,7 +1890,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "web_qa_live_scenario_isconfigured",
-      "community": 374,
+      "community": 379,
       "norm_label": "isconfigured"
     },
     {
@@ -1900,7 +1900,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "web_qa_live_scenario_colors",
-      "community": 374,
+      "community": 379,
       "norm_label": "colors"
     },
     {
@@ -1910,7 +1910,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "web_qa_live_scenario_printheader",
-      "community": 374,
+      "community": 379,
       "norm_label": "printheader()"
     },
     {
@@ -1920,7 +1920,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "web_qa_live_scenario_runliveqa",
-      "community": 374,
+      "community": 379,
       "norm_label": "runliveqa()"
     },
     {
@@ -1944,6 +1944,16 @@
       "norm_label": "app()"
     },
     {
+      "label": "airbnbDateRangePicker.test.jsx",
+      "file_type": "code",
+      "source_file": "web/src/__tests__/airbnbDateRangePicker.test.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_tests_airbnbdaterangepicker_test",
+      "community": 390,
+      "norm_label": "airbnbdaterangepicker.test.jsx"
+    },
+    {
       "label": "auth.test.js",
       "file_type": "code",
       "source_file": "web/src/__tests__/auth.test.js",
@@ -1960,7 +1970,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_categoryspecialization_test",
-      "community": 389,
+      "community": 379,
       "norm_label": "categoryspecialization.test.js"
     },
     {
@@ -2050,7 +2060,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_deleteoption_test",
-      "community": 381,
+      "community": 379,
       "norm_label": "deleteoption.test.js"
     },
     {
@@ -2090,7 +2100,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_ical_test",
-      "community": 375,
+      "community": 379,
       "norm_label": "ical.test.js"
     },
     {
@@ -2100,7 +2110,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_mealsandgroceries_test",
-      "community": 0,
+      "community": 379,
       "norm_label": "mealsandgroceries.test.js"
     },
     {
@@ -2140,8 +2150,18 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_offlinecache_test",
-      "community": 375,
+      "community": 379,
       "norm_label": "offlinecache.test.js"
+    },
+    {
+      "label": "optionPitchAdvancedAccordion.test.jsx",
+      "file_type": "code",
+      "source_file": "web/src/__tests__/optionPitchAdvancedAccordion.test.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_tests_optionpitchadvancedaccordion_test",
+      "community": 390,
+      "norm_label": "optionpitchadvancedaccordion.test.jsx"
     },
     {
       "label": "options.test.js",
@@ -2150,7 +2170,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_options_test",
-      "community": 381,
+      "community": 379,
       "norm_label": "options.test.js"
     },
     {
@@ -2160,7 +2180,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_permissions_test",
-      "community": 375,
+      "community": 379,
       "norm_label": "permissions.test.js"
     },
     {
@@ -2180,7 +2200,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_qa_e2e_scenario_test",
-      "community": 381,
+      "community": 387,
       "norm_label": "qa_e2e_scenario.test.jsx"
     },
     {
@@ -2190,7 +2210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_realtime_test",
-      "community": 375,
+      "community": 379,
       "norm_label": "realtime.test.js"
     },
     {
@@ -2200,8 +2220,18 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_redesigndandexpensespolish_test",
-      "community": 381,
+      "community": 388,
       "norm_label": "redesigndandexpensespolish.test.jsx"
+    },
+    {
+      "label": "rsvpsDefensive.test.jsx",
+      "file_type": "code",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_tests_rsvpsdefensive_test",
+      "community": 375,
+      "norm_label": "rsvpsdefensive.test.jsx"
     },
     {
       "label": "schedule.test.js",
@@ -2240,7 +2270,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_tripdetailsarchitecturerefactor_test",
-      "community": 387,
+      "community": 0,
       "norm_label": "tripdetailsarchitecturerefactor.test.jsx"
     },
     {
@@ -2250,7 +2280,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_tests_tripdetailsregression_test",
-      "community": 389,
+      "community": 374,
       "norm_label": "tripdetailsregression.test.jsx"
     },
     {
@@ -2380,7 +2410,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_optionpitchmodal",
-      "community": 377,
+      "community": 390,
       "norm_label": "optionpitchmodal.jsx"
     },
     {
@@ -2390,7 +2420,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "web_src_components_optionpitchmodal_empty_roster",
-      "community": 377,
+      "community": 390,
       "norm_label": "empty_roster"
     },
     {
@@ -2400,7 +2430,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "web_src_components_optionpitchmodal_default_categories",
-      "community": 377,
+      "community": 390,
       "norm_label": "default_categories"
     },
     {
@@ -2410,7 +2440,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "web_src_components_optionpitchmodal_optionpitchmodal",
-      "community": 377,
+      "community": 390,
       "norm_label": "optionpitchmodal()"
     },
     {
@@ -2422,6 +2452,96 @@
       "id": "web_src_components_tripdatetimepicker",
       "community": 377,
       "norm_label": "tripdatetimepicker.jsx"
+    },
+    {
+      "label": "AirbnbDateRangePicker.tsx",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker",
+      "community": 390,
+      "norm_label": "airbnbdaterangepicker.tsx"
+    },
+    {
+      "label": "DateRangeChangePayload",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_daterangechangepayload",
+      "community": 390,
+      "norm_label": "daterangechangepayload"
+    },
+    {
+      "label": "AirbnbDateRangePickerProps",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepickerprops",
+      "community": 390,
+      "norm_label": "airbnbdaterangepickerprops"
+    },
+    {
+      "label": "formatDateDisplay()",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_formatdatedisplay",
+      "community": 390,
+      "norm_label": "formatdatedisplay()"
+    },
+    {
+      "label": "getRangeSummary()",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L35",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_getrangesummary",
+      "community": 390,
+      "norm_label": "getrangesummary()"
+    },
+    {
+      "label": "MONTH_NAMES",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_month_names",
+      "community": 390,
+      "norm_label": "month_names"
+    },
+    {
+      "label": "WEEKDAY_NAMES",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_weekday_names",
+      "community": 390,
+      "norm_label": "weekday_names"
+    },
+    {
+      "label": "AirbnbDateRangePicker()",
+      "file_type": "code",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "community": 390,
+      "norm_label": "airbnbdaterangepicker()"
+    },
+    {
+      "label": "index.js",
+      "file_type": "code",
+      "source_file": "web/src/components/common/index.js",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "web_src_components_common_index",
+      "community": 390,
+      "norm_label": "index.js"
     },
     {
       "label": "AddExpenseModal.jsx",
@@ -2450,7 +2570,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_modals_edittripmodal",
-      "community": 377,
+      "community": 374,
       "norm_label": "edittripmodal.jsx"
     },
     {
@@ -2460,7 +2580,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "web_src_components_modals_edittripmodal_edittripmodal",
-      "community": 377,
+      "community": 374,
       "norm_label": "edittripmodal()"
     },
     {
@@ -2470,7 +2590,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_modals_pitchoptionmodal",
-      "community": 377,
+      "community": 390,
       "norm_label": "pitchoptionmodal.jsx"
     },
     {
@@ -2480,7 +2600,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_modals_printableitinerarymodal",
-      "community": 377,
+      "community": 374,
       "norm_label": "printableitinerarymodal.jsx"
     },
     {
@@ -2490,7 +2610,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "web_src_components_modals_printableitinerarymodal_printableitinerarymodal",
-      "community": 377,
+      "community": 374,
       "norm_label": "printableitinerarymodal()"
     },
     {
@@ -2500,7 +2620,7 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "web_src_components_modals_printableitinerarymodal_pollrecapmodal",
-      "community": 377,
+      "community": 374,
       "norm_label": "pollrecapmodal()"
     },
     {
@@ -2550,7 +2670,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_grocerylistpanel",
-      "community": 0,
+      "community": 379,
       "norm_label": "grocerylistpanel.jsx"
     },
     {
@@ -2560,7 +2680,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "web_src_components_trip_grocerylistpanel_grocerylistpanel",
-      "community": 0,
+      "community": 379,
       "norm_label": "grocerylistpanel()"
     },
     {
@@ -2610,7 +2730,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_mealplansection",
-      "community": 389,
+      "community": 0,
       "norm_label": "mealplansection.jsx"
     },
     {
@@ -2620,7 +2740,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_components_trip_mealplansection_mealplansection",
-      "community": 389,
+      "community": 0,
       "norm_label": "mealplansection()"
     },
     {
@@ -2680,7 +2800,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_notonrostermodal",
-      "community": 375,
+      "community": 0,
       "norm_label": "notonrostermodal.jsx"
     },
     {
@@ -2690,7 +2810,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "web_src_components_trip_notonrostermodal_notonrostermodal",
-      "community": 375,
+      "community": 0,
       "norm_label": "notonrostermodal()"
     },
     {
@@ -2710,7 +2830,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_optionmodal",
-      "community": 377,
+      "community": 390,
       "norm_label": "optionmodal.jsx"
     },
     {
@@ -2720,7 +2840,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_optionstab",
-      "community": 389,
+      "community": 374,
       "norm_label": "optionstab.jsx"
     },
     {
@@ -2730,7 +2850,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "web_src_components_trip_optionstab_getinitials",
-      "community": 389,
+      "community": 374,
       "norm_label": "getinitials()"
     },
     {
@@ -2740,7 +2860,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "web_src_components_trip_optionstab_getavatarcolor",
-      "community": 389,
+      "community": 374,
       "norm_label": "getavatarcolor()"
     },
     {
@@ -2750,7 +2870,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "web_src_components_trip_optionstab_setoptiondatesmodal",
-      "community": 389,
+      "community": 374,
       "norm_label": "setoptiondatesmodal()"
     },
     {
@@ -2760,7 +2880,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "web_src_components_trip_optionstab_optionstab",
-      "community": 389,
+      "community": 374,
       "norm_label": "optionstab()"
     },
     {
@@ -2870,7 +2990,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_tripmodalscontainer",
-      "community": 377,
+      "community": 374,
       "norm_label": "tripmodalscontainer.jsx"
     },
     {
@@ -2880,7 +3000,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "web_src_components_trip_tripmodalscontainer_tripmodalscontainer",
-      "community": 377,
+      "community": 379,
       "norm_label": "tripmodalscontainer()"
     },
     {
@@ -2910,7 +3030,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_components_trip_workspacetabsnav",
-      "community": 375,
+      "community": 0,
       "norm_label": "workspacetabsnav.jsx"
     },
     {
@@ -2920,7 +3040,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "web_src_components_trip_workspacetabsnav_workspacetabsnav",
-      "community": 375,
+      "community": 0,
       "norm_label": "workspacetabsnav()"
     },
     {
@@ -2970,7 +3090,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_hooks_usersvproster",
-      "community": 375,
+      "community": 379,
       "norm_label": "usersvproster.js"
     },
     {
@@ -2980,7 +3100,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_hooks_usersvproster_usersvproster",
-      "community": 375,
+      "community": 379,
       "norm_label": "usersvproster()"
     },
     {
@@ -3030,7 +3150,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_hooks_usetripdetails",
-      "community": 375,
+      "community": 379,
       "norm_label": "usetripdetails.js"
     },
     {
@@ -3040,7 +3160,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "web_src_hooks_usetripdetails_usetripdetails",
-      "community": 375,
+      "community": 379,
       "norm_label": "usetripdetails()"
     },
     {
@@ -3070,7 +3190,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_hooks_usetripmanagement",
-      "community": 375,
+      "community": 379,
       "norm_label": "usetripmanagement.js"
     },
     {
@@ -3080,7 +3200,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "web_src_hooks_usetripmanagement_usetripmanagement",
-      "community": 375,
+      "community": 379,
       "norm_label": "usetripmanagement()"
     },
     {
@@ -3120,7 +3240,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_hooks_usetriprealtime",
-      "community": 375,
+      "community": 379,
       "norm_label": "usetriprealtime.js"
     },
     {
@@ -3130,7 +3250,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "web_src_hooks_usetriprealtime_createtriprealtimecontroller",
-      "community": 375,
+      "community": 379,
       "norm_label": "createtriprealtimecontroller()"
     },
     {
@@ -3140,7 +3260,7 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "web_src_hooks_usetriprealtime_usetriprealtime",
-      "community": 375,
+      "community": 379,
       "norm_label": "usetriprealtime()"
     },
     {
@@ -3220,7 +3340,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_activity",
-      "community": 375,
+      "community": 379,
       "norm_label": "activity.js"
     },
     {
@@ -3230,7 +3350,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_services_activity_fetchactivitylogs",
-      "community": 375,
+      "community": 379,
       "norm_label": "fetchactivitylogs()"
     },
     {
@@ -3410,7 +3530,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_groceries",
-      "community": 0,
+      "community": 379,
       "norm_label": "groceries.js"
     },
     {
@@ -3420,7 +3540,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "web_src_services_groceries_grocery_aisles",
-      "community": 0,
+      "community": 379,
       "norm_label": "grocery_aisles"
     },
     {
@@ -3430,7 +3550,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "web_src_services_groceries_valid_aisle_ids",
-      "community": 0,
+      "community": 379,
       "norm_label": "valid_aisle_ids"
     },
     {
@@ -3480,7 +3600,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "web_src_services_groceries_getfallbackkey",
-      "community": 0,
+      "community": 379,
       "norm_label": "getfallbackkey()"
     },
     {
@@ -3490,7 +3610,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "web_src_services_groceries_loadlocalgroceries",
-      "community": 0,
+      "community": 379,
       "norm_label": "loadlocalgroceries()"
     },
     {
@@ -3500,7 +3620,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "web_src_services_groceries_savelocalgroceries",
-      "community": 0,
+      "community": 379,
       "norm_label": "savelocalgroceries()"
     },
     {
@@ -3520,7 +3640,7 @@
       "source_location": "L243",
       "_origin": "ast",
       "id": "web_src_services_groceries_fetchgroceryitems",
-      "community": 0,
+      "community": 379,
       "norm_label": "fetchgroceryitems()"
     },
     {
@@ -3530,7 +3650,7 @@
       "source_location": "L276",
       "_origin": "ast",
       "id": "web_src_services_groceries_addgroceryitem",
-      "community": 0,
+      "community": 379,
       "norm_label": "addgroceryitem()"
     },
     {
@@ -3540,7 +3660,7 @@
       "source_location": "L329",
       "_origin": "ast",
       "id": "web_src_services_groceries_togglegroceryitemchecked",
-      "community": 0,
+      "community": 379,
       "norm_label": "togglegroceryitemchecked()"
     },
     {
@@ -3550,7 +3670,7 @@
       "source_location": "L355",
       "_origin": "ast",
       "id": "web_src_services_groceries_deletegroceryitem",
-      "community": 0,
+      "community": 379,
       "norm_label": "deletegroceryitem()"
     },
     {
@@ -3560,7 +3680,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "web_src_services_groceries_syncgroceriesfromlockedmeals",
-      "community": 0,
+      "community": 379,
       "norm_label": "syncgroceriesfromlockedmeals()"
     },
     {
@@ -3580,7 +3700,7 @@
       "source_location": "L476",
       "_origin": "ast",
       "id": "web_src_services_groceries_dietary_emojis",
-      "community": 0,
+      "community": 379,
       "norm_label": "dietary_emojis"
     },
     {
@@ -3600,7 +3720,7 @@
       "source_location": "L545",
       "_origin": "ast",
       "id": "web_src_services_groceries_groupgroceriesbyaisle",
-      "community": 0,
+      "community": 379,
       "norm_label": "groupgroceriesbyaisle()"
     },
     {
@@ -3700,7 +3820,7 @@
       "source_location": "L419",
       "_origin": "ast",
       "id": "web_src_services_options_checkoptiondateconflict",
-      "community": 389,
+      "community": 374,
       "norm_label": "checkoptiondateconflict()"
     },
     {
@@ -3720,7 +3840,7 @@
       "source_location": "L483",
       "_origin": "ast",
       "id": "web_src_services_options_isoptionlocked",
-      "community": 377,
+      "community": 374,
       "norm_label": "isoptionlocked()"
     },
     {
@@ -3820,14 +3940,24 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "web_src_services_rsvps_fetchrsvproster",
-      "community": 375,
+      "community": 379,
       "norm_label": "fetchrsvproster()"
+    },
+    {
+      "label": "saveRsvpRecord()",
+      "file_type": "code",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L64",
+      "_origin": "ast",
+      "id": "web_src_services_rsvps_saversvprecord",
+      "community": 375,
+      "norm_label": "saversvprecord()"
     },
     {
       "label": "createRsvp()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L50",
+      "source_location": "L175",
       "_origin": "ast",
       "id": "web_src_services_rsvps_creatersvp",
       "community": 375,
@@ -3837,7 +3967,7 @@
       "label": "updateRsvpNote()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L90",
+      "source_location": "L191",
       "_origin": "ast",
       "id": "web_src_services_rsvps_updatersvpnote",
       "community": 375,
@@ -3847,7 +3977,7 @@
       "label": "updateRsvpStatus()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L112",
+      "source_location": "L206",
       "_origin": "ast",
       "id": "web_src_services_rsvps_updatersvpstatus",
       "community": 375,
@@ -3857,7 +3987,7 @@
       "label": "isUserTripAdmin()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L136",
+      "source_location": "L223",
       "_origin": "ast",
       "id": "web_src_services_rsvps_isusertripadmin",
       "community": 375,
@@ -3867,7 +3997,7 @@
       "label": "promoteToCoOrganizer()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L173",
+      "source_location": "L260",
       "_origin": "ast",
       "id": "web_src_services_rsvps_promotetocoorganizer",
       "community": 375,
@@ -3877,7 +4007,7 @@
       "label": "demoteCoOrganizer()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L207",
+      "source_location": "L276",
       "_origin": "ast",
       "id": "web_src_services_rsvps_demotecoorganizer",
       "community": 375,
@@ -3887,7 +4017,7 @@
       "label": "updateRsvpDetails()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L241",
+      "source_location": "L292",
       "_origin": "ast",
       "id": "web_src_services_rsvps_updatersvpdetails",
       "community": 375,
@@ -3897,7 +4027,7 @@
       "label": "getPresentTravelers()",
       "file_type": "code",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L290",
+      "source_location": "L321",
       "_origin": "ast",
       "id": "web_src_services_rsvps_getpresenttravelers",
       "community": 381,
@@ -3910,7 +4040,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_supabase",
-      "community": 381,
+      "community": 379,
       "norm_label": "supabase.js"
     },
     {
@@ -3920,7 +4050,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "web_src_services_supabase_supabase",
-      "community": 381,
+      "community": 379,
       "norm_label": "supabase"
     },
     {
@@ -3930,7 +4060,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_services_trips",
-      "community": 375,
+      "community": 379,
       "norm_label": "trips.js"
     },
     {
@@ -3950,7 +4080,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "web_src_services_trips_fetchtripbyid",
-      "community": 375,
+      "community": 379,
       "norm_label": "fetchtripbyid()"
     },
     {
@@ -3970,7 +4100,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "web_src_services_trips_updatetrip",
-      "community": 375,
+      "community": 379,
       "norm_label": "updatetrip()"
     },
     {
@@ -3980,7 +4110,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "web_src_services_trips_istriparchived",
-      "community": 375,
+      "community": 379,
       "norm_label": "istriparchived()"
     },
     {
@@ -3990,7 +4120,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "web_src_services_trips_archivetrip",
-      "community": 375,
+      "community": 379,
       "norm_label": "archivetrip()"
     },
     {
@@ -4000,7 +4130,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "web_src_services_trips_unarchivetrip",
-      "community": 375,
+      "community": 379,
       "norm_label": "unarchivetrip()"
     },
     {
@@ -4010,7 +4140,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "web_src_services_trips_deletetrip",
-      "community": 375,
+      "community": 379,
       "norm_label": "deletetrip()"
     },
     {
@@ -4180,7 +4310,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "web_src_utils_format_formatlocaldatestr",
-      "community": 387,
+      "community": 377,
       "norm_label": "formatlocaldatestr()"
     },
     {
@@ -4190,7 +4320,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "web_src_utils_format_formatdaterange",
-      "community": 377,
+      "community": 374,
       "norm_label": "formatdaterange()"
     },
     {
@@ -4230,7 +4360,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "web_src_utils_format_formatdatetimerange",
-      "community": 377,
+      "community": 374,
       "norm_label": "formatdatetimerange()"
     },
     {
@@ -4260,7 +4390,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_utils_ical",
-      "community": 375,
+      "community": 379,
       "norm_label": "ical.js"
     },
     {
@@ -4270,7 +4400,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "web_src_utils_ical_formaticaldatetime",
-      "community": 375,
+      "community": 379,
       "norm_label": "formaticaldatetime()"
     },
     {
@@ -4280,7 +4410,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "web_src_utils_ical_generateicalcontent",
-      "community": 375,
+      "community": 379,
       "norm_label": "generateicalcontent()"
     },
     {
@@ -4290,7 +4420,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "web_src_utils_ical_downloadicalfile",
-      "community": 375,
+      "community": 379,
       "norm_label": "downloadicalfile()"
     },
     {
@@ -4300,7 +4430,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "docref_rfc_5545",
-      "community": 375,
+      "community": 379,
       "norm_label": "rfc-5545"
     },
     {
@@ -4310,7 +4440,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_utils_offlinecache",
-      "community": 375,
+      "community": 379,
       "norm_label": "offlinecache.js"
     },
     {
@@ -4320,7 +4450,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "web_src_utils_offlinecache_savetripofflinesnapshot",
-      "community": 375,
+      "community": 379,
       "norm_label": "savetripofflinesnapshot()"
     },
     {
@@ -4330,7 +4460,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "web_src_utils_offlinecache_loadtripofflinesnapshot",
-      "community": 375,
+      "community": 379,
       "norm_label": "loadtripofflinesnapshot()"
     },
     {
@@ -4340,7 +4470,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "web_src_utils_offlinecache_isnetworkoffline",
-      "community": 375,
+      "community": 379,
       "norm_label": "isnetworkoffline()"
     },
     {
@@ -4490,7 +4620,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "web_src_views_tripdetails",
-      "community": 375,
+      "community": 379,
       "norm_label": "tripdetails.jsx"
     },
     {
@@ -4500,7 +4630,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "web_src_views_tripdetails_tripdetails",
-      "community": 375,
+      "community": 379,
       "norm_label": "tripdetails()"
     },
     {
@@ -30146,6 +30276,28 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/airbnbDateRangePicker.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_tests_airbnbdaterangepicker_test",
+      "target": "web_src_components_common_airbnbdaterangepicker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/airbnbDateRangePicker.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_tests_airbnbdaterangepicker_test",
+      "target": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "web/src/__tests__/auth.test.js",
       "source_location": "L2",
       "weight": 1.0,
@@ -31304,6 +31456,28 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/optionPitchAdvancedAccordion.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_tests_optionpitchadvancedaccordion_test",
+      "target": "web_src_components_optionpitchmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/optionPitchAdvancedAccordion.test.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_tests_optionpitchadvancedaccordion_test",
+      "target": "web_src_components_optionpitchmodal_optionpitchmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "web/src/__tests__/options.test.js",
       "source_location": "L2",
       "weight": 1.0,
@@ -32155,6 +32329,138 @@
       "source_location": "L8",
       "weight": 1.0,
       "source": "web_src_tests_redesigndandexpensespolish_test",
+      "target": "web_src_services_supabase_supabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_hooks_userosteractions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_hooks_userosteractions_userosteractions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_creatersvp",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_demotecoorganizer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_promotetocoorganizer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_updatersvpdetails",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_updatersvpnote",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_rsvps_updatersvpstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
+      "target": "web_src_services_supabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/__tests__/rsvpsDefensive.test.jsx",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "web_src_tests_rsvpsdefensive_test",
       "target": "web_src_services_supabase_supabase",
       "confidence_score": 1.0
     },
@@ -33491,6 +33797,28 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/OptionPitchModal.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_components_optionpitchmodal",
+      "target": "web_src_components_common_airbnbdaterangepicker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/OptionPitchModal.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "web_src_components_optionpitchmodal",
+      "target": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/OptionPitchModal.jsx",
@@ -33518,28 +33846,6 @@
       "weight": 1.0,
       "source": "web_src_components_optionpitchmodal",
       "target": "web_src_components_optionpitchmodal_optionpitchmodal",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "web/src/components/OptionPitchModal.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "source": "web_src_components_optionpitchmodal",
-      "target": "web_src_components_trip_tripdatetimeselector",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "web/src/components/OptionPitchModal.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "source": "web_src_components_optionpitchmodal",
-      "target": "web_src_components_trip_tripdatetimeselector_tripdatetimeselector",
       "confidence_score": 1.0
     },
     {
@@ -33625,7 +33931,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/OptionPitchModal.jsx",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0,
       "source": "web_src_components_optionpitchmodal_optionpitchmodal",
       "target": "web_src_services_rsvps_getpresenttravelers"
@@ -33636,7 +33942,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/components/OptionPitchModal.jsx",
-      "source_location": "L128",
+      "source_location": "L132",
       "weight": 1.0,
       "source": "web_src_components_optionpitchmodal_optionpitchmodal",
       "target": "web_src_utils_format_builddefaultoptiondates"
@@ -33683,6 +33989,197 @@
       "weight": 1.0,
       "source": "web_src_components_tripdatetimepicker",
       "target": "web_src_components_trip_tripdatetimeselector_tripdatetimeselector",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L63",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepickerprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_daterangechangepayload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_formatdatedisplay",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_getrangesummary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_month_names",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_weekday_names",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_utils_format",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_utils_format_formatlocaldatestr",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker",
+      "target": "web_src_utils_format_parselocaldate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/index.js",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "web_src_components_common_index",
+      "target": "web_src_components_common_airbnbdaterangepicker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker_formatdatedisplay",
+      "target": "web_src_utils_format_parselocaldate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker_getrangesummary",
+      "target": "web_src_components_common_airbnbdaterangepicker_formatdatedisplay",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L274",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "target": "web_src_components_common_airbnbdaterangepicker_getrangesummary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker_getrangesummary",
+      "target": "web_src_utils_format_parselocaldate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L218",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "target": "web_src_utils_format_formatlocaldatestr"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "web/src/components/common/AirbnbDateRangePicker.tsx",
+      "source_location": "L111",
+      "weight": 1.0,
+      "source": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
+      "target": "web_src_utils_format_parselocaldate"
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/components/common/index.js",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "web_src_components_common_index",
+      "target": "web_src_components_common_airbnbdaterangepicker_airbnbdaterangepicker",
       "confidence_score": 1.0
     },
     {
@@ -35051,7 +35548,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/RosterSection.jsx",
-      "source_location": "L207",
+      "source_location": "L251",
       "weight": 1.0,
       "source": "web_src_components_trip_rostersection_rostersection",
       "target": "web_src_components_trip_rostersection_getavatarcolor",
@@ -35062,7 +35559,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/RosterSection.jsx",
-      "source_location": "L219",
+      "source_location": "L263",
       "weight": 1.0,
       "source": "web_src_components_trip_rostersection_rostersection",
       "target": "web_src_components_trip_rostersection_getinitials",
@@ -35073,7 +35570,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "web/src/components/trip/RosterSection.jsx",
-      "source_location": "L141",
+      "source_location": "L185",
       "weight": 1.0,
       "source": "web_src_components_trip_rostersection_rostersection",
       "target": "web_src_components_trip_rostersection_formatstaydates",
@@ -35584,7 +36081,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L84",
+      "source_location": "L88",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_creatersvp"
@@ -35595,7 +36092,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L148",
+      "source_location": "L288",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_demotecoorganizer"
@@ -35606,7 +36103,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L28",
+      "source_location": "L32",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_isusertripadmin"
@@ -35617,7 +36114,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L137",
+      "source_location": "L244",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_promotetocoorganizer"
@@ -35628,7 +36125,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L159",
+      "source_location": "L350",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_updatersvpdetails"
@@ -35639,7 +36136,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L102",
+      "source_location": "L121",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_updatersvpnote"
@@ -35650,7 +36147,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRosterActions.js",
-      "source_location": "L126",
+      "source_location": "L196",
       "weight": 1.0,
       "source": "web_src_hooks_userosteractions_userosteractions",
       "target": "web_src_services_rsvps_updatersvpstatus"
@@ -35672,7 +36169,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L144",
+      "source_location": "L166",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_userosteractions_userosteractions"
@@ -35726,7 +36223,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useRsvpRoster.js",
-      "source_location": "L19",
+      "source_location": "L22",
       "weight": 1.0,
       "source": "web_src_hooks_usersvproster_usersvproster",
       "target": "web_src_services_rsvps_fetchrsvproster"
@@ -35748,7 +36245,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L37",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_usersvproster_usersvproster"
@@ -35909,7 +36406,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useTripDetails.js",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "web_src_hooks_usetripdetails_usetripdetails",
       "target": "web_src_services_trips_fetchtripbyid"
@@ -35920,7 +36417,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useTripDetails.js",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0,
       "source": "web_src_hooks_usetripdetails_usetripdetails",
       "target": "web_src_utils_offlinecache_loadtripofflinesnapshot"
@@ -35931,7 +36428,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/hooks/useTripDetails.js",
-      "source_location": "L28",
+      "source_location": "L29",
       "weight": 1.0,
       "source": "web_src_hooks_usetripdetails_usetripdetails",
       "target": "web_src_utils_offlinecache_savetripofflinesnapshot"
@@ -35953,7 +36450,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L36",
+      "source_location": "L43",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_usetripdetails_usetripdetails"
@@ -36249,7 +36746,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L118",
+      "source_location": "L138",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_usetripfinancials_usetripfinancials"
@@ -36534,7 +37031,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L50",
+      "source_location": "L70",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_usetripmanagement_usetripmanagement"
@@ -36873,7 +37370,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L92",
+      "source_location": "L112",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_usetripoptionsmanager_usetripoptionsmanager"
@@ -36959,7 +37456,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L172",
+      "source_location": "L195",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_hooks_usetriprealtime_usetriprealtime"
@@ -38416,7 +38913,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L233",
+      "source_location": "L256",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_services_groceries_savemealplan"
@@ -38846,7 +39343,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L50",
+      "source_location": "L175",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_creatersvp",
@@ -38856,7 +39353,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L207",
+      "source_location": "L276",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_demotecoorganizer",
@@ -38876,7 +39373,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L290",
+      "source_location": "L321",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_getpresenttravelers",
@@ -38886,7 +39383,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L136",
+      "source_location": "L223",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_isusertripadmin",
@@ -38896,7 +39393,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L173",
+      "source_location": "L260",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_promotetocoorganizer",
@@ -38906,7 +39403,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L241",
+      "source_location": "L64",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L292",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_updatersvpdetails",
@@ -38916,7 +39423,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L90",
+      "source_location": "L191",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_updatersvpnote",
@@ -38926,7 +39433,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "web/src/services/rsvps.js",
-      "source_location": "L112",
+      "source_location": "L206",
       "weight": 1.0,
       "source": "web_src_services_rsvps",
       "target": "web_src_services_rsvps_updatersvpstatus",
@@ -39007,6 +39514,72 @@
       "weight": 1.0,
       "source": "web_src_views_verifylogin",
       "target": "web_src_services_rsvps",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L176",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps_creatersvp",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L277",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps_demotecoorganizer",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L261",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps_promotetocoorganizer",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L304",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps_updatersvpdetails",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L192",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps_updatersvpnote",
+      "target": "web_src_services_rsvps_saversvprecord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/services/rsvps.js",
+      "source_location": "L207",
+      "weight": 1.0,
+      "source": "web_src_services_rsvps_updatersvpstatus",
+      "target": "web_src_services_rsvps_saversvprecord",
       "confidence_score": 1.0
     },
     {
@@ -40041,7 +40614,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L250",
+      "source_location": "L273",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_utils_format_builddefaultoptiondates"
@@ -40166,7 +40739,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "web/src/views/TripDetails.jsx",
-      "source_location": "L157",
+      "source_location": "L180",
       "weight": 1.0,
       "source": "web_src_views_tripdetails_tripdetails",
       "target": "web_src_utils_offlinecache_savetripofflinesnapshot"
@@ -60150,5 +60723,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "5cb35c7f421da743b9ba318c60a25e07328e222a"
+  "built_at_commit": "4e2b09bb223a8b2d37ff761a482fbc4e344e1735"
 }

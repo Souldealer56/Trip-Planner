@@ -107,6 +107,7 @@ export function TripDetails() {
     handleDeleteOption,
     handleUpdateOptionDates,
     handleToggleOptionParticipant,
+    handleAssignDriver,
     handleOpenEditOptionModal,
     handlePitchSubmit
   } = useTripOptionsManager({
@@ -401,6 +402,7 @@ export function TripDetails() {
         loadGanttData={loadGanttData}
         loadOptionsAndPoll={loadOptionsAndPoll}
         handleToggleOptionParticipant={handleToggleOptionParticipant}
+        handleAssignDriver={handleAssignDriver}
         logGroceryExpense={logGroceryExpense}
         handleSubmitMeal={handleSubmitMeal}
         ledgerTab={ledgerTab}
@@ -465,6 +467,7 @@ export function TripDetails() {
         printableOptions={allTripOptions.length > 0 ? allTripOptions : options}
         activeTab={activeTab}
         options={options}
+        allTripOptions={allTripOptions.length > 0 ? allTripOptions : options}
         activePoll={activePoll}
       />
     </div>

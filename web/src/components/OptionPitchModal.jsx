@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { getPresentTravelers } from '../services/rsvps'
 import { AirbnbDateRangePicker } from './common/AirbnbDateRangePicker'
 import { buildDefaultOptionDates } from '../utils/format'
+import { checkUserTransportOverlap, updateOption } from '../services/options'
 
 const EMPTY_ROSTER = []
 const DEFAULT_CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']
@@ -26,7 +27,8 @@ export function OptionPitchModal({
   roster = EMPTY_ROSTER,
   activeUserId = '',
   editingOption = null,
-  trip = null
+  trip = null,
+  allTripOptions = []
 }) {
   const normInitCat = (initialCategory || '').toLowerCase() === 'flights' ? 'Transport' : (initialCategory || 'Accommodation')
   const [pitchCategory, setPitchCategory] = useState(normInitCat)
@@ -41,6 +43,7 @@ export function OptionPitchModal({
   const [pitchAssignedUsers, setPitchAssignedUsers] = useState([])
   const [pitchMetadata, setPitchMetadata] = useState({})
   const [validationError, setValidationError] = useState('')
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
   // Determine intelligent default pricing model by category and transport mode
   const getDefaultCostType = (cat, mode) => {
@@ -64,6 +67,7 @@ export function OptionPitchModal({
 
   useEffect(() => {
     if (isOpen) {
+      setIsAdvancedOpen(false)
       if (editingOption) {
         // Pre-populate fields from existing option in Edit Mode
         const rawCat = editingOption.category || initialCategory || 'Accommodation'
@@ -184,6 +188,71 @@ export function OptionPitchModal({
     }
   }, [isOpen, editingOption, initialCategory, initialStartDate, initialEndDate, baseCurrency, roster, categories, trip])
 
+  // Compute active populated fields inside the Advanced Options drawer
+  const activeAdvancedCount = useMemo(() => {
+    let count = 0
+    const catL = (pitchCategory || '').toLowerCase()
+    const defaultCostType = getDefaultCostType(catL, pitchMetadata.transport_mode)
+    if (pitchCostType && pitchCostType !== defaultCostType) {
+      count++
+    }
+
+    if (catL === 'accommodation') {
+      if (pitchMetadata.max_capacity !== undefined && pitchMetadata.max_capacity !== null && String(pitchMetadata.max_capacity).trim() !== '') count++
+      if (pitchMetadata.beds_summary && pitchMetadata.beds_summary.trim() !== '') count++
+      if (pitchMetadata.check_in_out && pitchMetadata.check_in_out.trim() !== '') count++
+      if (pitchMetadata.has_kitchen) count++
+    } else if (catL === 'transport' || catL === 'flights') {
+      const isVeh = pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle'
+      const defaultMode = catL === 'flights' ? 'transit' : 'vehicle_pool'
+      if (pitchMetadata.transport_mode && pitchMetadata.transport_mode !== defaultMode) {
+        count++
+      }
+      if (isVeh) {
+        if (pitchMetadata.seats_capacity !== undefined && pitchMetadata.seats_capacity !== null && String(pitchMetadata.seats_capacity).trim() !== '') count++
+        if (pitchMetadata.driver_user_id && String(pitchMetadata.driver_user_id).trim() !== '') count++
+        if (pitchMetadata.estimated_fuel_cost !== undefined && pitchMetadata.estimated_fuel_cost !== null && String(pitchMetadata.estimated_fuel_cost).trim() !== '') count++
+      } else {
+        if (pitchMetadata.route_code && pitchMetadata.route_code.trim() !== '') count++
+        if (pitchMetadata.transit_times && pitchMetadata.transit_times.trim() !== '') count++
+        if (pitchMetadata.baggage_included === false) count++
+      }
+    } else if (catL === 'activities') {
+      if (pitchMetadata.max_participants !== undefined && pitchMetadata.max_participants !== null && String(pitchMetadata.max_participants).trim() !== '') count++
+      if (pitchMetadata.difficulty_or_duration && pitchMetadata.difficulty_or_duration.trim() !== '') count++
+      if (pitchMetadata.required_gear && pitchMetadata.required_gear.trim() !== '') count++
+    }
+
+    if (pitchLink && pitchLink.trim() !== '') count++
+    if (pitchDesc && pitchDesc.trim() !== '') count++
+
+    return count
+  }, [pitchCategory, pitchCostType, pitchMetadata, pitchLink, pitchDesc])
+
+  // Detect double-booking driver conflict with other overlapping vehicles
+  const driverConflict = useMemo(() => {
+    if (!pitchMetadata.driver_user_id || !allTripOptions || allTripOptions.length === 0) return null
+    const currentOpt = {
+      id: editingOption?.id || 'new-pitch',
+      category: pitchCategory,
+      start_date: pitchStartDate,
+      end_date: pitchEndDate,
+      metadata: pitchMetadata
+    }
+    const conflict = checkUserTransportOverlap(pitchMetadata.driver_user_id, currentOpt, allTripOptions)
+    if (!conflict) return null
+    const driverMember = roster?.find(
+      (m) => String(m.user_id || m.id || m.users?.id) === String(pitchMetadata.driver_user_id)
+    )
+    const driverName = driverMember?.users?.first_name || driverMember?.username || 'This traveler'
+    const otherTitle = conflict.conflictingTitle || conflict.conflictingOption?.name || conflict.conflictingOption?.option_text || 'another vehicle'
+    return {
+      ...conflict,
+      driverName,
+      otherTitle
+    }
+  }, [pitchMetadata.driver_user_id, allTripOptions, editingOption, pitchCategory, pitchStartDate, pitchEndDate, roster])
+
   if (!isOpen) return null
 
   const handleCategoryChange = (newCat) => {
@@ -229,7 +298,7 @@ export function OptionPitchModal({
     setPitchAssignedUsers([])
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setValidationError('')
 
@@ -261,6 +330,26 @@ export function OptionPitchModal({
         cleanMeta.seats_capacity = cleanMeta.seats_capacity ? parseInt(cleanMeta.seats_capacity, 10) : null
         cleanMeta.driver_user_id = cleanMeta.driver_user_id || null
         cleanMeta.estimated_fuel_cost = cleanMeta.estimated_fuel_cost ? parseFloat(cleanMeta.estimated_fuel_cost) : null
+
+        if (cleanMeta.driver_user_id && driverConflict) {
+          const confirmed = window.confirm(
+            `⚠️ Schedule Conflict: ${driverConflict.driverName} is already assigned to "${driverConflict.otherTitle}" during overlapping dates.\n\nProceeding will assign them as driver for this vehicle and remove them from "${driverConflict.otherTitle}". Continue?`
+          )
+          if (!confirmed) {
+            return
+          }
+          try {
+            const prevOpt = driverConflict.conflictingOption
+            const prevAssigned = (prevOpt.assigned_users || []).map(String).filter((id) => id !== String(cleanMeta.driver_user_id))
+            const prevMeta = { ...(prevOpt.metadata || {}) }
+            if (String(prevMeta.driver_user_id) === String(cleanMeta.driver_user_id)) {
+              prevMeta.driver_user_id = null
+            }
+            await updateOption(prevOpt.id, { assigned_users: prevAssigned, metadata: prevMeta }, trip?.id, activeUserId)
+          } catch (err) {
+            console.warn('Failed to unassign driver from previous vehicle:', err)
+          }
+        }
       } else {
         cleanMeta.route_code = cleanMeta.route_code?.trim() || ''
         cleanMeta.transit_times = cleanMeta.transit_times?.trim() || ''
@@ -379,63 +468,6 @@ export function OptionPitchModal({
               </div>
             </div>
 
-            {/* Pricing Model Selector */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
-                Pricing Model (How is this split?)
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setPitchCostType('split_total')}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: pitchCostType === 'split_total' ? '700' : '500',
-                    cursor: 'pointer',
-                    border: pitchCostType === 'split_total' ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
-                    background: pitchCostType === 'split_total' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                    color: pitchCostType === 'split_total' ? 'var(--primary-light)' : 'var(--text-main)'
-                  }}
-                >
-                  👥 Split Total (Default)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPitchCostType('per_person')}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: pitchCostType === 'per_person' ? '700' : '500',
-                    cursor: 'pointer',
-                    border: pitchCostType === 'per_person' ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
-                    background: pitchCostType === 'per_person' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                    color: pitchCostType === 'per_person' ? 'var(--primary-light)' : 'var(--text-main)'
-                  }}
-                >
-                  🎟️ Per Person / Ticket
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPitchCostType('per_night')}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: pitchCostType === 'per_night' ? '700' : '500',
-                    cursor: 'pointer',
-                    border: pitchCostType === 'per_night' ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
-                    background: pitchCostType === 'per_night' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                    color: pitchCostType === 'per_night' ? 'var(--primary-light)' : 'var(--text-main)'
-                  }}
-                >
-                  🌙 Per Night (Prorated)
-                </button>
-              </div>
-            </div>
-
             {/* Live Transparent Cost Calculation Preview Banner */}
             {parsedCost > 0 && (
               <div
@@ -479,267 +511,19 @@ export function OptionPitchModal({
               </div>
             )}
 
-            {/* Category-Specific Metadata Fields */}
-            {catLower === 'accommodation' && (
-              <div
-                style={{
-                  background: 'rgba(59, 130, 246, 0.05)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  borderRadius: '8px',
-                  padding: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem'
-                }}
-              >
-                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
-                  🏨 Accommodation Details
-                </span>
-
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: '140px' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Max Sleepers / Beds Capacity</label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g. 8"
-                      value={pitchMetadata.max_capacity || ''}
-                      onChange={(e) => setPitchMetadata((prev) => ({ ...prev, max_capacity: e.target.value }))}
-                      className="input-field"
-                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div style={{ flex: 2, minWidth: '180px' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Beds Summary</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 3 Queen beds, 2 Twin singles"
-                      value={pitchMetadata.beds_summary || ''}
-                      onChange={(e) => setPitchMetadata((prev) => ({ ...prev, beds_summary: e.target.value }))}
-                      className="input-field"
-                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <div style={{ flex: 1, minWidth: '200px' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Check-in / Check-out Times</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Check-in 15:00 / Check-out 11:00"
-                      value={pitchMetadata.check_in_out || ''}
-                      onChange={(e) => setPitchMetadata((prev) => ({ ...prev, check_in_out: e.target.value }))}
-                      className="input-field"
-                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '1rem' }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(pitchMetadata.has_kitchen)}
-                      onChange={(e) => setPitchMetadata((prev) => ({ ...prev, has_kitchen: e.target.checked }))}
-                    />
-                    <span>🍳 Has Kitchen for group cooking</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {(catLower === 'transport' || catLower === 'flights') && (
-              <div
-                style={{
-                  background: 'rgba(59, 130, 246, 0.05)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  borderRadius: '8px',
-                  padding: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
-                    🚗✈️ Transport & Transit Mode
-                  </span>
-                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleTransportModeChange('vehicle_pool')}
-                      style={{
-                        padding: '0.35rem 0.65rem',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        fontWeight: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? '700' : '500',
-                        cursor: 'pointer',
-                        border: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? '1px solid #60a5fa' : '1px solid var(--border-light)',
-                        background: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                        color: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? '#60a5fa' : 'var(--text-muted)'
-                      }}
-                    >
-                      🚗 Shared Vehicle / Rental Car (Available across days — no activity conflicts)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleTransportModeChange('transit')}
-                      style={{
-                        padding: '0.35rem 0.65rem',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        fontWeight: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? '700' : '500',
-                        cursor: 'pointer',
-                        border: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? '1px solid #60a5fa' : '1px solid var(--border-light)',
-                        background: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                        color: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? '#60a5fa' : 'var(--text-muted)'
-                      }}
-                    >
-                      ✈️🚆 Transit Leg (Flight, Train, Specific Drive — blocks schedule)
-                    </button>
-                  </div>
-                </div>
-
-                {(pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? (
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <div style={{ width: '130px' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Passenger Seats</label>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="e.g. 5"
-                        value={pitchMetadata.seats_capacity || ''}
-                        onChange={(e) => setPitchMetadata((prev) => ({ ...prev, seats_capacity: e.target.value }))}
-                        className="input-field"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: '160px' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🚗 Designated Driver</label>
-                      <select
-                        value={pitchMetadata.driver_user_id || ''}
-                        onChange={(e) => setPitchMetadata((prev) => ({ ...prev, driver_user_id: e.target.value }))}
-                        className="input-field select-field"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                      >
-                        <option value="">-- Select Driver (Optional) --</option>
-                        {committedMembers.map((m) => (
-                          <option key={m.user_id} value={m.user_id}>
-                            {m.users?.first_name || m.username || 'Traveler'} {m.user_id === activeUserId ? '(You)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ width: '140px' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Est. Gas/Toll Cost</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="e.g. 50.00"
-                        value={pitchMetadata.estimated_fuel_cost || ''}
-                        onChange={(e) => setPitchMetadata((prev) => ({ ...prev, estimated_fuel_cost: e.target.value }))}
-                        className="input-field"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ flex: 1, minWidth: '180px' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Flight / Route Number</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. SATA AZ412 · YUL → PDL"
-                        value={pitchMetadata.route_code || ''}
-                        onChange={(e) => setPitchMetadata((prev) => ({ ...prev, route_code: e.target.value }))}
-                        className="input-field"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: '180px' }}>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Departure / Arrival Times</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Dep 08:30 · Arr 14:15"
-                        value={pitchMetadata.transit_times || ''}
-                        onChange={(e) => setPitchMetadata((prev) => ({ ...prev, transit_times: e.target.value }))}
-                        className="input-field"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '1rem' }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(pitchMetadata.baggage_included)}
-                        onChange={(e) => setPitchMetadata((prev) => ({ ...prev, baggage_included: e.target.checked }))}
-                      />
-                      <span>🧳 Baggage Included</span>
-                    </label>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {catLower === 'activities' && (
-              <div
-                style={{
-                  background: 'rgba(59, 130, 246, 0.05)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  borderRadius: '8px',
-                  padding: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem'
-                }}
-              >
-                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
-                  🧗 Activity & Adventure Details
-                </span>
-
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <div style={{ width: '140px' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Max Participants</label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g. 10 (Quota)"
-                      value={pitchMetadata.max_participants || ''}
-                      onChange={(e) => setPitchMetadata((prev) => ({ ...prev, max_participants: e.target.value }))}
-                      className="input-field"
-                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: '160px' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Duration / Difficulty</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 4h · Moderate hike"
-                      value={pitchMetadata.difficulty_or_duration || ''}
-                      onChange={(e) => setPitchMetadata((prev) => ({ ...prev, difficulty_or_duration: e.target.value }))}
-                      className="input-field"
-                      style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎒 Required Gear & Packing</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Hiking boots, Headlamp, Swimsuit, Waterproof bag"
-                    value={pitchMetadata.required_gear || ''}
-                    onChange={(e) => setPitchMetadata((prev) => ({ ...prev, required_gear: e.target.value }))}
-                    className="input-field"
-                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Airbnb-style Interactive Range Calendar */}
+            <AirbnbDateRangePicker
+              tripStartDate={trip?.start_date}
+              tripEndDate={trip?.end_date}
+              startDate={pitchStartDate}
+              endDate={pitchEndDate}
+              onChange={({ startDate: s, endDate: e, startTime: st, endTime: et }) => {
+                const finalStart = s ? (st ? `${s}T${st}` : s) : ''
+                const finalEnd = e ? (et ? `${e}T${et}` : e) : ''
+                setPitchStartDate(finalStart)
+                setPitchEndDate(finalEnd)
+              }}
+            />
 
             {/* Who is Participating Multi-Select Pill Bar */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -801,43 +585,391 @@ export function OptionPitchModal({
               )}
             </div>
 
-            {/* Airbnb-style Interactive Range Calendar */}
-            <AirbnbDateRangePicker
-              tripStartDate={trip?.start_date}
-              tripEndDate={trip?.end_date}
-              startDate={pitchStartDate}
-              endDate={pitchEndDate}
-              onChange={({ startDate: s, endDate: e, startTime: st, endTime: et }) => {
-                const finalStart = s ? (st ? `${s}T${st}` : s) : ''
-                const finalEnd = e ? (et ? `${e}T${et}` : e) : ''
-                setPitchStartDate(finalStart)
-                setPitchEndDate(finalEnd)
-              }}
-            />
+            {/* Collapsible Advanced Options Drawer */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsAdvancedOpen((prev) => !prev)}
+                className="advanced-options-toggle-btn"
+                aria-expanded={isAdvancedOpen}
+                aria-controls="advanced-options-drawer"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>⚙️ Advanced Options & Category Details</span>
+                  {activeAdvancedCount > 0 && (
+                    <span className="advanced-count-badge">
+                      {activeAdvancedCount} set
+                    </span>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                    display: 'inline-block',
+                    transition: 'transform 0.2s ease',
+                    transform: isAdvancedOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                  }}
+                >
+                  ▼
+                </span>
+              </button>
 
-            {/* URL Link */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>URL Link (Optional)</label>
-              <input
-                type="url"
-                placeholder="e.g. https://airbnb.com/rooms/..."
-                value={pitchLink}
-                onChange={(e) => setPitchLink(e.target.value)}
-                className="input-field"
-              />
-            </div>
+              <div
+                id="advanced-options-drawer"
+                className={`advanced-options-drawer ${isAdvancedOpen ? 'open' : ''}`}
+              >
+                <div className="advanced-options-drawer-inner">
+                  {/* Pricing Model Split Selector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                      Pricing Model (How is this split?)
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPitchCostType('split_total')}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          fontWeight: pitchCostType === 'split_total' ? '700' : '500',
+                          cursor: 'pointer',
+                          border: pitchCostType === 'split_total' ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
+                          background: pitchCostType === 'split_total' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          color: pitchCostType === 'split_total' ? 'var(--primary-light)' : 'var(--text-main)'
+                        }}
+                      >
+                        👥 Split Total (Default)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPitchCostType('per_person')}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          fontWeight: pitchCostType === 'per_person' ? '700' : '500',
+                          cursor: 'pointer',
+                          border: pitchCostType === 'per_person' ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
+                          background: pitchCostType === 'per_person' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          color: pitchCostType === 'per_person' ? 'var(--primary-light)' : 'var(--text-main)'
+                        }}
+                      >
+                        🎟️ Per Person / Ticket
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPitchCostType('per_night')}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          fontWeight: pitchCostType === 'per_night' ? '700' : '500',
+                          cursor: 'pointer',
+                          border: pitchCostType === 'per_night' ? '1px solid var(--primary-light)' : '1px solid var(--border-light)',
+                          background: pitchCostType === 'per_night' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          color: pitchCostType === 'per_night' ? 'var(--primary-light)' : 'var(--text-main)'
+                        }}
+                      >
+                        🌙 Per Night (Prorated)
+                      </button>
+                    </div>
+                  </div>
 
-            {/* Description */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Notes / Pitch Pitch (Optional)</label>
-              <textarea
-                placeholder="Provide helpful context, amenities, or rationale for the group..."
-                value={pitchDesc}
-                onChange={(e) => setPitchDesc(e.target.value)}
-                rows="2"
-                className="input-field"
-                style={{ resize: 'vertical', fontFamily: 'inherit' }}
-              />
+                  {/* Category-Specific Metadata Fields */}
+                  {catLower === 'accommodation' && (
+                    <div
+                      style={{
+                        background: 'rgba(59, 130, 246, 0.05)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        borderRadius: '8px',
+                        padding: '0.85rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
+                        🏨 Accommodation Details
+                      </span>
+
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '140px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Max Sleepers / Beds Capacity</label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="e.g. 8"
+                            value={pitchMetadata.max_capacity || ''}
+                            onChange={(e) => setPitchMetadata((prev) => ({ ...prev, max_capacity: e.target.value }))}
+                            className="input-field"
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <div style={{ flex: 2, minWidth: '180px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Beds Summary</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 3 Queen beds, 2 Twin singles"
+                            value={pitchMetadata.beds_summary || ''}
+                            onChange={(e) => setPitchMetadata((prev) => ({ ...prev, beds_summary: e.target.value }))}
+                            className="input-field"
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Check-in / Check-out Times</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Check-in 15:00 / Check-out 11:00"
+                            value={pitchMetadata.check_in_out || ''}
+                            onChange={(e) => setPitchMetadata((prev) => ({ ...prev, check_in_out: e.target.value }))}
+                            className="input-field"
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '1rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(pitchMetadata.has_kitchen)}
+                            onChange={(e) => setPitchMetadata((prev) => ({ ...prev, has_kitchen: e.target.checked }))}
+                          />
+                          <span>🍳 Has Kitchen for group cooking</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {(catLower === 'transport' || catLower === 'flights') && (
+                    <div
+                      style={{
+                        background: 'rgba(59, 130, 246, 0.05)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        borderRadius: '8px',
+                        padding: '0.85rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
+                          🚗✈️ Transport & Transit Mode
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleTransportModeChange('vehicle_pool')}
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              fontWeight: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? '700' : '500',
+                              cursor: 'pointer',
+                              border: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? '1px solid #60a5fa' : '1px solid var(--border-light)',
+                              background: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                              color: (pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? '#60a5fa' : 'var(--text-muted)'
+                            }}
+                          >
+                            🚗 Shared Rental Car
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTransportModeChange('transit')}
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              fontWeight: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? '700' : '500',
+                              cursor: 'pointer',
+                              border: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? '1px solid #60a5fa' : '1px solid var(--border-light)',
+                              background: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                              color: (pitchMetadata.transport_mode === 'transit' || pitchMetadata.transport_mode === 'ticket') ? '#60a5fa' : 'var(--text-muted)'
+                            }}
+                          >
+                            ✈️🚆 Flight / Train
+                          </button>
+                        </div>
+                      </div>
+
+                      {(pitchMetadata.transport_mode === 'vehicle_pool' || pitchMetadata.transport_mode === 'vehicle') ? (
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <div style={{ width: '130px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Passenger Seats</label>
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="e.g. 5"
+                              value={pitchMetadata.seats_capacity || ''}
+                              onChange={(e) => setPitchMetadata((prev) => ({ ...prev, seats_capacity: e.target.value }))}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: '160px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🚗 Designated Driver</label>
+                            <select
+                              value={pitchMetadata.driver_user_id || ''}
+                              onChange={(e) => setPitchMetadata((prev) => ({ ...prev, driver_user_id: e.target.value }))}
+                              className="input-field select-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            >
+                              <option value="">-- Select Driver (Optional) --</option>
+                              {committedMembers.map((m) => (
+                                <option key={m.user_id} value={m.user_id}>
+                                  {m.users?.first_name || m.username || 'Traveler'} {m.user_id === activeUserId ? '(You)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {driverConflict && (
+                              <div style={{ fontSize: '0.74rem', color: '#f87171', marginTop: '4px', fontWeight: '500' }}>
+                                ⚠️ Schedule Conflict: {driverConflict.driverName} is also in {driverConflict.otherTitle}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ width: '140px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Est. Gas/Toll Cost</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="e.g. 50.00"
+                              value={pitchMetadata.estimated_fuel_cost || ''}
+                              onChange={(e) => setPitchMetadata((prev) => ({ ...prev, estimated_fuel_cost: e.target.value }))}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <div style={{ flex: 1, minWidth: '180px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Flight / Route Number</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. SATA AZ412 · YUL → PDL"
+                              value={pitchMetadata.route_code || ''}
+                              onChange={(e) => setPitchMetadata((prev) => ({ ...prev, route_code: e.target.value }))}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: '180px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Departure / Arrival Times</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Dep 08:30 · Arr 14:15"
+                              value={pitchMetadata.transit_times || ''}
+                              onChange={(e) => setPitchMetadata((prev) => ({ ...prev, transit_times: e.target.value }))}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '1rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(pitchMetadata.baggage_included)}
+                              onChange={(e) => setPitchMetadata((prev) => ({ ...prev, baggage_included: e.target.checked }))}
+                            />
+                            <span>🧳 Baggage Included</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {catLower === 'activities' && (
+                    <div
+                      style={{
+                        background: 'rgba(59, 130, 246, 0.05)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        borderRadius: '8px',
+                        padding: '0.85rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary-light)' }}>
+                        🧗 Activity & Adventure Details
+                      </span>
+
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <div style={{ width: '140px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Max Participants</label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="e.g. 10 (Quota)"
+                            value={pitchMetadata.max_participants || ''}
+                            onChange={(e) => setPitchMetadata((prev) => ({ ...prev, max_participants: e.target.value }))}
+                            className="input-field"
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: '160px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Duration / Difficulty</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 4h · Moderate hike"
+                            value={pitchMetadata.difficulty_or_duration || ''}
+                            onChange={(e) => setPitchMetadata((prev) => ({ ...prev, difficulty_or_duration: e.target.value }))}
+                            className="input-field"
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎒 Required Gear & Packing</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Hiking boots, Headlamp, Swimsuit, Waterproof bag"
+                          value={pitchMetadata.required_gear || ''}
+                          onChange={(e) => setPitchMetadata((prev) => ({ ...prev, required_gear: e.target.value }))}
+                          className="input-field"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* URL Link */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>URL Link (Optional)</label>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://airbnb.com/rooms/..."
+                      value={pitchLink}
+                      onChange={(e) => setPitchLink(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>Notes / Pitch description (Optional)</label>
+                    <textarea
+                      placeholder="Provide helpful context, amenities, or rationale for the group..."
+                      value={pitchDesc}
+                      onChange={(e) => setPitchDesc(e.target.value)}
+                      rows="2"
+                      className="input-field"
+                      style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {(validationError || error) && (

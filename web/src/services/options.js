@@ -6,7 +6,7 @@ import {
   sanitizeDateTimeOrNull,
   saveMealPlan
 } from './groceries.js'
-import { isVehicleCoverage } from '../utils/schedule.js'
+import { isVehicleCoverage, detectTransportParticipantConflicts, checkUserTransportOverlap } from '../utils/schedule.js'
 
 export {
   isValidUuid,
@@ -14,7 +14,9 @@ export {
   sanitizeUuidArray,
   sanitizeDateTimeOrNull,
   saveMealPlan,
-  isVehicleCoverage
+  isVehicleCoverage,
+  detectTransportParticipantConflicts,
+  checkUserTransportOverlap
 }
 
 export const TRIP_CATEGORIES = ['Accommodation', 'Transport', 'Activities', 'Food', 'Other']

@@ -1,6 +1,16 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { formatDateTimeRange, formatMoney } from '../utils/format'
-import { checkOptionDateConflict, isOptionLocked, calculateVehicleCostPerPassenger, checkAccommodationCapacity, checkActivitySpots, isVehicleCoverage } from '../services/options'
+import {
+  checkOptionDateConflict,
+  isOptionLocked,
+  calculateVehicleCostPerPassenger,
+  checkAccommodationCapacity,
+  checkActivitySpots,
+  isVehicleCoverage,
+  detectTransportParticipantConflicts,
+  checkUserTransportOverlap,
+  updateOption
+} from '../services/options'
 import { getPresentTravelers } from '../services/rsvps'
 import { calculateOptionCostBreakdown } from '../utils/currency'
 import { getMealDietaryAlerts } from '../services/groceries'
@@ -91,10 +101,36 @@ export function OptionCard({
   onToggleParticipant,
   onOpenSetDatesModal,
   confirmingDeleteId,
-  setConfirmingDeleteId
+  setConfirmingDeleteId,
+  transportConflicts = null,
+  allTripOptions = [],
+  onAssignDriver
 }) {
+  const [isChangingDriver, setIsChangingDriver] = useState(false)
   const optCategory = (opt.category || activeTab || '').toLowerCase()
   const optIdStr = String(opt.id)
+
+  // Resolve transport double-booking conflicts across overlapping locked transport options
+  const activeTransportConflicts = useMemo(() => {
+    if (transportConflicts && Array.isArray(transportConflicts)) {
+      return transportConflicts
+    }
+    if (allTripOptions && allTripOptions.length > 0 && isVehicleCoverage(opt)) {
+      const res = detectTransportParticipantConflicts(allTripOptions, null, roster)
+      return res.conflictsByOptionId?.[String(opt.id)] || []
+    }
+    return []
+  }, [transportConflicts, allTripOptions, opt, roster])
+
+  const uniqueTransportConflicts = useMemo(() => {
+    const seen = new Set()
+    return activeTransportConflicts.filter((tc) => {
+      const key = `${tc.userId}_${tc.otherOptionId}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [activeTransportConflicts])
 
   // Voters calculation
   const selections = poll?.voter_selections || {}
@@ -212,6 +248,15 @@ export function OptionCard({
                 ⚠️ Outside Trip Dates
               </span>
             )}
+            {uniqueTransportConflicts.map((tc, idx) => (
+              <span
+                key={`tc-${idx}`}
+                className="option-conflict-pill transport-conflict-pill"
+                title={`${tc.userName} is also assigned to ${tc.otherOptionTitle} during overlapping dates`}
+              >
+                ⚠️ Schedule Conflict: {tc.userName} is also in {tc.otherOptionTitle}
+              </span>
+            ))}
           </div>
 
           <div className="option-header-right">
@@ -389,17 +434,116 @@ export function OptionCard({
                   </span>
                 )
               })()}
-              {metadata.driver_user_id && (() => {
+              {metadata.driver_user_id ? (() => {
                 const driverMember = roster.find((m) => String(m.user_id) === String(metadata.driver_user_id) || String(m.users?.id) === String(metadata.driver_user_id) || String(m.id) === String(metadata.driver_user_id))
                 const driverName = driverMember?.users?.first_name || driverMember?.username || 'Designated Driver'
                 return (
-                  <span className="capacity-gauge-pill" style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#93c5fd', border: '1px solid rgba(96, 165, 250, 0.3)' }}>
-                    🛞 Driver: {driverName}
+                  <span
+                    className="capacity-gauge-pill"
+                    style={{
+                      background: 'rgba(96, 165, 250, 0.15)',
+                      color: '#93c5fd',
+                      border: '1px solid rgba(96, 165, 250, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span>🛞 Driver: {driverName}</span>
+                    {onAssignDriver && (
+                      <button
+                        type="button"
+                        aria-label="Change driver"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#93c5fd',
+                          cursor: 'pointer',
+                          padding: '0 2px',
+                          fontSize: '0.72rem',
+                          lineHeight: 1
+                        }}
+                        title="Change driver"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsChangingDriver((prev) => !prev)
+                        }}
+                      >
+                        ✏️
+                      </button>
+                    )}
                   </span>
                 )
-              })()}
+              })() : (
+                onAssignDriver && (
+                  <button
+                    type="button"
+                    className="capacity-gauge-pill"
+                    style={{
+                      background: 'rgba(96, 165, 250, 0.1)',
+                      color: '#93c5fd',
+                      border: '1px dashed rgba(96, 165, 250, 0.4)',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsChangingDriver((prev) => !prev)
+                    }}
+                  >
+                    🛞 + Assign Driver
+                  </button>
+                )
+              )}
+              {isChangingDriver && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '2px' }} onClick={(e) => e.stopPropagation()}>
+                  <select
+                    className="input-field select-field"
+                    style={{ padding: '2px 6px', fontSize: '0.75rem', height: '24px' }}
+                    defaultValue={metadata.driver_user_id || ''}
+                    onChange={(e) => {
+                      const selectedUserId = e.target.value
+                      setIsChangingDriver(false)
+                      if (!selectedUserId) {
+                        onAssignDriver(opt.id, null, opt)
+                        return
+                      }
+                      const optionsToCheck = (allTripOptions && allTripOptions.length > 0) ? allTripOptions : (trip?.options || [])
+                      const conflict = checkUserTransportOverlap(selectedUserId, opt, optionsToCheck)
+                      if (conflict) {
+                        const driverMember = roster?.find((m) => String(m.user_id || m.id) === String(selectedUserId))
+                        const dName = driverMember?.users?.first_name || driverMember?.username || 'This traveler'
+                        const otherTitle = conflict.conflictingTitle || conflict.conflictingOption?.name || 'another vehicle'
+                        const myTitle = opt.option_text || opt.name || opt.title || 'this vehicle'
+                        const confirmed = window.confirm(
+                          `⚠️ Schedule Conflict: ${dName} is already assigned to "${otherTitle}" during overlapping dates.\n\nWould you like to assign them as driver for "${myTitle}"? This will remove them from "${otherTitle}".`
+                        )
+                        if (!confirmed) {
+                          return
+                        }
+                      }
+                      onAssignDriver(opt.id, selectedUserId, opt)
+                    }}
+                  >
+                    <option value="">-- No Driver --</option>
+                    {committedMembers.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.users?.first_name || m.username || 'Traveler'} {m.user_id === activeUser?.id ? '(You)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '2px 6px', fontSize: '0.7rem', height: '24px', minHeight: 'auto' }}
+                    onClick={() => setIsChangingDriver(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
-            {metadata.seats_capacity && (costDetails?.rawCost || opt.estimated_cost) && (() => {
+            {Boolean(metadata.seats_capacity) && Number(costDetails?.rawCost || opt.estimated_cost) > 0 && (() => {
               const veh = calculateVehicleCostPerPassenger(
                 costDetails?.rawCost || opt.estimated_cost,
                 assignedCount,
@@ -417,9 +561,9 @@ export function OptionCard({
                 </div>
               )
             })()}
-            {metadata.estimated_fuel_cost && (
+            {Number(metadata.estimated_fuel_cost || metadata.gas_cost || opt.gas_cost) > 0 && (
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                ⛽ Estimated fuel: ~{metadata.estimated_fuel_cost} {costDetails?.currency || opt.currency || baseCurrency}
+                ⛽ Estimated fuel: ~{metadata.estimated_fuel_cost || metadata.gas_cost || opt.gas_cost} {costDetails?.currency || opt.currency || baseCurrency}
               </div>
             )}
 
@@ -487,7 +631,7 @@ export function OptionCard({
                 </span>
               )}
             </div>
-            {(costDetails?.rawCost || opt.estimated_cost) && (
+            {Number(costDetails?.rawCost || opt.estimated_cost) > 0 && (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
                 <strong>🎟️ {formatMoney(costDetails?.rawCost || opt.estimated_cost, costDetails?.currency || opt.currency || baseCurrency)} / person</strong>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
@@ -659,7 +803,31 @@ export function OptionCard({
             <button
               type="button"
               className={`one-tap-join-btn ${isUserJoined ? 'joined' : 'not-joined'}`}
-              onClick={() => onToggleParticipant(opt.id, opt.assigned_users || [], presentTravelerIds)}
+              onClick={() => {
+                if (!isUserJoined && (isVehicleCoverage(opt) || (opt.category || '').toLowerCase() === 'transport')) {
+                  const optionsToCheck = (allTripOptions && allTripOptions.length > 0) ? allTripOptions : (trip?.options || [])
+                  const conflict = checkUserTransportOverlap(activeUser.id, opt, optionsToCheck)
+                  if (conflict) {
+                    const otherTitle = conflict.conflictingTitle || conflict.conflictingOption?.name || conflict.conflictingOption?.option_text || 'another vehicle'
+                    const myTitle = opt.option_text || opt.name || opt.title || 'this vehicle'
+                    const confirmed = window.confirm(
+                      `⚠️ Schedule Conflict: You are already assigned to "${otherTitle}" during overlapping dates.\n\nWould you like to switch to "${myTitle}"? This will remove you from "${otherTitle}".`
+                    )
+                    if (!confirmed) {
+                      return
+                    }
+                    const prevOpt = conflict.conflictingOption
+                    if (prevOpt) {
+                      prevOpt.assigned_users = (prevOpt.assigned_users || []).map(String).filter((id) => id !== String(activeUser.id))
+                      if (prevOpt.metadata && String(prevOpt.metadata.driver_user_id) === String(activeUser.id)) {
+                        prevOpt.metadata.driver_user_id = null
+                      }
+                      updateOption(prevOpt.id, { assigned_users: prevOpt.assigned_users, metadata: prevOpt.metadata }, trip?.id, activeUser.id).catch(() => {})
+                    }
+                  }
+                }
+                onToggleParticipant(opt.id, opt.assigned_users || [], presentTravelerIds)
+              }}
               title={isUserJoined ? 'Click to leave this option' : 'Click to join this option'}
             >
               {isUserJoined ? "✓ I'm In" : '+ Join'}

@@ -9,7 +9,9 @@ import {
   lockOption,
   deleteOption,
   updateOptionDates,
-  toggleOptionParticipant
+  toggleOptionParticipant,
+  isVehicleCoverage,
+  checkUserTransportOverlap
 } from '../services/options'
 import { saveTripOfflineSnapshot, loadTripOfflineSnapshot } from '../utils/offlineCache'
 
@@ -300,14 +302,89 @@ export function useTripOptionsManager({
     }
   }
 
-  const handleToggleOptionParticipant = async (optionId, currentAssignedUsers, fallbackAllUserIds = []) => {
+  const handleToggleOptionParticipant = async (optionId, currentAssignedUsers, fallbackAllUserIds = [], option = null, conflictingOpt = null) => {
     if (!activeUser) return
     try {
+      const uIdStr = String(activeUser.id)
+      const currentList = Array.isArray(currentAssignedUsers) ? currentAssignedUsers.map(String) : []
+      const isJoining = !currentList.includes(uIdStr)
+
+      if (isJoining) {
+        const targetOpt = option || allTripOptions.find(o => String(o.id) === String(optionId)) || options.find(o => String(o.id) === String(optionId))
+        const isTransport = targetOpt && (isVehicleCoverage(targetOpt) || (targetOpt.category || '').toLowerCase() === 'transport')
+
+        if (isTransport) {
+          let conflictOptToClear = conflictingOpt
+          if (!conflictOptToClear) {
+            const optsSource = allTripOptions.length > 0 ? allTripOptions : options
+            const conflict = checkUserTransportOverlap(activeUser.id, targetOpt, optsSource)
+            if (conflict) {
+              const otherTitle = conflict.conflictingTitle || conflict.conflictingOption?.name || conflict.conflictingOption?.option_text || 'another vehicle'
+              const myTitle = targetOpt.option_text || targetOpt.name || targetOpt.title || 'this vehicle'
+              const confirmed = window.confirm(
+                `⚠️ Schedule Conflict: You are already assigned to "${otherTitle}" during overlapping dates.\n\nWould you like to switch to "${myTitle}"? This will remove you from "${otherTitle}".`
+              )
+              if (!confirmed) {
+                return
+              }
+              conflictOptToClear = conflict.conflictingOption
+            }
+          }
+
+          if (conflictOptToClear) {
+            const prevAssigned = (conflictOptToClear.assigned_users || []).map(String).filter(id => id !== uIdStr)
+            const prevMeta = { ...(conflictOptToClear.metadata || {}) }
+            if (String(prevMeta.driver_user_id) === uIdStr) {
+              prevMeta.driver_user_id = null
+            }
+            await updateOption(conflictOptToClear.id, { assigned_users: prevAssigned, metadata: prevMeta }, tripId, activeUser.id)
+          }
+        }
+      }
+
       await toggleOptionParticipant(optionId, activeUser.id, currentAssignedUsers, fallbackAllUserIds)
       await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
       onActivityLogged?.()
     } catch (err) {
       console.error('Failed to toggle option participant:', err)
+    }
+  }
+
+  const handleAssignDriver = async (optionId, driverUserId, option = null) => {
+    if (!optionId) return
+    try {
+      const targetOpt = option || allTripOptions.find(o => String(o.id) === String(optionId)) || options.find(o => String(o.id) === String(optionId))
+      if (!targetOpt) return
+
+      if (driverUserId) {
+        const uIdStr = String(driverUserId)
+        const optsSource = allTripOptions.length > 0 ? allTripOptions : options
+        const conflict = checkUserTransportOverlap(driverUserId, targetOpt, optsSource)
+        if (conflict) {
+          const otherTitle = conflict.conflictingTitle || conflict.conflictingOption?.name || conflict.conflictingOption?.option_text || 'another vehicle'
+          const myTitle = targetOpt.option_text || targetOpt.name || targetOpt.title || 'this vehicle'
+          const confirmed = window.confirm(
+            `⚠️ Schedule Conflict: This traveler is already assigned to "${otherTitle}" during overlapping dates.\n\nWould you like to assign them as driver for "${myTitle}"? This will remove them from "${otherTitle}".`
+          )
+          if (!confirmed) {
+            return
+          }
+          const prevOpt = conflict.conflictingOption
+          const prevAssigned = (prevOpt.assigned_users || []).map(String).filter(id => id !== uIdStr)
+          const prevMeta = { ...(prevOpt.metadata || {}) }
+          if (String(prevMeta.driver_user_id) === uIdStr) {
+            prevMeta.driver_user_id = null
+          }
+          await updateOption(prevOpt.id, { assigned_users: prevAssigned, metadata: prevMeta }, tripId, activeUser?.id)
+        }
+      }
+
+      const nextMeta = { ...(targetOpt.metadata || {}), driver_user_id: driverUserId || null }
+      await updateOption(optionId, { metadata: nextMeta }, tripId, activeUser?.id)
+      await Promise.all([loadOptionsAndPoll(true), loadGanttData()])
+      onActivityLogged?.()
+    } catch (err) {
+      console.error('Failed to assign driver:', err)
     }
   }
 
@@ -414,6 +491,7 @@ export function useTripOptionsManager({
     handleDeleteOption,
     handleUpdateOptionDates,
     handleToggleOptionParticipant,
+    handleAssignDriver,
     handleOpenEditOptionModal,
     handlePitchSubmit
   }

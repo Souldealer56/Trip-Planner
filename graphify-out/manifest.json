@@ -2025,8 +2025,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/components.smoke.test.jsx": {
-    "mtime": 1792629951.7935112,
-    "ast_hash": "7c508b7e0bffc134518ce4a22da34c4e",
+    "mtime": 1793902563.8394117,
+    "ast_hash": "69fec809868a3266bc816b22d44bd07a",
     "semantic_hash": ""
   },
   "web/src/__tests__/currency.test.js": {
@@ -2110,8 +2110,8 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/RosterSection.jsx": {
-    "mtime": 1792557217.131348,
-    "ast_hash": "4511ae4b95ccdc66ea571d9ab533c680",
+    "mtime": 1793900717.6124525,
+    "ast_hash": "f953e7bf2c8aa8e2285e934a0402359d",
     "semantic_hash": ""
   },
   "web/src/components/trip/TripHeader.jsx": {
@@ -2125,13 +2125,13 @@
     "semantic_hash": ""
   },
   "web/src/hooks/useRsvpRoster.js": {
-    "mtime": 1783864785.321394,
-    "ast_hash": "6ad9f73a8b3cd7f03e5b23df7101a234",
+    "mtime": 1793900717.9820309,
+    "ast_hash": "64a303c51bd216ed103b7f05686c50ca",
     "semantic_hash": ""
   },
   "web/src/hooks/useTripDetails.js": {
-    "mtime": 1792025345.8925798,
-    "ast_hash": "d67d3b43ac0e3d5b68a8e0d4458d796d",
+    "mtime": 1792636561.576621,
+    "ast_hash": "9b2df9f4aed7b46d666be613f5acfb81",
     "semantic_hash": ""
   },
   "web/src/hooks/useTripRealtime.js": {
@@ -2175,13 +2175,13 @@
     "semantic_hash": ""
   },
   "web/src/services/rsvps.js": {
-    "mtime": 1792380285.4166875,
-    "ast_hash": "c4cb79cea29c7b887f34071c5ed94607",
+    "mtime": 1793900718.0549622,
+    "ast_hash": "0496379ea4972928027a4b7f599dbc5f",
     "semantic_hash": ""
   },
   "web/src/services/supabase.js": {
-    "mtime": 1792375600.372725,
-    "ast_hash": "3cb824f3eb7aac01cb9a07179b00e0c3",
+    "mtime": 1793900672.8792493,
+    "ast_hash": "a5ed414db273f3bb10e18544595629de",
     "semantic_hash": ""
   },
   "web/src/services/trips.js": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": ""
   },
   "web/src/views/TripDetails.jsx": {
-    "mtime": 1792631446.5878117,
-    "ast_hash": "08659049f1d5483d1f71c395387ab472",
+    "mtime": 1793900718.1161637,
+    "ast_hash": "5841a913a1ebdd58caf31760936e6072",
     "semantic_hash": ""
   },
   "web/src/views/TripsList.jsx": {
@@ -2410,8 +2410,8 @@
     "semantic_hash": ""
   },
   "web/src/__tests__/tripDetailsArchitectureRefactor.test.jsx": {
-    "mtime": 1792631111.9212506,
-    "ast_hash": "2c9eac4dcdde426b22e0ea9e47e767e1",
+    "mtime": 1793902563.933733,
+    "ast_hash": "bb374929fb5fa0adcf9f57ec127371a0",
     "semantic_hash": ""
   },
   "web/src/components/OptionCard.jsx": {
@@ -2420,8 +2420,8 @@
     "semantic_hash": ""
   },
   "web/src/components/OptionPitchModal.jsx": {
-    "mtime": 1792630501.6587038,
-    "ast_hash": "059935573658b6da89a3516f4de4bf5f",
+    "mtime": 1793903985.556037,
+    "ast_hash": "ec5d20032f6de7f7a629582b8a338dcc",
     "semantic_hash": ""
   },
   "web/src/components/TripDateTimePicker.jsx": {
@@ -2460,8 +2460,8 @@
     "semantic_hash": ""
   },
   "web/src/components/trip/WorkspaceContentPane.jsx": {
-    "mtime": 1792631234.151498,
-    "ast_hash": "82b69e70170052d305d81ac7f9d7a17d",
+    "mtime": 1793900717.6587617,
+    "ast_hash": "f4c0bd297c7ccbab815f95bcd50d6a0f",
     "semantic_hash": ""
   },
   "web/src/components/trip/WorkspaceTabsNav.jsx": {
@@ -2470,8 +2470,8 @@
     "semantic_hash": ""
   },
   "web/src/hooks/useRosterActions.js": {
-    "mtime": 1792631509.190444,
-    "ast_hash": "b3066f49eb4f84aa4ac4c7049bb0f10e",
+    "mtime": 1793900717.8646295,
+    "ast_hash": "0f8ec49d48295e2f6cda9a8eddb3aba9",
     "semantic_hash": ""
   },
   "web/src/hooks/useTripFinancials.js": {
@@ -2487,6 +2487,36 @@
   "web/src/hooks/useTripOptionsManager.js": {
     "mtime": 1792630803.1957693,
     "ast_hash": "36ff0b4d29efad21151dae4758086408",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260728000000_rsvp_roster_deduplication_and_unique.sql": {
+    "mtime": 1793900714.4413874,
+    "ast_hash": "39bbcbc0939939c0a0cb2f7a0c2d904b",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/airbnbDateRangePicker.test.jsx": {
+    "mtime": 1793902563.758626,
+    "ast_hash": "6c4c1dfebd4e2b7c91797af98611cd1c",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/optionPitchAdvancedAccordion.test.jsx": {
+    "mtime": 1793903949.4736962,
+    "ast_hash": "0dd3b0656fe1179ae8cc4091416a2347",
+    "semantic_hash": ""
+  },
+  "web/src/__tests__/rsvpsDefensive.test.jsx": {
+    "mtime": 1793900714.5009432,
+    "ast_hash": "adb61474e345939d9e5b9a2d6ece9670",
+    "semantic_hash": ""
+  },
+  "web/src/components/common/AirbnbDateRangePicker.tsx": {
+    "mtime": 1793902564.103093,
+    "ast_hash": "10a1e90c67f25d4f7c801570b2ccf901",
+    "semantic_hash": ""
+  },
+  "web/src/components/common/index.js": {
+    "mtime": 1793902538.0285966,
+    "ast_hash": "730ce614ee8f7b246f7865f459769170",
     "semantic_hash": ""
   }
 }
