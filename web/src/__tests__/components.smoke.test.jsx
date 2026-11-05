@@ -279,11 +279,12 @@ describe('UI Component Smoke Tests', () => {
         trip={mockTrip}
       />
     )
-    const inputs = createContainer.querySelectorAll('input[type="datetime-local"]')
-    expect(inputs.length).toBe(2)
     // Activities default to Day 1: 09:00 to 12:00
-    expect(inputs[0].value).toBe('2026-09-01T09:00')
-    expect(inputs[1].value).toBe('2026-09-01T12:00')
+    expect(createContainer.textContent).toContain('Sep 1, 2026')
+    const timeInputs = createContainer.querySelectorAll('input[type="time"]')
+    expect(timeInputs.length).toBe(2)
+    expect(timeInputs[0].value).toBe('09:00')
+    expect(timeInputs[1].value).toBe('12:00')
 
     // 2. Edit mode: preserves saved option dates
     const editingOpt = {
@@ -302,9 +303,10 @@ describe('UI Component Smoke Tests', () => {
         trip={mockTrip}
       />
     )
-    const editInputs = editContainer.querySelectorAll('input[type="datetime-local"]')
-    expect(editInputs[0].value).toBe('2026-09-05T17:30')
-    expect(editInputs[1].value).toBe('2026-09-05T20:00')
+    expect(editContainer.textContent).toContain('Sep 5, 2026')
+    const editTimeInputs = editContainer.querySelectorAll('input[type="time"]')
+    expect(editTimeInputs[0].value).toBe('17:30')
+    expect(editTimeInputs[1].value).toBe('20:00')
   })
 
   it('renders TripDateTimeSelector with quick-select day chips and time presets', () => {

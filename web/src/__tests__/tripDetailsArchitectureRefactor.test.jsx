@@ -234,8 +234,8 @@ describe('TripDetails Architecture Refactoring & Critical Flows Verification', (
     })
   })
 
-  describe('Issue 4: Pre-filled trip dates and quick-select day chips', () => {
-    it('pre-fills dates in OptionPitchModal bounded to trip dates and shows quick day chips', () => {
+  describe('Issue 4: Pre-filled trip dates and Airbnb range picker', () => {
+    it('pre-fills dates in OptionPitchModal bounded to trip dates and renders Airbnb range picker', () => {
       const { container } = render(
         <OptionPitchModal
           isOpen={true}
@@ -248,14 +248,17 @@ describe('TripDetails Architecture Refactoring & Critical Flows Verification', (
         />
       )
 
-      // Accommodation defaults to check-in 15:00 and checkout 11:00 on trip dates
-      const dateInputs = container.querySelectorAll('input[type="datetime-local"]')
-      expect(dateInputs.length).toBe(2)
-      expect(dateInputs[0].value).toContain('2026-12-24')
-      expect(dateInputs[1].value).toContain('2026-12-30')
+      // Accommodation defaults to trip start and end dates
+      expect(container.textContent).toContain('Dec 24, 2026')
+      expect(container.textContent).toContain('Dec 30, 2026')
+      const timeInputs = container.querySelectorAll('input[type="time"]')
+      expect(timeInputs.length).toBe(2)
+      expect(timeInputs[0].value).toBe('15:00')
+      expect(timeInputs[1].value).toBe('11:00')
 
-      // Quick day chips are available for rapid selection
-      expect(container.textContent).toContain('Quick-Select Day')
+      // Legacy clutter is removed
+      expect(container.textContent).not.toContain('Quick-Select Day')
+      expect(container.textContent).not.toContain('Common Time Slots')
     })
   })
 

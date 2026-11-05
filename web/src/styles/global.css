@@ -3184,3 +3184,310 @@ input:checked + .toggle-slider:before {
   width: 100%;
 }
 
+/* ==========================================================================
+   Airbnb Date Range Picker Component (AirbnbDateRangePicker)
+   ========================================================================== */
+.airbnb-date-range-picker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  position: relative;
+}
+
+.airbnb-picker-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.airbnb-picker-control-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.airbnb-trigger-bar {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.95rem;
+  background: var(--input-bg, rgba(13, 17, 28, 0.7));
+  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius-sm, 8px);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast, all 0.15s ease);
+  text-align: left;
+}
+
+.airbnb-trigger-bar:hover:not(:disabled) {
+  border-color: var(--primary-light, #60a5fa);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.airbnb-trigger-bar.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(56, 122, 255, 0.2);
+}
+
+.airbnb-trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+}
+
+.airbnb-trigger-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.airbnb-trigger-text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.airbnb-trigger-chevron {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}
+
+.airbnb-time-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.airbnb-time-input-box {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  background: var(--input-bg, rgba(13, 17, 28, 0.7));
+  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius-sm, 8px);
+}
+
+.airbnb-time-prefix {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.airbnb-time-field {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.airbnb-time-separator {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Calendar Panel Dropdown */
+.airbnb-calendar-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.1rem;
+  background: var(--bg-surface-elevated, #161c2d);
+  border: 1px solid var(--border-light);
+  border-radius: var(--border-radius-md, 12px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  z-index: 100;
+  margin-top: 0.25rem;
+}
+
+.airbnb-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.airbnb-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.airbnb-nav-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-fast, all 0.15s ease);
+}
+
+.airbnb-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--primary-light, #60a5fa);
+}
+
+.airbnb-month-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  min-width: 140px;
+}
+
+.airbnb-presets-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.airbnb-preset-pill {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast, all 0.15s ease);
+}
+
+.airbnb-preset-pill:hover {
+  background: rgba(56, 122, 255, 0.15);
+  border-color: var(--primary-light, #60a5fa);
+  color: var(--primary-light, #60a5fa);
+}
+
+.airbnb-weekdays-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.4rem;
+}
+
+.airbnb-weekday-cell {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.airbnb-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.airbnb-day-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast, all 0.15s ease);
+  user-select: none;
+}
+
+.airbnb-day-cell.empty {
+  cursor: default;
+  background: transparent;
+}
+
+.airbnb-day-cell:not(.empty):hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.airbnb-day-cell.is-range-start,
+.airbnb-day-cell.is-range-end,
+.airbnb-day-cell.is-single-day {
+  background: var(--primary, #3b82f6) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.airbnb-day-cell.is-range-start {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.airbnb-day-cell.is-range-end {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.airbnb-day-cell.is-in-range {
+  background: rgba(59, 130, 246, 0.18) !important;
+  border-radius: 0;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+/* Subtle dot indicator for official Trip Window */
+.airbnb-trip-window-indicator {
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.airbnb-day-cell.is-range-start .airbnb-trip-window-indicator,
+.airbnb-day-cell.is-range-end .airbnb-trip-window-indicator,
+.airbnb-day-cell.is-single-day .airbnb-trip-window-indicator {
+  background: #ffffff;
+}
+
+.airbnb-calendar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-light);
+  padding-top: 0.65rem;
+  font-size: 0.8rem;
+}
+
+.airbnb-calendar-hint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.airbnb-done-btn {
+  padding: 4px 14px;
+  font-size: 0.8rem;
+}
+

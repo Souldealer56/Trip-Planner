@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { getPresentTravelers } from '../services/rsvps'
-import { TripDateTimeSelector } from './trip/TripDateTimeSelector'
+import { AirbnbDateRangePicker } from './common/AirbnbDateRangePicker'
 import { buildDefaultOptionDates } from '../utils/format'
 
 const EMPTY_ROSTER = []
@@ -125,9 +125,26 @@ export function OptionPitchModal({
         setPitchCategory(cat)
 
         // Intelligent pre-fill bounded to trip dates when creating new option
+        // Ensure startDate defaults to trip.start_date and endDate defaults to trip.end_date
+        // (never blank or stuck on single Day 1 unless category is Food or Activities, or overridden)
         const defaultDates = buildDefaultOptionDates(trip?.start_date, trip?.end_date, cat)
-        const start = initialStartDate || defaultDates.start || ''
-        const end = initialEndDate || defaultDates.end || ''
+        let start = initialStartDate || defaultDates.start || ''
+        let end = initialEndDate || defaultDates.end || ''
+
+        const isSingleDayCategory = ['food', 'meal', 'meals', 'activities', 'activity'].includes(cat.toLowerCase())
+        if (!start && trip?.start_date) {
+          start = `${trip.start_date}T09:00`
+        }
+        if (!end) {
+          if (isSingleDayCategory && start) {
+            const timeStr = (cat.toLowerCase().includes('food') || cat.toLowerCase().includes('meal')) ? '21:30' : '12:00'
+            end = `${start.slice(0, 10)}T${timeStr}`
+          } else if (trip?.end_date) {
+            end = `${trip.end_date}T18:00`
+          } else if (start) {
+            end = start
+          }
+        }
 
         setPitchStartDate(start)
         setPitchEndDate(end)
@@ -178,6 +195,14 @@ export function OptionPitchModal({
       ...prev,
       transport_mode: mode
     }))
+
+    if (!editingOption && trip?.start_date) {
+      const defaultDates = buildDefaultOptionDates(trip.start_date, trip.end_date, normalized)
+      if (defaultDates.start && defaultDates.end) {
+        setPitchStartDate(defaultDates.start)
+        setPitchEndDate(defaultDates.end)
+      }
+    }
   }
 
   const handleTransportModeChange = (mode) => {
@@ -776,16 +801,18 @@ export function OptionPitchModal({
               )}
             </div>
 
-            {/* Dates & Times with Quick-Select Day Chips and Time Presets */}
-            <TripDateTimeSelector
-              trip={trip}
+            {/* Airbnb-style Interactive Range Calendar */}
+            <AirbnbDateRangePicker
+              tripStartDate={trip?.start_date}
+              tripEndDate={trip?.end_date}
               startDate={pitchStartDate}
               endDate={pitchEndDate}
-              onChange={({ startDate: s, endDate: e }) => {
-                setPitchStartDate(s)
-                setPitchEndDate(e)
+              onChange={({ startDate: s, endDate: e, startTime: st, endTime: et }) => {
+                const finalStart = s ? (st ? `${s}T${st}` : s) : ''
+                const finalEnd = e ? (et ? `${e}T${et}` : e) : ''
+                setPitchStartDate(finalStart)
+                setPitchEndDate(finalEnd)
               }}
-              category={pitchCategory}
             />
 
             {/* URL Link */}
